@@ -40,6 +40,29 @@ class CompiledAddTests(unittest.TestCase):
                         predicted |= int(value > 0) << bit
                     self.assertEqual(predicted, out_token(expected[lane]))
 
+    def test_comparison_produces_lane_mask(self) -> None:
+        from chipformer.q35.ir import evaluate
+
+        from qwengpu.compiled_add import (KAPPA, build, compare_token, load_a,
+                                          mask_token)
+
+        circuit = build()
+        for a, threshold in ((tuple(range(8)), 4),
+                             ((255, 0, 128, 127, 0, 1, 200, 199), 128)):
+            with self.subTest(a=a, threshold=threshold):
+                tokens = [load_a(lane, value) for lane, value in enumerate(a)]
+                position = len(tokens)
+                tokens.append(compare_token(threshold))
+                expected_mask = sum(1 << lane for lane, value in enumerate(a)
+                                    if value < threshold)
+                residual = evaluate(circuit, tokens, check=True)
+                predicted = 0
+                for bit, expr in enumerate(circuit.code):
+                    value = residual[position, next(iter(expr.terms))]
+                    self.assertEqual(abs(value), KAPPA)
+                    predicted |= int(value > 0) << bit
+                self.assertEqual(predicted, mask_token(expected_mask))
+
 
 if __name__ == "__main__":
     unittest.main()
