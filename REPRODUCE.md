@@ -287,3 +287,41 @@ Pass `--kernel path/to/workgroup.json` for one manifest and `--max-steps`
 to change the aggregate instruction guard. A manifest can declare an
 `expected_outcome` of `deadlock` or `step_limit` for negative cases. The
 default expected outcome is `halted`.
+
+## Model-scheduled tile workgroups
+
+The tile variant runs two eight-lane warps. Each lane has a 16-bit
+accumulator. A scheduler call reads both warp control tokens and the
+previous ticket. The model selects the next ready warp, releases a barrier
+when both warps are waiting, and distinguishes HALT from deadlock. The
+host routes the emitted tickets and copies the model's state packets.
+
+The 64-byte shared layout places row-major A at bytes 0–15, row-major B at
+16–31, and the 16 little-endian C words at 32–63. Each warp owns two output
+rows. The default program accumulates four dot-product terms in two
+K phases of two terms each, then publishes its output rows. Arithmetic
+wraps modulo 65,536.
+
+| Tile instruction | Effect |
+| --- | --- |
+| `MAC_K k` | Multiply the selected unsigned byte operands from A and B and add the product to the lane's 16-bit accumulator. |
+| `ADD16I imm` | Add an unsigned byte immediate to each 16-bit accumulator. |
+| `STORE_TILE` | Publish the warp's eight accumulators to its C rows. |
+| `BARRIER` | Emit a waiting control token and advance the PC. |
+| `HALT` | Emit a halted control token. |
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile \
+  --device mps --out "$QWENGPU_DIR/results/tile_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --tile --out /path/to/Qwen3.5-9B-qwengpu-tile
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile \
+  /path/to/Qwen3.5-9B-qwengpu-tile --device cuda \
+  --out "$QWENGPU_DIR/results/tile_9b_cuda_fla.json"
+```
+
+A custom manifest passed through `--kernel` can supply `a` and `b` as
+row-major arrays of 16 unsigned bytes each. It can optionally supply 16
+initial accumulator words or two explicit programs with up to 16
+instructions each. The report includes the resulting matrix, the model's
+scheduling decisions, and complete register and memory snapshots.

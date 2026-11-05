@@ -1,0 +1,4 @@
+{
+  "programs": [[{"op":"BARRIER"},{"op":"HALT"}],[{"op":"HALT"}]],
+  "expected_outcome": "deadlock"
+}

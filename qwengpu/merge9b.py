@@ -92,7 +92,7 @@ def _load_widened_text(src: Path, hidden: int, n_chip: int) -> tuple[dict, torch
 
 
 def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
-                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False) -> dict:
+                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False, tile: bool = False) -> dict:
     """Write a text-only stock Qwen3.5 checkpoint with the SIMT circuit first."""
     from safetensors.torch import save_file
 
@@ -104,9 +104,12 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     d0, v0, inter = tc0["hidden_size"], tc0["vocab_size"], tc0["intermediate_size"]
     from chipformer.q35.ir import Target
 
-    if sum((rom, writeback, control, resume, isa, workgroup)) > 1:
+    if sum((rom, writeback, control, resume, isa, workgroup, tile)) > 1:
         raise ValueError("choose one circuit variant")
-    if control or resume or isa or workgroup:
+    if tile:
+        from qwengpu.compiled_tile import VOCAB as chip_vocab
+        from qwengpu.compiled_tile import build
+    elif control or resume or isa or workgroup:
         from qwengpu.compiled_control import VOCAB as chip_vocab
         from qwengpu.compiled_control import build
     elif writeback:
@@ -210,7 +213,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         "pad_token_id": tc0.get("eos_token_id", 248044), "eos_token_id": tc0.get("eos_token_id", 248044)},
         indent=2), encoding="utf-8")
     _copy_tokenizer(src, dst)
-    meta = {"layout": ("qwengpu-workgroup9b-v1" if workgroup else
+    meta = {"layout": ("qwengpu-tile9b-v1" if tile else
+                       "qwengpu-workgroup9b-v1" if workgroup else
                        "qwengpu-isa9b-v1" if isa else
                        "qwengpu-resume9b-v1" if resume else
                        "qwengpu-control9b-v1" if control else
@@ -233,6 +237,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-anti-sink", action="store_true")
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--tile", action="store_true",
+                          help="merge the model-scheduled tile engine")
     variants.add_argument("--workgroup", action="store_true",
                           help="merge the cooperative workgroup ISA")
     variants.add_argument("--isa", action="store_true",
@@ -249,7 +255,7 @@ def main() -> None:
     print(json.dumps(build_merged(args.src, args.out,
                                   fit_sinks=not args.no_anti_sink,
                                   rom=args.rom, writeback=args.writeback, control=args.control,
-                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup)), flush=True)
+                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup, tile=args.tile)), flush=True)
 
 
 if __name__ == "__main__":
