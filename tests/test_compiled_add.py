@@ -134,6 +134,43 @@ class CompiledAddTests(unittest.TestCase):
                 predicted |= int(value > 0) << bit
             self.assertEqual(predicted, expected)
 
+    def test_lane_banked_scratch_memory(self) -> None:
+        from chipformer.q35.ir import evaluate
+
+        from qwengpu.compiled_add import (EXEC_ADD, KAPPA, build, load_a, load_b,
+                                          load_token, mask_token, out_token,
+                                          read_lane, store_token)
+
+        circuit = build()
+        initial = tuple(range(5, 13))
+        tokens = [token for lane in range(8)
+                  for token in (load_a(lane, initial[lane]), load_b(lane, 1))]
+        tokens.extend((mask_token(255), store_token(2), EXEC_ADD))
+        positions = []
+
+        def read(expected: tuple[int, ...]) -> None:
+            for lane, value in enumerate(expected):
+                positions.append((len(tokens), out_token(lane, value)))
+                tokens.extend((read_lane(lane), out_token(lane, value)))
+
+        incremented = tuple(value + 1 for value in initial)
+        read(incremented)
+        tokens.extend((mask_token(0b01010101), load_token(2)))
+        restored = tuple(initial[lane] if lane % 2 == 0 else incremented[lane]
+                         for lane in range(8))
+        read(restored)
+        tokens.extend((mask_token(255), EXEC_ADD))
+        read(tuple(value + 1 for value in restored))
+
+        residual = evaluate(circuit, tokens, check=True)
+        for position, expected in positions:
+            predicted = 0
+            for bit, expr in enumerate(circuit.code):
+                value = residual[position, next(iter(expr.terms))]
+                self.assertEqual(abs(value), KAPPA)
+                predicted |= int(value > 0) << bit
+            self.assertEqual(predicted, expected)
+
 
 if __name__ == "__main__":
     unittest.main()

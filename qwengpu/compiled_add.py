@@ -29,7 +29,10 @@ OUT_END = OUT_BASE + LANES * 256
 COMPARE_BASE = OUT_END
 ELSE_TOKEN = COMPARE_BASE + 256
 ENDIF_TOKEN = ELSE_TOKEN + 1
-VOCAB = ENDIF_TOKEN + 1
+STORE_BASE = ENDIF_TOKEN + 1
+SCRATCH_SLOTS = 4
+LOAD_BASE = STORE_BASE + SCRATCH_SLOTS
+VOCAB = LOAD_BASE + SCRATCH_SLOTS
 CODE_BITS = (VOCAB - 1).bit_length()
 CODE_AMP = 128
 KAPPA = 2.0**-20
@@ -71,6 +74,18 @@ def compare_token(threshold: int) -> int:
     return COMPARE_BASE + threshold
 
 
+def store_token(slot: int) -> int:
+    if not 0 <= slot < SCRATCH_SLOTS:
+        raise ValueError("invalid scratch slot")
+    return STORE_BASE + slot
+
+
+def load_token(slot: int) -> int:
+    if not 0 <= slot < SCRATCH_SLOTS:
+        raise ValueError("invalid scratch slot")
+    return LOAD_BASE + slot
+
+
 def _add8(c: Circ, left: list[Expr], right: list[Expr], name: str) -> list[Expr]:
     carry = Expr()
     result = []
@@ -104,6 +119,16 @@ class AddCore(Circ):
                             lambda t: int(COMPARE_BASE <= t < ELSE_TOKEN), full=True)
         self.is_else = f("is_else", lambda t: int(t == ELSE_TOKEN), full=True)
         self.is_endif = f("is_endif", lambda t: int(t == ENDIF_TOKEN), full=True)
+        self.is_store = f("is_store", lambda t: int(STORE_BASE <= t < LOAD_BASE),
+                          full=True)
+        self.is_load = f("is_load", lambda t: int(LOAD_BASE <= t < VOCAB),
+                         full=True)
+        self.is_store_slot = [f(f"is_store.{slot}",
+                                lambda t, slot=slot: int(t == STORE_BASE + slot), full=True)
+                              for slot in range(SCRATCH_SLOTS)]
+        self.is_load_slot = [f(f"is_load.{slot}",
+                               lambda t, slot=slot: int(t == LOAD_BASE + slot), full=True)
+                             for slot in range(SCRATCH_SLOTS)]
         self.is_read = f("is_read", lambda t: int(READ_BASE <= t < READ_BASE + LANES),
                          full=True)
         self.is_a = [f(f"is_a.{lane}",
@@ -144,14 +169,15 @@ def build(target: Target | None = None) -> AddCore:
     for lane in range(LANES):
         a_write = c.is_a[lane] + c.is_out_lane[lane]
         a_lanes.append(c.slot_head(f"a.{lane}", {0: a_write},
-                                   {0: c.is_exec + c.is_compare},
+                                   {0: c.is_exec + c.is_compare + c.is_store + c.is_load},
                                    {2 + bit: val for bit, val in enumerate(c.raw_byte)},
                                    a_write))
         b_lanes.append(c.slot_head(f"b.{lane}", {0: c.is_b[lane]}, {0: c.is_exec},
                                    {2 + bit: val for bit, val in enumerate(c.raw_byte)},
                                    c.is_b[lane]))
     mask = c.slot_head("active_mask", {0: c.is_mask},
-                       {0: c.is_exec + c.is_compare + c.is_else},
+                       {0: c.is_exec + c.is_compare + c.is_else
+                           + c.is_store + c.is_load},
                        {2 + bit: val for bit, val in enumerate(c.raw_mask)}, c.is_mask)
     parent = c.slot_head("parent_mask", {0: c.is_compare},
                           {0: c.is_else + c.is_endif},
@@ -162,15 +188,34 @@ def build(target: Target | None = None) -> AddCore:
     else_mask = [c.and_([parent[lane], one - mask[lane]], f"else.{lane}")
                  for lane in range(LANES)]
 
+    scratch_lanes = []
+    for lane in range(LANES):
+        active_store = c.and_([c.is_store, mask[lane]], f"scratch.active.{lane}")
+        keys = {slot: c.and_([c.is_store_slot[slot], mask[lane]],
+                             f"scratch.key.{lane}.{slot}")
+                for slot in range(SCRATCH_SLOTS)}
+        queries = {slot: c.is_load_slot[slot] for slot in range(SCRATCH_SLOTS)}
+        scratch_lanes.append(c.slot_head(
+            f"scratch.{lane}", keys, queries,
+            {2 + bit: value for bit, value in enumerate(a_lanes[lane])},
+            active_store))
+
     result = []
     for lane in range(LANES):
         summed = _add8(c, a_lanes[lane], b_lanes[lane], f"sum.{lane}")
-        result.extend(c.select_bits([([mask[lane]], summed),
-                                     ([one - mask[lane]], a_lanes[lane])],
-                                    8, f"selected.{lane}"))
+        added = c.select_bits([([mask[lane]], summed),
+                               ([one - mask[lane]], a_lanes[lane])],
+                              8, f"added.{lane}")
+        loaded = c.select_bits([([mask[lane]], scratch_lanes[lane]),
+                                ([one - mask[lane]], a_lanes[lane])],
+                               8, f"loaded.{lane}")
+        result.extend(c.and_([c.is_exec, added[bit]], f"result.add.{lane}.{bit}")
+                      + c.and_([c.is_load, loaded[bit]], f"result.load.{lane}.{bit}")
+                      for bit in range(8))
 
-    saved = c.slot_head("result", {0: c.is_exec}, {0: c.is_read},
-                        {2 + bit: value for bit, value in enumerate(result)}, c.is_exec)
+    save_result = c.is_exec + c.is_load
+    saved = c.slot_head("result", {0: save_result}, {0: c.is_read},
+                        {2 + bit: value for bit, value in enumerate(result)}, save_result)
     selected = [sum((c.and_([c.is_read_lane[lane], saved[8 * lane + bit]],
                              f"output.{lane}.{bit}") for lane in range(LANES)), Expr())
                 for bit in range(8)]
