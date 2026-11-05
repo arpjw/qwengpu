@@ -3,15 +3,15 @@
   "torch": "2.14.1+cu130",
   "transformers": "5.19.0",
   "circuit": {
-    "layers": 11,
-    "dims": 724,
-    "heads": 19,
-    "ffn_units": 603,
-    "max_units": 162,
+    "layers": 12,
+    "dims": 1030,
+    "heads": 27,
+    "ffn_units": 899,
+    "max_units": 184,
     "max_heads": 16
   },
-  "hidden": 768,
-  "layers": 12,
+  "hidden": 1280,
+  "layers": 13,
   "cases": [
     {
       "a": [
@@ -97,7 +97,7 @@
         27,
         28
       ],
-      "seconds": 0.894
+      "seconds": 0.88
     },
     {
       "a": [
@@ -183,7 +183,7 @@
         201,
         200
       ],
-      "seconds": 0.413
+      "seconds": 0.445
     },
     {
       "a": [
@@ -269,7 +269,7 @@
         118,
         118
       ],
-      "seconds": 0.417
+      "seconds": 0.45
     },
     {
       "a": [
@@ -355,7 +355,7 @@
         114,
         114
       ],
-      "seconds": 0.416
+      "seconds": 0.445
     }
   ],
   "all_exact": true

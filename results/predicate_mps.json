@@ -4,9 +4,9 @@
   "transformers": "5.19.0",
   "circuit": {
     "layers": 11,
-    "dims": 724,
-    "heads": 19,
-    "ffn_units": 603,
+    "dims": 706,
+    "heads": 18,
+    "ffn_units": 569,
     "max_units": 162,
     "max_heads": 16
   },
@@ -59,7 +59,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.349
+      "seconds": 0.39
     },
     {
       "a": [
@@ -107,7 +107,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.269
+      "seconds": 0.271
     },
     {
       "a": [
@@ -155,7 +155,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.304
+      "seconds": 0.264
     },
     {
       "a": [
@@ -203,7 +203,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.271
+      "seconds": 0.275
     },
     {
       "a": [
@@ -251,7 +251,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.264
+      "seconds": 0.268
     },
     {
       "a": [
@@ -299,7 +299,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.265
+      "seconds": 0.273
     },
     {
       "a": [
@@ -347,7 +347,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.265
+      "seconds": 0.275
     },
     {
       "a": [
@@ -395,7 +395,7 @@
       ],
       "mask_exact": true,
       "exact": true,
-      "seconds": 0.263
+      "seconds": 0.274
     }
   ],
   "all_exact": true

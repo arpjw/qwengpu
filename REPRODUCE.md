@@ -21,6 +21,8 @@ export PYTHONPATH="$QWENPUTER_DIR:$QWENGPU_DIR"
 "$QWENPUTER_DIR/.venv/bin/python" -m unittest discover -s "$QWENGPU_DIR/tests" -v
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_branch \
   --device mps --out "$QWENGPU_DIR/results/branch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_memory \
+  --device mps --out "$QWENGPU_DIR/results/memory_mps.json"
 ```
 
 Use `--device cuda` on a CUDA host. For the optimized DeltaNet path, install
@@ -43,6 +45,9 @@ about 25 GB. Both are temporary local files, not repository contents.
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_branch_9b \
   /path/to/Qwen3.5-9B-qwengpu --device cuda \
   --out "$QWENGPU_DIR/results/branch_9b_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_memory_9b \
+  /path/to/Qwen3.5-9B-qwengpu --device cuda \
+  --out "$QWENGPU_DIR/results/memory_9b_cuda_fla.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.textcheck_9b \
   /path/to/Qwen3.5-9B /path/to/Qwen3.5-9B-qwengpu --device cuda \
   --out "$QWENGPU_DIR/results/textcheck_9b_cuda.json"

@@ -1,11 +1,11 @@
 """Eight-lane masked addition compiled into Qwen3.5 circuit IR.
 
-Inputs and outputs move through raw trace tokens. Sixteen Gated DeltaNet heads
-hold eight A bytes and eight B bytes; another stores the active mask. One
-EXEC_ADD token reads all lanes and computes their sums in parallel fixed
-gates. A result head stores the entire resulting warp. READ(lane) emits an
-OUT(byte) token for that lane. The host supplies inputs and read requests but
-never computes an output byte.
+Inputs and outputs move through raw trace tokens. Gated DeltaNet heads hold
+eight lane registers, eight B operands, masks, results, and four scratch slots
+per lane. One EXEC_ADD token computes all masked lane sums in parallel fixed
+gates. STORE and LOAD access the lane-banked scratch state. READ(lane) emits an
+OUT(byte) token, which can write back to its lane register. The host supplies
+instructions and read requests but never computes an output byte.
 
 This is an arithmetic circuit milestone, not yet a programmable GPU kernel.
 """

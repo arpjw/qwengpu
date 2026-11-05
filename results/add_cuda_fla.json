@@ -3,15 +3,15 @@
   "torch": "2.14.1+cu130",
   "transformers": "5.19.0",
   "circuit": {
-    "layers": 11,
-    "dims": 724,
-    "heads": 19,
-    "ffn_units": 603,
-    "max_units": 162,
+    "layers": 12,
+    "dims": 1030,
+    "heads": 27,
+    "ffn_units": 899,
+    "max_units": 184,
     "max_heads": 16
   },
-  "hidden": 768,
-  "layers": 12,
+  "hidden": 1280,
+  "layers": 13,
   "cases": [
     {
       "a": [
@@ -56,7 +56,7 @@
         6417
       ],
       "exact": true,
-      "seconds": 0.544
+      "seconds": 0.54
     },
     {
       "a": [
@@ -101,7 +101,7 @@
         6406
       ],
       "exact": true,
-      "seconds": 0.096
+      "seconds": 0.107
     },
     {
       "a": [
@@ -146,7 +146,7 @@
         6500
       ],
       "exact": true,
-      "seconds": 0.096
+      "seconds": 0.106
     },
     {
       "a": [
@@ -191,7 +191,7 @@
         6577
       ],
       "exact": true,
-      "seconds": 0.095
+      "seconds": 0.106
     },
     {
       "a": [
@@ -236,7 +236,7 @@
         6626
       ],
       "exact": true,
-      "seconds": 0.095
+      "seconds": 0.107
     },
     {
       "a": [
@@ -281,7 +281,7 @@
         6458
       ],
       "exact": true,
-      "seconds": 0.096
+      "seconds": 0.106
     },
     {
       "a": [
@@ -326,7 +326,7 @@
         6543
       ],
       "exact": true,
-      "seconds": 0.096
+      "seconds": 0.107
     },
     {
       "a": [
@@ -371,7 +371,7 @@
         6567
       ],
       "exact": true,
-      "seconds": 0.096
+      "seconds": 0.105
     }
   ],
   "all_exact": true

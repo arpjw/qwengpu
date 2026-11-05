@@ -79,6 +79,27 @@
         6156,
         6414
       ],
+      "expected_scratch": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "observed_scratch": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "scratch_exact": true,
       "exact": true,
       "final_lanes": [
         6,
@@ -90,7 +111,7 @@
         12,
         14
       ],
-      "seconds": 1.423
+      "seconds": 1.125
     },
     {
       "a": [
@@ -158,6 +179,27 @@
         6145,
         6600
       ],
+      "expected_scratch": [
+        null,
+        0,
+        null,
+        127,
+        null,
+        1,
+        null,
+        199
+      ],
+      "observed_scratch": [
+        null,
+        0,
+        null,
+        127,
+        null,
+        1,
+        null,
+        199
+      ],
+      "scratch_exact": true,
       "exact": true,
       "final_lanes": [
         1,
@@ -169,7 +211,7 @@
         1,
         200
       ],
-      "seconds": 0.967
+      "seconds": 1.008
     },
     {
       "a": [
@@ -237,6 +279,27 @@
         6145,
         6401
       ],
+      "expected_scratch": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "observed_scratch": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "scratch_exact": true,
       "exact": true,
       "final_lanes": [
         1,
@@ -248,7 +311,7 @@
         1,
         1
       ],
-      "seconds": 0.967
+      "seconds": 1.003
     },
     {
       "a": [
@@ -316,6 +379,27 @@
         6396,
         6652
       ],
+      "expected_scratch": [
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ],
+      "observed_scratch": [
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ],
+      "scratch_exact": true,
       "exact": true,
       "final_lanes": [
         252,
@@ -327,7 +411,7 @@
         252,
         252
       ],
-      "seconds": 0.986
+      "seconds": 1.011
     }
   ],
   "all_exact": true

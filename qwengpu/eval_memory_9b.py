@@ -10,6 +10,9 @@ from pathlib import Path
 import torch
 import transformers
 
+from chipformer.q35.ir import Target
+
+from qwengpu.compiled_add import build
 from qwengpu.eval_memory import evaluate_case
 
 
@@ -23,6 +26,10 @@ def main() -> None:
     offset = int(meta["chip_token_offset"])
     model = transformers.AutoModelForCausalLM.from_pretrained(
         args.model, dtype=torch.bfloat16).to(args.device).eval()
+    config = model.config
+    circuit = build(Target(config.linear_num_key_heads,
+                           config.linear_num_value_heads,
+                           config.intermediate_size))
     cases = [
         (tuple(range(5, 13)), 2, 255, 85),
         ((255, 0, 128, 127, 0, 1, 200, 199), 0, 170, 255),
@@ -38,7 +45,7 @@ def main() -> None:
               "cases": []}
     for a, slot, store_mask, load_mask in cases:
         result = evaluate_case(model, a, slot, store_mask, load_mask,
-                               args.device, offset=offset)
+                               args.device, offset=offset, circuit=circuit)
         report["cases"].append(result)
         print(json.dumps({"slot": slot, "store_mask": store_mask,
                           "load_mask": load_mask, "exact": result["exact"],
