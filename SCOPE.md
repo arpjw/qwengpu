@@ -2,17 +2,15 @@
 
 ## Current milestone and next gate
 
-The 8×8 tile engine runs four row pairs with model-owned advancement and
-PC resets. Its 256 shared bytes hold A, B, and C. Model-generated write
-tags cover the full C region, and the host relays them unchanged. The
-seeded multiply and deliberate deadlock match on MPS and merged 9B.
+The resident 8×8 tile engine holds its 256 shared bytes in one inference
+cache per launch. A, B, and initial C are uploaded once. The host relays
+model-tagged writes into the same cache. MPS and merged Qwen3.5-9B agree
+on the dense multiply, store-and-reload, and deliberate deadlock traces.
 
-The next gate is resident tile memory. Upload A, B, and C once per launch
-and carry the same inference cache through scheduling and execution. Feed
-back the model's tagged stores as updates, preserve exact PCs and output,
-and report input token counts against the current fresh-cache protocol.
-After that, bring indexed memory and the general SIMT ISA into a common
-model-scheduled engine. Keep the fixed, validated variants available.
+The next gate adds lane-indexed loads and stores to the resident tile
+engine. It will share the same memory with tiled arithmetic and support
+deterministic arbitration when lanes write the same address. Bringing
+the general SIMT control ISA into this engine follows that gate.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

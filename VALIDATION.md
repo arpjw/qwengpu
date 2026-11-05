@@ -313,3 +313,25 @@ of weights. Reports are `results/tile8_mps.json` and
 `results/tile8_9b_cuda_fla.json`. The A100 was terminated after about
 8 minutes 55 seconds at $1.79/hour, an estimated $0.27. The live pod list
 was empty and billing for this pod had yet to post at teardown.
+
+## Resident 8×8 shared memory
+
+Standalone MPS and merged Qwen3.5-9B on A100 produced identical case
+reports across 166 instructions and 169 scheduler decisions. Each case
+used one inference cache. The evaluator inspected the final A, B, and C
+state directly in recurrent memory. The store-and-reload fixture
+modifies the registers after storing and then reloads the stored values
+from C. All 25 local tests passed.
+
+| Fixture | Instructions | Input tokens | Tagged updates |
+| --- | ---: | ---: | ---: |
+| Deliberate deadlock | 2 | 758 | 0 |
+| Seeded dense multiply | 116 | 14,694 | 256 |
+| Store and reload | 48 | 6,534 | 256 |
+
+All three start with 512 matrix tokens. The dense run's input token count
+fell from 73,434 to 14,694, with identical execution traces and output.
+The host still relays register packets and model-generated write tokens.
+The merge adds 15 layers, uses width 5,120, and contains 31,916,314,752
+bytes of weights. See `results/resident_mps.json` and
+`results/resident_9b_cuda_fla.json`.

@@ -154,6 +154,13 @@ address-tagged writes for every output word. The seeded 8×8 multiply
 and deliberate deadlock match on MPS and merged Qwen3.5-9B. Run them with
 `python3 -m qwengpu.eval_tile8 --device mps --out tile8.json`.
 
+The resident 8×8 variant uploads A, B, and C once and reuses one inference
+cache across the whole launch. The host feeds the model's tagged writes
+back into the same cache. On the dense fixture this reduced input tokens
+from 73,434 to 14,694 while preserving the full trace. The multiply, store-and-reload, and
+deadlock traces match on MPS and merged Qwen3.5-9B. Run the suite with
+`python3 -m qwengpu.eval_tile8 --resident --device mps --out resident.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
