@@ -1,0 +1,21 @@
+{
+  "initial": [0, 1, 8, 19, 20, 39, 71, 255],
+  "program": [
+    {"op": "WHILE_LT", "arg": 72},
+    {"op": "IF_LT", "arg": 40},
+    {"op": "IF_LT", "arg": 20},
+    {"op": "STORE", "arg": 0},
+    {"op": "LOAD", "arg": 0},
+    {"op": "ELSE"},
+    {"op": "STORE", "arg": 8},
+    {"op": "LOAD", "arg": 8},
+    {"op": "ENDIF"},
+    {"op": "ELSE"},
+    {"op": "STORE", "arg": 16},
+    {"op": "LOAD", "arg": 16},
+    {"op": "ENDIF"},
+    {"op": "ADDI", "arg": 1},
+    {"op": "ENDWHILE"},
+    {"op": "HALT"}
+  ]
+}

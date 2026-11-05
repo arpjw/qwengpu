@@ -21,6 +21,11 @@ SNAPSHOT_BITS = 380
 CHUNK_BITS = 120
 OP = dict(zip(OPS, range(len(OPS))))
 
+CHECKPOINT_BYTES = (SNAPSHOT_BITS + 7) // 8
+CHECKPOINT_BASE = ROM_END
+EXPORT_BASE = TICK + 1
+RESUME = EXPORT_BASE + CHECKPOINT_BYTES
+
 
 def state_token(
     pc: int, stage: int, halted: bool = False, exhausted: bool = False
@@ -170,13 +175,27 @@ def _stack(c, depth, frames, push, pop, new_frame, name):
     return top, new_depth, result
 
 
-def build(target: Target | None = None) -> ControlSIMT:
+def build(target: Target | None = None, *, resumable: bool = False) -> ControlSIMT:
     c = ControlSIMT(target)
     one = c.one
     for code in c.code:
         c.ffn([(-1, one, code), (1, one, -code)], "code.clear", into=code)
+    export = []
+    resume = Expr()
+    if resumable:
+        export = [
+            c.token_feature(
+                f"export.{index}",
+                lambda token, index=index: int(token == EXPORT_BASE + index),
+                full=True,
+            )
+            for index in range(CHECKPOINT_BYTES)
+        ]
+        resume = c.token_feature(
+            "resume", lambda token: int(token == RESUME), full=True
+        )
     initial = []
-    for lane in range(8):
+    for lane in range(0 if resumable else 8):
         initial.extend(
             c.slot_head(
                 f"initial.{lane}",
@@ -189,7 +208,7 @@ def build(target: Target | None = None) -> ControlSIMT:
     state = c.slot_head(
         "control",
         {0: c.is_state},
-        {0: c.is_tick},
+        {0: c.is_tick + resume},
         {2 + b: v for b, v in enumerate(c.raw_state)},
         c.is_state,
     )
@@ -227,7 +246,29 @@ def build(target: Target | None = None) -> ControlSIMT:
     }
     slots = c.onehot_of_bits(arg[:2], "scratch.slot", 4)
     stores = [c.and_([flags["STORE"], slots[s]], f"store.{s}") for s in range(4)]
-    previous = initial + [Expr()] * 256 + [one] * 8 + [Expr()] * (SNAPSHOT_BITS - 328)
+    if resumable:
+        previous = []
+        for index in range(CHECKPOINT_BYTES):
+            start = CHECKPOINT_BASE + index * 256
+            write = c.token_feature(
+                f"restore.{index}",
+                lambda token, start=start: int(start <= token < start + 256),
+                full=True,
+            )
+            width = min(8, SNAPSHOT_BITS - index * 8)
+            previous.extend(
+                c.slot_head(
+                    f"restore.{index}",
+                    {0: write},
+                    {0: c.is_tick},
+                    {2 + bit: c.raw_byte[bit] for bit in range(width)},
+                    write,
+                )
+            )
+    else:
+        previous = (
+            initial + [Expr()] * 256 + [one] * 8 + [Expr()] * (SNAPSHOT_BITS - 328)
+        )
     exits = []
     for s in range(MAX_STEPS):
         prefix = f"s{s}"
@@ -346,7 +387,10 @@ def build(target: Target | None = None) -> ControlSIMT:
                 c.slot_head(
                     f"stage.{s}.{chunk}",
                     {0: active},
-                    {0: c.is_tick},
+                    {
+                        0: c.is_tick
+                        + (sum(export, Expr()) if s == MAX_STEPS - 1 else Expr())
+                    },
                     {
                         2 + b: v
                         for b, v in enumerate(values[start : start + CHUNK_BITS])
@@ -379,8 +423,19 @@ def build(target: Target | None = None) -> ControlSIMT:
     floor = max(node.level for node in c.nodes)
     for b, code in enumerate(c.code):
         value = result[b] if b < 10 else one if STATE_BASE >> b & 1 else Expr()
+        terms = c.t_const(-KAPPA) + c.t_and([c.is_tick, value], 2 * KAPPA)
+        if resumable:
+            resume_bit = pc[b] if b < 4 else (STATE_BASE >> b) & 1
+            terms += c.t_and([resume, resume_bit], 2 * KAPPA)
+            for index, request in enumerate(export):
+                if b < 8:
+                    position = index * 8 + b
+                    if position < SNAPSHOT_BITS:
+                        terms += c.t_and([request, previous[position]], 2 * KAPPA)
+                elif (CHECKPOINT_BASE + index * 256) >> b & 1:
+                    terms += c.t_and([request], 2 * KAPPA)
         c.ffn(
-            c.t_const(-KAPPA) + c.t_and([c.is_tick, value], 2 * KAPPA),
+            terms,
             f"exit.code.{b}",
             into=code,
             min_level=floor,
@@ -388,11 +443,11 @@ def build(target: Target | None = None) -> ControlSIMT:
     return c
 
 
-def build_standalone(*, dtype=None):
+def build_standalone(*, dtype=None, resumable: bool = False):
     import torch
     from chipformer.q35.tiny import build as build_qwen
 
-    c = build()
+    c = build(resumable=resumable)
     model = build_qwen(
         c,
         list(range(VOCAB)),

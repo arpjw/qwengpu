@@ -28,18 +28,18 @@ def head_row(cache, circuit, name: str, slot: int, bits: int) -> int | None:
     index = sum(isinstance(previous, Head) and previous.level == node.level
                 for previous in circuit.nodes[:circuit.nodes.index(node)])
     ratio = circuit.target.value_heads // circuit.target.key_heads
-    row = cache.layers[layer].recurrent_states[0][0, index * ratio, slot].float()
-    if tuple(row[:2].tolist()) == (0.0, 0.0):
-        if any(float(value) != 0.0 for value in row[2:2 + bits]):
+    row = cache.layers[layer].recurrent_states[0][0, index * ratio, slot, :2 + bits].float().tolist()
+    if tuple(row[:2]) == (0.0, 0.0):
+        if any(value != 0.0 for value in row[2:]):
             raise ValueError(f"unwritten {name}[{slot}] contains data")
         return None
-    if tuple(row[:2].tolist()) != (A_REF, A_REF):
+    if tuple(row[:2]) != (A_REF, A_REF):
         raise ValueError(f"{name}[{slot}] has wrong recurrent ballast")
     value = 0
-    for bit, column in enumerate(row[2:2 + bits]):
-        if float(column) not in (0.0, A_BIT):
+    for bit, column in enumerate(row[2:]):
+        if column not in (0.0, A_BIT):
             raise ValueError(f"{name}[{slot}] has an invalid bit {bit}")
-        value |= int(float(column) == A_BIT) << bit
+        value |= int(column == A_BIT) << bit
     return value
 
 
