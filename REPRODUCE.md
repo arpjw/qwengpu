@@ -58,6 +58,9 @@ about 25 GB. Both are temporary local files, not repository contents.
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_program \
   /path/to/Qwen3.5-9B-qwengpu --device cuda \
   --out "$QWENGPU_DIR/results/program_9b_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_program \
+  /path/to/Qwen3.5-9B-qwengpu --device cuda --extra-cases 96 \
+  --out "$QWENGPU_DIR/results/program_9b_stress_cuda_fla.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.textcheck_9b \
   /path/to/Qwen3.5-9B /path/to/Qwen3.5-9B-qwengpu --device cuda \
   --out "$QWENGPU_DIR/results/textcheck_9b_cuda.json"

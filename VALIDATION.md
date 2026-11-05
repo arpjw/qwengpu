@@ -27,6 +27,7 @@ bytes per lane. Instruction fetch remains open.
 | `results/memory_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/alu_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
+| `results/program_9b_stress_cuda_fla.json` | Pretrained Qwen3.5-9B merge, exploratory seeded mixed programs | 100 | 100 exact |
 
 The 9B branch suite compares every generated mask and lane-result token against
 the expected execution. The memory suites compare generated lane tokens and
@@ -41,6 +42,12 @@ checkpoint was built from Qwen/Qwen3.5-9B revision
 `c202236235762e1c871ad0ccb60c8ee5ba337b9a` with Qwenputer compiler source
 at `ca13310e2f9f788d1dd3feeea8213c1b0c23913c`. It is not included here.
 
+The 100-case stress run used the same mixed-program shape with 96 additional
+seeded inputs and operands after the 12-case suite. All 100 generated-token
+traces and final scratch snapshots matched the reference. This was an
+exploratory extension, not a separately held-out test or a statistical
+reliability estimate.
+
 `results/textcheck_9b_cuda.json` compares six fixed text prompts between the
 base and merged 9B models. All six kept the same next top token, and five kept
 the same first four greedy tokens. On the Moon prompt, the third generated
@@ -48,7 +55,10 @@ token changed. This does not establish broad language fidelity. Text after a
 SIMT trace was not tested; QwenCPU previously needed separate caches for text
 handoff, so that remains the starting design for QwenGPU's future text bridge.
 
-The Runpod check used one 96 GB RTX PRO 6000 Blackwell Server Edition pod.
-The model outputs were copied into this repository; model weights stayed on
-the temporary pod. The pod's live quoted rate was $2.49/hour. Final billed
-cost should be checked after teardown.
+The Runpod check used one RTX PRO 6000 Blackwell Server Edition pod. The model
+outputs were copied into this repository; model weights stayed on the
+temporary pod. The pod was terminated and the pod list was empty. Its live
+quoted rate was $2.49/hour and it existed for about 53 minutes, implying
+roughly $2.20 of GPU time before any billing adjustments. The billing query
+returned no records immediately after teardown, so the final charge was not
+yet available.

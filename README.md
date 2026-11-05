@@ -26,6 +26,7 @@ raw instructions and read requests; it does not calculate the model's results.
 | Standalone stock Qwen3.5 on Apple MPS | 8/8 adds, 8/8 generated-mask adds, 4/4 sequences, 4/4 divergent programs, 4/4 scratch programs, 4/4 ADD/XOR programs, and 4/4 mixed programs exact |
 | Standalone stock Qwen3.5 on CUDA with optimized DeltaNet | The same seven suites exact; causal convolution used the reference kernel |
 | Pretrained Qwen3.5-9B merge on CUDA | 12/12 divergent, 12/12 scratch, 12/12 ADD/XOR, and 12/12 mixed programs exact, including generated tokens and scratch-state inspection |
+| Exploratory 9B mixed-program stress check | 100/100 seeded programs exact, including generated tokens and scratch-state inspection |
 | Fixed text check on merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
 
 These are small, fixed execution and integration checks. The circuit uses 27

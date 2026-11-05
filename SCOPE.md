@@ -17,13 +17,14 @@ Fixed checks on MPS and CUDA cover direct instructions, branch paths, scratch
 state, and mixed programs. The 9B merge passed 12 cases in each of the
 branch, scratch, ADD/XOR, and mixed program suites. These checks use fixed
 and seeded cases; they do not establish correctness for arbitrary programs.
+An exploratory 100-case run of the same mixed-program shape also passed.
 See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
 
 ## Recommended build sequence
 
 | Gate | Implementation | Acceptance test |
 | --- | --- | --- |
-| 1. Reusable kernel ROM | Upload a bounded program into recurrent state; add a PC and `TICK`-driven fetch/decode path | One checkpoint runs at least four different valid programs on separate fresh caches, with exact instruction and state traces on MPS and optimized CUDA |
+| 1. Reusable kernel ROM | Upload a bounded straight-line program into recurrent state; add a PC and `TICK`-driven fetch/decode path | One checkpoint runs at least four different valid programs on separate fresh caches, with exact instruction and state traces on MPS and optimized CUDA |
 | 2. Internal writeback | Feed ALU results directly into lane registers in the circuit | A multi-instruction program runs without eight host `READ` and output-token feedback pairs per instruction; compare every intermediate lane state with the interpreter |
 | 3. Control flow | Add a bounded branch stack and loop/branch semantics | Nested divergence and reconvergence match the interpreter across empty, full, and mixed masks; invalid programs fail in the loader |
 | 4. Memory and warp scale | Grow scratch capacity and add a second independent warp | Test bank independence, masked writes, address boundaries, and warp isolation; report model width, head, layer, token, and latency costs |
@@ -31,11 +32,11 @@ See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
 
 Gate 1 is the next experiment. QwenCPU's dynamic ROM shows a possible
 Gated DeltaNet encoding, but the GPU circuit needs its own instruction format
-and sequencer. A useful first kernel can be 16 instructions with ADD, XOR,
-STORE, LOAD, IF/ELSE/ENDIF, and HALT. Program upload and launch may remain
-host actions; individual instructions should come from model state after
-launch. Keep the ROM size and branching depth bounded until the model-level
-traces are exact.
+and sequencer. Start with at most 16 straight-line ADD, XOR, STORE, LOAD, and
+HALT instructions; add divergence in Gate 3. Program upload and launch may
+remain host actions; individual instructions should come from model state
+after launch. Keep the ROM size bounded until model-level traces are exact.
+See [ROM_DESIGN.md](ROM_DESIGN.md) for the concrete first design.
 
 ## Measurement and decision rules
 
