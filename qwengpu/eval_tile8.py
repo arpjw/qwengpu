@@ -28,10 +28,14 @@ from qwengpu.compiled_tile8 import (
     INDEX_OPS,
     INDEX_REGISTER,
     INDEX_WORDS,
+    MASK_OFFSET,
+    MASK_OPS,
+    MASK_REGISTER,
     NO_WRITE,
     OPERAND,
     OPS,
     READ_INDEX,
+    READ_MASK,
     READ_REG,
     READ_STORE,
     REGISTER,
@@ -48,6 +52,7 @@ from qwengpu.eval_tile import _check_control, _unsigned
 FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
 RESIDENT_FIXTURES = FIXTURES.with_name("resident_gate_v1")
 INDEXED_FIXTURES = FIXTURES.with_name("indexed_gate_v1")
+MASKED_FIXTURES = FIXTURES.with_name("masked_gate_v1")
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -66,7 +71,7 @@ PROGRAM = (
 )
 
 
-def _parse_case(data: object, *, indexed: bool = False) -> dict:
+def _parse_case(data: object, *, indexed: bool = False, masked: bool = False) -> dict:
     if not isinstance(data, dict):
         raise ValueError("8x8 case must be an object")
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
@@ -93,7 +98,11 @@ def _parse_case(data: object, *, indexed: bool = False) -> dict:
         if not isinstance(raw, list) or len(raw) != 2:
             raise ValueError("programs must contain two kernels")
         programs = []
-        names = OPS + INDEX_OPS if indexed else OPS
+        names = (
+            OPS
+            + (INDEX_OPS if indexed or masked else ())
+            + (MASK_OPS if masked else ())
+        )
         for program in raw:
             if not isinstance(program, list) or not 1 <= len(program) <= 16:
                 raise ValueError(
@@ -104,7 +113,7 @@ def _parse_case(data: object, *, indexed: bool = False) -> dict:
                 if not isinstance(ins, dict) or ins.get("op") not in names:
                     raise ValueError("invalid tile opcode")
                 op, arg = ins["op"], ins.get("arg", 0)
-                limit = {"MAC_K": 7, "ADD16I": 255}.get(op, 0)
+                limit = {"MAC_K": 7, "ADD16I": 255, "MASK_BIT": 15}.get(op, 0)
                 if type(arg) is not int or not 0 <= arg <= limit:
                     raise ValueError(f"invalid {op} argument")
                 if (op == "HALT") != (index == len(program) - 1):
@@ -149,7 +158,9 @@ def execute(
     *,
     resident: bool = False,
     indexed: bool = False,
+    masked: bool = False,
 ) -> dict:
+    indexed = indexed or masked
     resident = resident or indexed
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
@@ -159,9 +170,12 @@ def execute(
     registers = [nibbles(REGISTER, [0] * 32) for _ in range(2)]
     rom = [program_tokens(program) for program in case["programs"]]
     indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
+    masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
     reads = list(range(READ_REG, READ_REG + 32))
     if indexed:
         reads.extend(range(READ_INDEX, READ_INDEX + 16))
+    if masked:
+        reads.extend(range(READ_MASK, READ_MASK + 2))
     reads.extend(range(READ_STORE, READ_STORE + 32))
     schedules = []
     trace = []
@@ -217,6 +231,8 @@ def execute(
             prefix = [*operands, *memory, controls[warp]]
             transport["matrix_initial_tokens"] += len(operands) + len(memory)
         state = registers[warp] + (indices[warp] if indexed else [])
+        if masked:
+            state += masks[warp]
         emitted = feed(
             [*rom[warp], *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
         )
@@ -227,11 +243,17 @@ def execute(
             if not REGISTER + 16 * nib <= token < REGISTER + 16 * (nib + 1):
                 raise ValueError(f"invalid register packet at nibble {nib}")
         if indexed:
-            indices[warp] = packet[32:-32]
+            indices[warp] = packet[32:48]
             for nib, token in enumerate(indices[warp]):
                 start = INDEX_REGISTER + 16 * nib
                 if not start <= token < start + (8 if nib % 2 else 16):
                     raise ValueError(f"invalid index packet at nibble {nib}")
+        if masked:
+            masks[warp] = packet[48:50]
+            for nib, token in enumerate(masks[warp]):
+                start = MASK_REGISTER + 16 * nib
+                if not start <= token < start + 16:
+                    raise ValueError(f"invalid mask packet at nibble {nib}")
         updates = [token for token in patch if token != NO_WRITE]
         if not indexed and updates and len(updates) != 32:
             raise ValueError("incomplete tagged C write")
@@ -256,6 +278,7 @@ def execute(
                 "control": control,
                 "registers": next_registers,
                 **({"indices": indices[warp]} if indexed else {}),
+                **({"mask": masks[warp]} if masked else {}),
                 "patch": patch,
                 "snapshot": hex_bits(snapshot(cache, circuit, 0)),
             }
@@ -302,13 +325,17 @@ def _check_resident_memory(
     return True
 
 
-def oracle(case: dict, max_steps: int, *, indexed: bool = False) -> dict:
+def oracle(
+    case: dict, max_steps: int, *, indexed: bool = False, masked: bool = False
+) -> dict:
+    indexed = indexed or masked
     pcs = [0, 0]
     states = [0, 0]
     tile = 0
     last = 1
     acc = [[0] * 8 for _ in range(2)]
     indices = [[0] * 8 for _ in range(2)]
+    masks = [255, 255]
     operands = bytearray(case["a"] + case["b"])
     c = case["c"][:]
     schedules = []
@@ -347,37 +374,54 @@ def oracle(case: dict, max_steps: int, *, indexed: bool = False) -> dict:
             states[warp] = 1
         else:
             pcs[warp] += 1
+        before = acc[warp]
+        candidate = before
+        active = masks[warp]
         if op == "LOAD_TILE":
-            acc[warp] = c[start : start + 8]
+            candidate = c[start : start + 8]
         elif op == "MAC_K":
-            acc[warp] = [
+            candidate = [
                 (v + operands[start + arg] * operands[64 + 8 * arg + col]) & 65535
                 for col, v in enumerate(acc[warp])
             ]
         elif op == "ADD16I":
-            acc[warp] = [(v + arg) & 65535 for v in acc[warp]]
+            candidate = [(v + arg) & 65535 for v in acc[warp]]
         elif op == "BARRIER":
             states[warp] = 2
         elif op == "SAVE_INDEX":
-            indices[warp] = [v % INDEX_WORDS for v in acc[warp]]
+            indices[warp] = [
+                v % INDEX_WORDS if active >> lane & 1 else indices[warp][lane]
+                for lane, v in enumerate(acc[warp])
+            ]
         elif op == "LOAD_INDEX":
-            acc[warp] = [
+            candidate = [
                 int.from_bytes(operands[2 * addr : 2 * addr + 2], "little")
                 if addr < 64
                 else c[addr - 64]
                 for addr in indices[warp]
             ]
+        elif op == "MASK_ALL":
+            masks[warp] = 255
+        elif op == "MASK_BIT":
+            masks[warp] = sum(((v >> arg) & 1) << lane for lane, v in enumerate(before))
+        acc[warp] = [
+            value if active >> lane & 1 else before[lane]
+            for lane, value in enumerate(candidate)
+        ]
         patch = [NO_WRITE] * 32
         if op == "STORE_TILE":
-            c[start : start + 8] = acc[warp]
-            patch = nibbles(C_MEMORY + 512 * row, _digits(acc[warp], 16))
+            for lane, value in enumerate(acc[warp]):
+                if active >> lane & 1:
+                    c[start + lane] = value
+                    base = C_MEMORY + 512 * row + 64 * lane
+                    patch[4 * lane : 4 * lane + 4] = nibbles(base, _digits([value], 16))
         grants = 0
         if op == "STORE_INDEX":
             claimed = set()
             for lane, (addr, word) in enumerate(
                 zip(indices[warp], acc[warp], strict=True)
             ):
-                if addr in claimed:
+                if not active >> lane & 1 or addr in claimed:
                     continue
                 claimed.add(addr)
                 grants |= 1 << lane
@@ -396,6 +440,9 @@ def oracle(case: dict, max_steps: int, *, indexed: bool = False) -> dict:
                 for lane, value in enumerate(indices[warp])
             )
             packed |= grants << (SNAPSHOT_BITS + 56)
+        if masked:
+            packed |= masks[warp] << MASK_OFFSET
+        width = 51 if masked else 49 if indexed else 33
         trace.append(
             {
                 "warp": warp,
@@ -407,7 +454,12 @@ def oracle(case: dict, max_steps: int, *, indexed: bool = False) -> dict:
                     else {}
                 ),
                 "patch": patch,
-                "snapshot": f"{packed:0{49 if indexed else 33}x}",
+                **(
+                    {"mask": nibbles(MASK_REGISTER, _digits([masks[warp]], 8))}
+                    if masked
+                    else {}
+                ),
+                "snapshot": f"{packed:0{width}x}",
             }
         )
     return {
@@ -436,6 +488,7 @@ def main() -> None:
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident", action="store_true")
     variants.add_argument("--indexed", action="store_true")
+    variants.add_argument("--masked", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -446,7 +499,8 @@ def main() -> None:
         parser.error("--max-steps must be positive")
     meta = None
     offset = 0
-    indexed = args.indexed
+    masked = args.masked
+    indexed = args.indexed or masked
     resident = args.resident or indexed
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text())
@@ -455,19 +509,25 @@ def main() -> None:
             "qwengpu-tile8-9b-v1",
             "qwengpu-resident9b-v1",
             "qwengpu-indexed9b-v1",
+            "qwengpu-masked9b-v1",
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        indexed = layout == "qwengpu-indexed9b-v1"
+        masked = layout == "qwengpu-masked9b-v1"
+        indexed = masked or layout == "qwengpu-indexed9b-v1"
         resident = indexed or layout == "qwengpu-resident9b-v1"
         if args.resident and not resident:
             raise ValueError("--resident requires a resident checkpoint")
         if args.indexed and not indexed:
             raise ValueError("--indexed requires an indexed checkpoint")
+        if args.masked and not masked:
+            raise ValueError("--masked requires a masked checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
     if indexed and not args.kernel:
         paths.extend(sorted(INDEXED_FIXTURES.glob("*.json")))
+    if masked and not args.kernel:
+        paths.extend(sorted(MASKED_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -475,7 +535,7 @@ def main() -> None:
             (
                 path.name,
                 hashlib.sha256(payload).hexdigest(),
-                _parse_case(json.loads(payload), indexed=indexed),
+                _parse_case(json.loads(payload), indexed=indexed, masked=masked),
             )
         )
     if not cases:
@@ -495,9 +555,12 @@ def main() -> None:
             ),
             resident=resident,
             indexed=indexed,
+            masked=masked,
         )
     else:
-        model, circuit = build_standalone(resident=resident, indexed=indexed)
+        model, circuit = build_standalone(
+            resident=resident, indexed=indexed, masked=masked
+        )
     model.to(args.device).eval()
     report = {
         "device": args.device,
@@ -508,7 +571,7 @@ def main() -> None:
         "cases": [],
     }
     for name, digest, case in cases:
-        expected = oracle(case, args.max_steps, indexed=indexed)
+        expected = oracle(case, args.max_steps, indexed=indexed, masked=masked)
         observed = execute(
             model,
             circuit,
@@ -518,6 +581,7 @@ def main() -> None:
             offset,
             resident=resident,
             indexed=indexed,
+            masked=masked,
         )
         transport = observed.pop("transport")
         exact = (

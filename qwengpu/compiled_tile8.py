@@ -22,6 +22,7 @@ from qwengpu.compiled_tile import (
 
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
 INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
+MASK_OPS = ("MASK_ALL", "MASK_BIT")
 STRIDE = 256 * len(OPS)
 C_MEMORY = ROM + 16 * STRIDE
 REGISTER = C_MEMORY + 4096
@@ -32,6 +33,9 @@ READ_INDEX = 2176
 INDEX_REGISTER = 0x9000
 INDEX_OPERAND = 0xA000
 INDEX_WORDS = 128
+READ_MASK = READ_INDEX + 16
+MASK_REGISTER = 0x9100
+MASK_OFFSET = 196
 NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
@@ -42,14 +46,20 @@ CHUNK_BITS = 120
 
 def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
     padded = program + (("HALT", 0),) * (16 - len(program))
+
+    def wire(op: str, arg: int) -> int:
+        # The reserved HALT immediates extend the ROM without changing its stride.
+        halt = OPS.index("HALT") * 256
+        if op in INDEX_OPS:
+            return halt + 1 + INDEX_OPS.index(op)
+        if op == "MASK_ALL":
+            return halt + 4
+        if op == "MASK_BIT":
+            return halt + 16 + arg
+        return OPS.index(op) * 256 + arg
+
     return [
-        ROM
-        + address * STRIDE
-        + (
-            OPS.index("HALT") * 256 + 1 + INDEX_OPS.index(op)
-            if op in INDEX_OPS
-            else OPS.index(op) * 256 + arg
-        )
+        ROM + address * STRIDE + wire(op, arg)
         for address, (op, arg) in enumerate(padded)
     ]
 
@@ -59,8 +69,13 @@ def nibbles(base: int, data: list[int]) -> list[int]:
 
 
 def build(
-    target: Target | None = None, *, resident: bool = False, indexed: bool = False
+    target: Target | None = None,
+    *,
+    resident: bool = False,
+    indexed: bool = False,
+    masked: bool = False,
 ) -> Circ:
+    indexed = indexed or masked
     resident = resident or indexed
     operand_base = INDEX_OPERAND if indexed else OPERAND
     c = Circ(target or Target())
@@ -80,6 +95,11 @@ def build(
     index_reads = (
         [match(f"index.read.{nib}", READ_INDEX + nib) for nib in range(16)]
         if indexed
+        else []
+    )
+    mask_reads = (
+        [match(f"mask.read.{nib}", READ_MASK + nib) for nib in range(2)]
+        if masked
         else []
     )
     code = [
@@ -174,9 +194,14 @@ def build(
         tag, arg = divmod(wire, 256)
         if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
             return (len(OPS) + arg - 1) * 256
+        if masked and OPS[tag] == "HALT":
+            if arg == 4:
+                return (len(OPS) + len(INDEX_OPS)) * 256
+            if 16 <= arg < 32:
+                return (len(OPS) + len(INDEX_OPS) + 1) * 256 + arg - 16
         return wire
 
-    op_names = OPS + INDEX_OPS if indexed else OPS
+    op_names = OPS + (INDEX_OPS if indexed else ()) + (MASK_OPS if masked else ())
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
         c.token_feature(
@@ -270,6 +295,35 @@ def build(
         )
     ]
 
+    active = [one] * 8
+    next_mask = []
+    if masked:
+        active = [
+            bit
+            for nib in range(2)
+            for bit in lookup(f"mask.{nib}", MASK_REGISTER, [nib], [tick])
+        ]
+        selectors = c.onehot_of_bits(arg[:4], "mask.bit", 16)
+        for lane, prior in enumerate(active):
+            selected = c.node(
+                [
+                    term
+                    for selector, value in zip(
+                        selectors, old[16 * lane : 16 * (lane + 1)], strict=True
+                    )
+                    for term in c.t_and([selector, value, ops["MASK_BIT"]])
+                ],
+                f"mask.selected.{lane}",
+            )
+            next_mask.append(
+                ops["MASK_ALL"]
+                + selected
+                + c.and_(
+                    [prior, one - ops["MASK_BIT"] - ops["MASK_ALL"]],
+                    f"mask.keep.{lane}",
+                )
+            )
+
     next_index = []
     grants = []
     indexed_values = []
@@ -303,11 +357,16 @@ def build(
                     for word in range(INDEX_WORDS // 2)
                 ]
                 indexed_values.extend(lookup(f"shared.{lane}.{nib}", 0, slots, queries))
+            save_index = (
+                c.and_([ops["SAVE_INDEX"], active[lane]], f"index.save.{lane}")
+                if masked
+                else ops["SAVE_INDEX"]
+            )
             next_index.extend(
                 c.select_bits(
                     [
-                        ([ops["SAVE_INDEX"]], old[16 * lane : 16 * lane + 7]),
-                        ([one - ops["SAVE_INDEX"]], address),
+                        ([save_index], old[16 * lane : 16 * lane + 7]),
+                        ([one - save_index], address),
                     ],
                     7,
                     f"index.next.{lane}",
@@ -316,12 +375,21 @@ def build(
             # STORE_INDEX retains the old address, so it can use the same snapshot.
             addr = from_bits(address)
             earlier = [
-                c.node(c.t_eq(addr - prior, 0, -127, 127), f"scatter.same.{lane}.{i}")
+                c.node(
+                    c.t_eq(
+                        addr - prior, 0, -127, 127, lits=[active[i]] if masked else ()
+                    ),
+                    f"scatter.same.{lane}.{i}",
+                )
                 for i, prior in enumerate(prior_addresses)
             ]
             grants.append(
                 c.and_(
-                    [ops["STORE_INDEX"], *[one - equal for equal in earlier]],
+                    [
+                        ops["STORE_INDEX"],
+                        *([active[lane]] if masked else []),
+                        *[one - equal for equal in earlier],
+                    ],
                     f"scatter.grant.{lane}",
                 )
             )
@@ -350,7 +418,20 @@ def build(
         sources.append(([ops["LOAD_INDEX"]], indexed_values))
     sources.append(([one - sum((gate[0] for gate, _ in sources), Expr())], updated))
     result = c.select_bits(sources, 128, "register.next")
-    bits = result + [ops["STORE_TILE"], *row_bits, *next_index, *grants]
+    if masked:
+        result = [
+            bit
+            for lane, enabled in enumerate(active)
+            for bit in c.select_bits(
+                [
+                    ([enabled], result[16 * lane : 16 * (lane + 1)]),
+                    ([one - enabled], old[16 * lane : 16 * (lane + 1)]),
+                ],
+                16,
+                f"masked.result.{lane}",
+            )
+        ]
+    bits = result + [ops["STORE_TILE"], *row_bits, *next_index, *grants, *next_mask]
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -358,7 +439,7 @@ def build(
             c.slot_head(
                 f"stage.0.{chunk}",
                 {0: tick},
-                {0: sum(reads + writes + index_reads, Expr())},
+                {0: sum(reads + writes + index_reads + mask_reads, Expr())},
                 {
                     2 + bit: value
                     for bit, value in enumerate(bits[start : start + CHUNK_BITS])
@@ -388,19 +469,20 @@ def build(
             elif control_token(warp) >> bit & 1:
                 terms += c.t_and([reset], 2 * KAPPA)
         for nib, (read, write) in enumerate(zip(reads, writes, strict=True)):
+            tile_write = [write, saved[128]]
+            if masked:
+                tile_write.append(saved[MASK_OFFSET + nib // 4])
             if bit < 4:
                 value = saved[4 * nib + bit]
                 terms += c.t_and([read, value], 2 * KAPPA)
-                terms += c.t_and([write, saved[128], value], 2 * KAPPA)
+                terms += c.t_and([*tile_write, value], 2 * KAPPA)
             else:
                 if (REGISTER + 16 * nib) >> bit & 1:
                     terms += c.t_and([read], 2 * KAPPA)
                 if 9 <= bit < 12:
-                    terms += c.t_and(
-                        [write, saved[128], saved[129 + bit - 9]], 2 * KAPPA
-                    )
+                    terms += c.t_and([*tile_write, saved[129 + bit - 9]], 2 * KAPPA)
                 elif (C_MEMORY + 16 * nib) >> bit & 1:
-                    terms += c.t_and([write, saved[128]], 2 * KAPPA)
+                    terms += c.t_and(tile_write, 2 * KAPPA)
         if indexed:
             for nib, read in enumerate(index_reads):
                 lane, half = divmod(nib, 2)
@@ -426,14 +508,21 @@ def build(
                         terms += c.t_and([*gate, one - address[6]], 2 * KAPPA)
                     if C_MEMORY >> bit & 1:
                         terms += c.t_and([*gate, address[6]], 2 * KAPPA)
+        for nib, read in enumerate(mask_reads):
+            if bit < 4:
+                terms += c.t_and([read, saved[MASK_OFFSET + 4 * nib + bit]], 2 * KAPPA)
+            elif (MASK_REGISTER + 16 * nib) >> bit & 1:
+                terms += c.t_and([read], 2 * KAPPA)
         c.ffn(terms, f"exit.code.{bit}", into=expr, min_level=floor + 1)
     return c
 
 
-def build_standalone(*, resident: bool = False, indexed: bool = False):
+def build_standalone(
+    *, resident: bool = False, indexed: bool = False, masked: bool = False
+):
     from chipformer.q35.tiny import build as build_qwen
 
-    circuit = build(resident=resident, indexed=indexed)
+    circuit = build(resident=resident, indexed=indexed, masked=masked)
     return build_qwen(
         circuit,
         list(range(VOCAB)),

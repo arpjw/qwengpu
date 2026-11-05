@@ -409,3 +409,26 @@ The default suite includes the resident fixtures, a cross-warp
 scatter-and-gather case, and a read/write sweep of all 128 word
 addresses. The sweep also verifies that writes from indexed operations
 are visible to tile loads and tile stores are visible to indexed loads.
+
+## Lane masks in the resident engine
+
+The masked variant extends the indexed engine. Each warp starts with all
+eight lanes active. `MASK_BIT k` replaces the mask with accumulator bit
+`k` from each lane, and `MASK_ALL` activates every lane. Both mask
+instructions, the barrier, and halt operate at warp scope. The mask
+persists across scheduling turns and row pairs.
+
+Inactive lanes retain their accumulators and index registers and emit
+no memory writes. Indexed scatter awards each address to its lowest
+active lane. The model emits the updated mask as two tokens, which the
+host relays with the register packet.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --masked --device mps --out "$QWENGPU_DIR/results/masked_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --masked --out /path/to/Qwen3.5-9B-qwengpu-masked
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-masked --device cuda \
+  --out "$QWENGPU_DIR/results/masked_9b_cuda_fla.json"
+```
