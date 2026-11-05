@@ -52,24 +52,38 @@ uses 14 chip layers including the exit marker, hidden size 4,608, and a
 65,536-row chip vocabulary. The temporary checkpoint occupies about 27 GiB.
 It preserves the source untied text output head.
 
+## Bounded writeback continuation
+
+The `compiled_writeback` builder removes all lane READ/result-feedback tokens.
+It unrolls 16 instruction stages in model depth. The standalone circuit has
+51 layers and 58 heads. A parallel carry adder reduced the initial 147-layer
+design to 51 and passed all 65,536 byte pairs in the exact compiler evaluator.
+All 17 local tests pass. The seven frozen writeback programs passed on MPS:
+51 generated state tokens, 51 intermediate 40-byte register/scratch snapshots,
+retained PC state, and final ROM rows all match the independent interpreter.
+Execution uses two token calls per instruction after upload. CUDA and 9B
+status is recorded in VALIDATION.md. Source and MPS evidence are pushed.
+
 ## Current boundary
 
 The original divergent circuit still receives raw instructions from the host.
-The separate ROM circuit fetches its own straight-line instructions but still
-uses eight lane READ/result-feedback pairs after each non-halt TICK. Neither
-variant combines autonomous ROM with divergent branches yet. Both have one
-warp, byte arithmetic, and 32 scratch bytes. No acceleration has been measured.
+The ROM circuits fetch straight-line instructions from recurrent model state.
+The newest variant writes results internally, using a separate snapshot for
+each instruction position. It supports up to 16 instructions; it cannot
+revisit an earlier stage with updated registers. There is one warp, byte
+arithmetic, and 32 scratch bytes. No acceleration has been established.
 Text after an execution trace and broad language fidelity remain open.
 
 ## Next decisive gate
 
-Implement internal writeback in the ROM variant. Freeze multi-instruction
-programs and require the same lane/scratch traces without eight host READ
-and output-feedback pairs after every instruction. Keep program upload and
-launch in the host, then use a fixed TICK/state-feedback protocol. Inspect
-intermediate registers to catch errors hidden by later overwrites. Repeat on
-standalone MPS, optimized CUDA, and the pinned 9B merge before adding control
-flow. Then add bounded divergence and finally warp/memory scaling.
+Separate execution-stage identity from program address, then add bounded
+control flow. Each stage must carry registers, scratch, active mask, and
+branch-stack state forward even when a branch changes the PC. Freeze nested
+empty/full/mixed-mask cases and inspect every intermediate state. Compare
+standalone MPS, optimized CUDA, and the pinned 9B merge. Measure the depth,
+weight, cache, token, and latency costs before increasing the execution budget.
+Simply making the current PC jump backwards would read stale state.
+See WRITEBACK_DESIGN.md for the construction and its limit.
 
 ## Text and compute after ROM integration
 

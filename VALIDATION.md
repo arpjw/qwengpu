@@ -128,3 +128,21 @@ quoted $2.49/hour, implying approximately $0.48 of GPU time. Its billing
 query immediately after termination returned no records; the estimate is not
 a posted charge. Source and reports were copied before termination; weights
 remained on temporary pod disks. See CHECKPOINT.md for the compute summary.
+
+
+## Bounded internal writeback
+
+`results/writeback_mps.json` records seven frozen programs on one stock model
+object with fresh caches. All 51 generated state tokens and all 51
+intermediate register/scratch snapshots match the interpreter exactly.
+Each snapshot contains 40 bytes: eight registers and 32 scratch bytes.
+Final ROM rows and per-instruction PC state also match. Execution uses 102
+single-token calls total, with zero lane-feedback tokens. Fixture hashes are
+included. This is a 16-stage unrolled straight-line machine, not cyclic
+writeback for arbitrary-length programs. See WRITEBACK_DESIGN.md.
+
+All 17 local tests pass. The parallel carry adder was checked on all 65,536
+byte pairs in the compiler's exact evaluator.
+`results/writeback_cuda_fla.json` repeats the same seven inputs on optimized
+CUDA DeltaNet with reference causal convolution. All generated tokens,
+intermediate snapshots, PC state, and ROM rows match. The 9B check is pending.

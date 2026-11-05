@@ -40,7 +40,8 @@ raw instructions and read requests; it does not calculate the model's results.
 | Fixed text check on ROM 9B merge | 6/6 same next token; 5/6 identical first four greedy tokens; maximum next-logit difference 0.2734375 |
 | Fixed text check on earlier merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
 
-These are small, fixed execution and integration checks. The circuit uses 27
+These are small, fixed execution and integration checks. The earlier
+host-dispatched circuit uses 27
 Gated DeltaNet heads and 12 circuit layers. The 9B merge adds an exit layer,
 preserves the source model's untied text output head, and was built with 4,864
 hidden dimensions. [Validation details](VALIDATION.md) record the evidence and
@@ -88,15 +89,26 @@ size 4,608. It passed the same frozen fixtures on CUDA. It retains fixed lane
 read/feedback after every non-halt
 TICK. See [ROM_DESIGN.md](ROM_DESIGN.md).
 
-The next gates are internal register writeback, nested divergence, larger
-memory, and larger held-out
+A separate [bounded writeback circuit](WRITEBACK_DESIGN.md) now runs with
+only TICK and generated-state feedback after upload. Its seven frozen
+programs pass on stock MPS and optimized CUDA, including all 51 intermediate
+register/scratch
+snapshots. It uses 51 layers and 58 heads by unrolling 16 instruction stages
+in depth. This removes lane feedback for bounded straight-line programs;
+cyclic register reuse and loops remain open. Run a supported kernel with:
+
+```sh
+python3 -m qwengpu.eval_writeback --device mps \
+  --kernel eval/frozen/writeback_gate_v1/overwrite.json --out result.json
+```
+
+The next gates are bounded divergent control flow, larger memory, and broader
 program suites. The reference interpreter checks model traces and is not used
-to compute the model's outputs. The earlier one-level branch trace is driven by
-host-supplied raw instruction tokens, so this is a SIMT circuit prototype and
-not yet a self-contained programmable GPU. See [SCOPE.md](SCOPE.md) for the
-next gates, [ROM_DESIGN.md](ROM_DESIGN.md) for integrated instruction fetch,
-and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands. The
-[two-hour checkpoint](CHECKPOINT.md) summarizes the sprint and next decision.
+to compute model outputs. The original host-dispatched divergent circuit and
+the two straight-line ROM variants have separate protocols and evidence.
+See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
+[REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
+[CHECKPOINT.md](CHECKPOINT.md) records the sprint and continuation.
 
 Model weights are not stored in this repository. The Python code is MIT
 licensed; Qwen3.5 weights remain under their own license.

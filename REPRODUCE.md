@@ -122,3 +122,32 @@ Transfer source using Git or disable macOS archive metadata with
 `COPYFILE_DISABLE=1` when creating tar archives. The fixture loader ignores
 AppleDouble `._` files. Check disk space before rebuilding: the ROM vocabulary
 is larger than the earlier host-dispatched variant.
+
+
+## Bounded internal writeback variant
+
+Use a separate checkpoint directory for each circuit variant. The writeback
+builder unrolls 16 instruction stages, increasing layer depth while removing
+all lane READ/result-feedback tokens. See [WRITEBACK_DESIGN.md](WRITEBACK_DESIGN.md).
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_writeback \
+  --device mps --out "$QWENGPU_DIR/results/writeback_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_writeback \
+  --device cuda --out "$QWENGPU_DIR/results/writeback_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --writeback --out /path/to/Qwen3.5-9B-qwengpu-writeback
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_writeback \
+  /path/to/Qwen3.5-9B-qwengpu-writeback --device cuda \
+  --out "$QWENGPU_DIR/results/writeback_9b_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.textcheck_9b \
+  /path/to/Qwen3.5-9B /path/to/Qwen3.5-9B-qwengpu-writeback --device cuda \
+  --out "$QWENGPU_DIR/results/textcheck_writeback_9b_cuda.json"
+```
+
+Pass `--kernel /path/to/kernel.json` to `qwengpu.eval_writeback` to run one
+supported kernel and compare its entire machine trace to the interpreter.
+The default executes the seven frozen gate inputs using one model object.
+For an ephemeral CUDA pod, `scripts/bootstrap_runpod.sh` installs the pinned
+compiler/environment and downloads the pinned source model. Transfer the
+project source separately. This script does not provision compute.

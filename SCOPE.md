@@ -44,8 +44,12 @@ See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
 | 4. Memory and warp scale | Grow scratch capacity and add a second independent warp | Test bank independence, masked writes, address boundaries, and warp isolation; report model width, head, layer, token, and latency costs |
 | 5. Pretrained model integration | Rebuild the 9B merge from pinned source and test a separate text path | Frozen SIMT suites pass, and text behavior is measured on a broader fixed corpus, including text after SIMT with cache handoff |
 
-Gate 1 passed on standalone MPS, optimized CUDA, and the pinned 9B merge. Gate 2 is the next
-architecture experiment. QwenCPU's dynamic ROM shows a possible
+Gate 1 passed on standalone MPS, optimized CUDA, and the pinned 9B merge. The bounded
+writeback variant now passes seven frozen programs on MPS, using 16
+instruction stages in model depth. It also passed the same seven programs
+on optimized CUDA. This removes lane feedback but does not
+provide cyclic state reuse. See WRITEBACK_DESIGN.md for the architecture and
+the next bounded-control-flow design constraint. QwenCPU's dynamic ROM shows a possible
 Gated DeltaNet encoding, but the GPU circuit needs its own instruction format
 and sequencer. Start with at most 16 straight-line ADD, XOR, STORE, LOAD, and
 HALT instructions; add divergence in Gate 3. Program upload and launch may
@@ -68,3 +72,19 @@ feedback. The objective is to determine whether a reusable GPU-like machine can 
 in model state while preserving ordinary text behavior. Throughput and
 competitive performance would require separate measurements and substantial
 architectural work.
+
+
+## Bounded writeback gate
+
+The new `compiled_writeback` variant handles at most 16 straight-line
+instructions with two token calls per instruction and no lane feedback.
+Each instruction position owns a snapshot in recurrent state. All 17 local
+tests pass, including exhaustive compiler checks for the parallel byte adder.
+Seven fixed programs compare 51 intermediate 40-byte snapshots to the
+interpreter on MPS. CUDA and pretrained-merge status is in VALIDATION.md.
+
+For bounded control flow, execution-stage identity must be distinct from
+program address. Carry registers, scratch, masks, and branch-stack state to
+the next depth stage even when a branch changes the PC. Simply jumping back
+to a previous PC in this layout would read stale state. Measure the depth,
+weight, cache, and latency costs before extending the execution budget.

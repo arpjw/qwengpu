@@ -129,16 +129,21 @@ def main() -> None:
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--kernel", type=Path, help="run one supported JSON kernel")
     parser.add_argument(
         "--cases-dir",
         type=Path,
         default=Path(__file__).resolve().parents[1] / "eval/frozen/writeback_gate_v1",
     )
     args = parser.parse_args()
-    paths = sorted(
-        p for p in args.cases_dir.glob("*.json") if not p.name.startswith("._")
+    paths = (
+        [args.kernel]
+        if args.kernel
+        else sorted(
+            p for p in args.cases_dir.glob("*.json") if not p.name.startswith("._")
+        )
     )
-    if len(paths) != 7:
+    if not args.kernel and len(paths) != 7:
         raise ValueError("expected seven frozen writeback kernels")
     meta = None
     offset = 0

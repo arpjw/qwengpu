@@ -42,7 +42,6 @@ class WritebackTests(unittest.TestCase):
         from qwengpu.compiled_writeback import build
         from qwengpu.compiled_rom import (
             TICK,
-            KAPPA,
             load_a,
             program_tokens,
             state_token,
