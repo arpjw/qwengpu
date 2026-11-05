@@ -30,6 +30,7 @@ raw instructions and read requests; it does not calculate the model's results.
 | Pretrained Qwen3.5-9B merge on CUDA | 12/12 divergent, 12/12 scratch, 12/12 ADD/XOR, and 12/12 mixed programs exact, including generated tokens and scratch-state inspection |
 | Exploratory 9B mixed-program stress check | 100/100 programs exact, including 96 seeded cases, generated tokens, and scratch-state inspection |
 | Exploratory MPS mixed-program stress check | The same 100 programs were exact, with identical generated tokens to the 9B CUDA run |
+| Exploratory varied-program check on MPS | 32/32 programs across four shapes had exact generated tokens, scratch state, and final lane probes |
 | Separate 16-slot ROM feasibility spike on MPS | One stock model fetched three different uploaded instruction sequences, generated PC updates, and retained exact ROM state |
 | Exploratory ROM stress check on MPS | The same model fetched 100 16-slot sequences, including 97 seeded ones; 3,100 generated tokens and all recurrent ROM and PC snapshots matched |
 | Example JSON kernel on MPS | A host-dispatched mixed program and final lane probe matched the independent interpreter |

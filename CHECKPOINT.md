@@ -28,6 +28,9 @@ decisive experiment. Exact evidence and reproduction commands are in
   MPS and merged 9B CUDA. All generated token sequences matched across the
   two runs, and all final scratch snapshots matched the interpreter. The
   100 cases share one program shape and are not a general reliability claim.
+- A separate exploratory 32-case suite varied four program shapes on MPS.
+  Its generated tokens, scratch state, and final lane probes were exact. It
+  has not yet been run on CUDA or the 9B merge.
 - The separate ROM spike passed 100/100 payload sequences on MPS with one
   model object and fresh caches. It generated 3,100 exact instruction/PC
   tokens and retained 1,600 exact ROM rows.
@@ -39,8 +42,8 @@ decisive experiment. Exact evidence and reproduction commands are in
 The host still supplies each SIMT instruction and eight lane read/feedback
 pairs after lane-changing operations. The ROM spike is not connected to the
 SIMT ALU. The compiled circuit has one warp, one-level divergence, byte
-arithmetic, and 32 scratch bytes. This is a functional proof rather than a
-performance accelerator. Text after a SIMT trace and broad language fidelity
+arithmetic, and 32 scratch bytes. This is a functional proof; acceleration
+has not been measured. Text after a SIMT trace and broad language fidelity
 have not been established. Model weights are excluded from GitHub; the pinned
 source revision and merge builder reproduce them.
 

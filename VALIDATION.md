@@ -29,6 +29,7 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/program_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_stress_cuda_fla.json` | Pretrained Qwen3.5-9B merge, exploratory seeded mixed programs | 100 | 100 exact |
 | `results/program_stress_mps.json` | Standalone Qwen3.5, exploratory mixed programs on MPS | 100 | 100 exact |
+| `results/varied_mps.json` | Standalone Qwen3.5, four exploratory program shapes on MPS | 32 | 32 exact |
 | `results/rom_spike_mps.json` | Separate 16-slot stock Qwen3.5 ROM circuit on MPS | 3 payload sequences | 3 exact |
 | `results/rom_spike_cpu.json` | Same ROM circuit on CPU reference kernels | 3 payload sequences | 3 exact |
 | `results/rom_spike_stress_mps.json` | Same ROM circuit, exploratory contents on MPS | 100 payload sequences | 100 exact |
@@ -45,8 +46,8 @@ the expected execution. The memory suites compare generated lane tokens and
 inspect each scratch head's recurrent state after STORE. The mixed program
 suite uses the independent reference interpreter for a sequence of ADD, XOR,
 divergent STORE, reconvergence, and LOAD operations across three scratch
-banks. Result tokens feed
-back through the same model cache and update lane register heads. The CUDA checks used
+banks. Result tokens feed back through the same model cache and update lane
+register heads. The CUDA checks used
 `flash-linear-attention==0.6.0` and `fla-core==0.6.0`; Transformers reported
 that causal convolution still used the reference implementation. The 9B
 checkpoint was built from Qwen/Qwen3.5-9B revision
@@ -58,9 +59,16 @@ mixed-program shape. The first 12 cases repeat the original suite. All 100
 generated-token traces and final scratch snapshots matched the reference.
 This was an exploratory extension. It was not separately held out and does
 not provide a statistical reliability estimate.
+
 The same 100 inputs and program instructions were run on the standalone MPS
 model. All 100 traces and scratch snapshots matched the reference, and the
 generated token sequences were identical to the 9B CUDA run.
+
+The separate 32-case MPS suite varies four program shapes: straight
+arithmetic and scratch, a branch without ELSE, masked overwrite in a slot,
+and branch writes to a second slot followed by a LOAD from the first. All
+generated tokens, final lane probes, and scratch snapshots matched the
+reference. This suite has not been run on the 9B merge or CUDA.
 
 The ROM spike is a separate two-head, three-layer circuit. One stock model
 object loaded three different 16-slot instruction payload sequences into
@@ -69,6 +77,7 @@ the actual recurrent ROM and PC rows contained the expected bits. The
 highest 11-bit payload and address 15 were exercised. This does not yet fetch
 or execute instructions in the SIMT circuit, and it has not been checked on
 CUDA.
+
 The same three fixed payload sequences also passed on CPU reference kernels.
 The exploratory ROM extension tested three fixed and 97 seeded sequences with
 one model object and fresh caches. All 3,100 generated instruction and next-PC
