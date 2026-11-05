@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import time
 from pathlib import Path
 
@@ -75,12 +76,20 @@ def evaluate_case(model, circuit, program: tuple[int, ...], device: str) -> dict
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--extra-programs", type=int, default=0,
+                        help="seeded exploratory ROM contents beyond the three fixed cases")
     parser.add_argument("--device", default="mps" if torch.backends.mps.is_available()
                         else "cpu")
     args = parser.parse_args()
+    if args.extra_programs < 0:
+        parser.error("--extra-programs must be nonnegative")
     model, circuit = build_standalone()
     model.to(args.device)
-    programs = SAMPLE_PROGRAMS
+    programs = list(SAMPLE_PROGRAMS)
+    rng = random.Random(20261105)
+    programs.extend(tuple(rng.randrange(1 << PAYLOAD_BITS)
+                          for _ in range(ROM_SLOTS))
+                    for _ in range(args.extra_programs))
     report = {"device": args.device, "torch": torch.__version__,
               "transformers": transformers.__version__, "circuit": circuit.stats(),
               "programs": []}

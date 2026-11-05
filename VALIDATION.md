@@ -29,6 +29,7 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/program_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_stress_cuda_fla.json` | Pretrained Qwen3.5-9B merge, exploratory seeded mixed programs | 100 | 100 exact |
 | `results/rom_spike_mps.json` | Separate 16-slot stock Qwen3.5 ROM circuit on MPS | 3 programs | 3 exact |
+| `results/rom_spike_stress_mps.json` | Same ROM circuit, exploratory contents on MPS | 100 programs | 100 exact |
 | `results/example_kernel_mps.json` | JSON kernel runner on standalone Qwen3.5, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/no_else_kernel_mps.json` | JSON kernel runner with IF/ENDIF and no ELSE, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/masked_overwrite_mps.json` | JSON kernel runner with masked overwrite of one scratch slot, MPS | 1 program | Exact tokens, scratch, and final lane probe |
@@ -59,6 +60,11 @@ the actual recurrent ROM and PC rows contained the expected bits. The
 highest 11-bit payload and address 15 were exercised. This does not yet fetch
 or execute instructions in the SIMT circuit, and it has not been checked on
 CUDA.
+The exploratory ROM extension tested three fixed and 97 seeded sequences with
+one model object and fresh caches. All 3,100 generated instruction and next-PC
+tokens matched. The 1,600 ROM rows and 100 final PC rows matched too. This
+tested payload storage and fetch only. Integrated SIMT execution and general
+reliability remain untested.
 
 The JSON runner validates one-level programs before dispatching raw tokens to
 the compiled circuit. Its example program passed on MPS and used a final

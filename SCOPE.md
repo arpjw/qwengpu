@@ -22,6 +22,8 @@ and seeded cases; they do not establish correctness for arbitrary programs.
 An exploratory 100-case run of the same mixed-program shape also passed.
 An isolated 16-slot ROM and PC circuit fetched three uploaded sequences
 exactly on MPS. It has not yet been connected to the SIMT ALU.
+An exploratory extension checked 100 uploaded sequences on the same model
+object with fresh caches, also exactly.
 See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
 
 ## Recommended build sequence

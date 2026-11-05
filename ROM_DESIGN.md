@@ -22,6 +22,8 @@ than 16 instructions before the model is called.
 Program upload uses one raw token per instruction. The token encodes address,
 opcode, and argument. A fresh inference cache is required for each launch,
 because an omitted address must not inherit a byte from a previous program.
+The loader should fill unused slots with `HALT` so every address has a defined
+value. The current isolated ROM spike uploads all 16 slots for this reason.
 The host may upload tokens and launch the kernel; it does not choose or send
 individual instructions during execution.
 
