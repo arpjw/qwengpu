@@ -25,8 +25,11 @@ MASK_BASE = LOAD_B_BASE + LANES * 256
 EXEC_ADD = MASK_BASE + 256
 READ_BASE = EXEC_ADD + 1
 OUT_BASE = ((READ_BASE + LANES + 255) // 256) * 256
-COMPARE_BASE = OUT_BASE + 256
-VOCAB = COMPARE_BASE + 256
+OUT_END = OUT_BASE + LANES * 256
+COMPARE_BASE = OUT_END
+ELSE_TOKEN = COMPARE_BASE + 256
+ENDIF_TOKEN = ELSE_TOKEN + 1
+VOCAB = ENDIF_TOKEN + 1
 CODE_BITS = (VOCAB - 1).bit_length()
 CODE_AMP = 128
 KAPPA = 2.0**-20
@@ -56,10 +59,10 @@ def read_lane(lane: int) -> int:
     return READ_BASE + lane
 
 
-def out_token(value: int) -> int:
-    if not 0 <= value <= 255:
-        raise ValueError("invalid byte")
-    return OUT_BASE + value
+def out_token(lane: int, value: int) -> int:
+    if not 0 <= lane < LANES or not 0 <= value <= 255:
+        raise ValueError("invalid lane or byte")
+    return OUT_BASE + lane * 256 + value
 
 
 def compare_token(threshold: int) -> int:
@@ -98,8 +101,11 @@ class AddCore(Circ):
         f = self.token_feature
         self.is_exec = f("is_exec", lambda t: int(t == EXEC_ADD), full=True)
         self.is_compare = f("is_compare",
-                            lambda t: int(COMPARE_BASE <= t < VOCAB), full=True)
-        self.is_read = f("is_read", lambda t: int(READ_BASE <= t < OUT_BASE), full=True)
+                            lambda t: int(COMPARE_BASE <= t < ELSE_TOKEN), full=True)
+        self.is_else = f("is_else", lambda t: int(t == ELSE_TOKEN), full=True)
+        self.is_endif = f("is_endif", lambda t: int(t == ENDIF_TOKEN), full=True)
+        self.is_read = f("is_read", lambda t: int(READ_BASE <= t < READ_BASE + LANES),
+                         full=True)
         self.is_a = [f(f"is_a.{lane}",
                        lambda t, lane=lane: int(LOAD_A_BASE + lane * 256 <= t
                                                 < LOAD_A_BASE + (lane + 1) * 256), full=True)
@@ -108,6 +114,10 @@ class AddCore(Circ):
                        lambda t, lane=lane: int(LOAD_B_BASE + lane * 256 <= t
                                                 < LOAD_B_BASE + (lane + 1) * 256), full=True)
                      for lane in range(LANES)]
+        self.is_out_lane = [f(f"is_out.{lane}",
+                              lambda t, lane=lane: int(OUT_BASE + lane * 256 <= t
+                                                       < OUT_BASE + (lane + 1) * 256),
+                              full=True) for lane in range(LANES)]
         self.is_mask = f("is_mask", lambda t: int(MASK_BASE <= t < EXEC_ADD), full=True)
         self.is_read_lane = [f(f"is_read.{lane}",
                                lambda t, lane=lane: int(t == READ_BASE + lane), full=True)
@@ -132,17 +142,24 @@ def build(target: Target | None = None) -> AddCore:
     a_lanes = []
     b_lanes = []
     for lane in range(LANES):
-        a_lanes.append(c.slot_head(f"a.{lane}", {0: c.is_a[lane]},
+        a_write = c.is_a[lane] + c.is_out_lane[lane]
+        a_lanes.append(c.slot_head(f"a.{lane}", {0: a_write},
                                    {0: c.is_exec + c.is_compare},
                                    {2 + bit: val for bit, val in enumerate(c.raw_byte)},
-                                   c.is_a[lane]))
+                                   a_write))
         b_lanes.append(c.slot_head(f"b.{lane}", {0: c.is_b[lane]}, {0: c.is_exec},
                                    {2 + bit: val for bit, val in enumerate(c.raw_byte)},
                                    c.is_b[lane]))
-    mask = c.slot_head("active_mask", {0: c.is_mask}, {0: c.is_exec},
+    mask = c.slot_head("active_mask", {0: c.is_mask},
+                       {0: c.is_exec + c.is_compare + c.is_else},
                        {2 + bit: val for bit, val in enumerate(c.raw_mask)}, c.is_mask)
+    parent = c.slot_head("parent_mask", {0: c.is_compare},
+                          {0: c.is_else + c.is_endif},
+                          {2 + bit: val for bit, val in enumerate(mask)}, c.is_compare)
 
     less_mask = [_lt8(c, a_lanes[lane], c.raw_byte, f"compare.{lane}")
+                 for lane in range(LANES)]
+    else_mask = [c.and_([parent[lane], one - mask[lane]], f"else.{lane}")
                  for lane in range(LANES)]
 
     result = []
@@ -160,12 +177,20 @@ def build(target: Target | None = None) -> AddCore:
 
     floor = max(node.level for node in c.nodes)
     for bit, code in enumerate(c.code):
-        read_bit = selected[bit] if bit < 8 else (one if OUT_BASE >> bit & 1 else Expr())
+        read_bit = (selected[bit] if bit < 8 else
+                    sum((c.is_read_lane[lane] for lane in range(LANES)
+                         if out_token(lane, 0) >> bit & 1), Expr()))
         compare_bit = (less_mask[bit] if bit < 8
                        else (one if MASK_BASE >> bit & 1 else Expr()))
+        else_bit = (else_mask[bit] if bit < 8
+                    else (one if MASK_BASE >> bit & 1 else Expr()))
+        endif_bit = (parent[bit] if bit < 8
+                     else (one if MASK_BASE >> bit & 1 else Expr()))
         terms = (c.t_const(-KAPPA)
                  + c.t_and([c.is_read, read_bit], 2 * KAPPA)
-                 + c.t_and([c.is_compare, compare_bit], 2 * KAPPA))
+                 + c.t_and([c.is_compare, compare_bit], 2 * KAPPA)
+                 + c.t_and([c.is_else, else_bit], 2 * KAPPA)
+                 + c.t_and([c.is_endif, endif_bit], 2 * KAPPA))
         c.ffn(terms, f"exit.code{bit}", into=code, min_level=floor)
     return c
 

@@ -34,8 +34,8 @@ def evaluate_case(model, a: tuple[int, ...], b: tuple[int, ...], mask: int,
         cache = output.past_key_values
         token = int(output.logits[0, -1].argmax())
         observed.append(token)
-        expected.append(out_token((a[lane] + b[lane]) & 255 if mask >> lane & 1
-                                  else a[lane]))
+        expected.append(out_token(lane, (a[lane] + b[lane]) & 255
+                                  if mask >> lane & 1 else a[lane]))
         response = torch.tensor([[token]], device=device)
         output = model(input_ids=response, past_key_values=cache, use_cache=True)
         cache = output.past_key_values
