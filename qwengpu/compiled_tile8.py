@@ -47,6 +47,8 @@ LOOP_OFFSET = BRANCH_OFFSET + 4 * BRANCH_NIBBLES
 LOOP_REGISTER = 0x9300
 READ_LOOP = READ_BRANCH + BRANCH_NIBBLES
 LOOP_NIBBLES = 5
+ROM_BANK = READ_LOOP + LOOP_NIBBLES
+ROM_PAYLOAD_BITS = 12
 NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
@@ -96,6 +98,35 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
     ]
 
 
+def rom_payload(
+    token: int, *, indexed: bool, masked: bool, divergent: bool, looping: bool
+) -> int:
+    if not ROM <= token < ROM + 16 * STRIDE:
+        return 0
+    wire = (token - ROM) % STRIDE
+    tag, arg = divmod(wire, 256)
+    if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
+        return (len(OPS) + arg - 1) * 256
+    if masked and OPS[tag] == "HALT":
+        if arg == 4:
+            return (len(OPS) + len(INDEX_OPS)) * 256
+        if 16 <= arg < 32:
+            return (len(OPS) + len(INDEX_OPS) + 1) * 256 + arg - 16
+    if divergent and OPS[tag] == "HALT":
+        branch_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS)
+        if 32 <= arg < 48:
+            return branch_tag * 256 + arg - 32
+        if arg in (5, 6):
+            return (branch_tag + arg - 4) * 256
+    if looping:
+        loop_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS) + len(BRANCH_OPS)
+        if OPS[tag] == "LOAD_TILE" and arg >= 32:
+            return loop_tag * 256 + arg
+        if OPS[tag] == "BARRIER" and 1 <= arg <= 16:
+            return (loop_tag + 1) * 256 + arg - 1
+    return wire
+
+
 def nibbles(base: int, data: list[int]) -> list[int]:
     return [base + address * 16 + value for address, value in enumerate(data)]
 
@@ -108,7 +139,9 @@ def build(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    resident_rom: bool = False,
 ) -> Circ:
+    looping = looping or resident_rom
     divergent = divergent or looping
     masked = masked or divergent
     indexed = indexed or masked
@@ -236,32 +269,6 @@ def build(
     }
     load_rom = between("rom.load", ROM, ROM + 16 * STRIDE)
 
-    def rom_payload(token: int) -> int:
-        if not ROM <= token < ROM + 16 * STRIDE:
-            return 0
-        wire = (token - ROM) % STRIDE
-        tag, arg = divmod(wire, 256)
-        if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
-            return (len(OPS) + arg - 1) * 256
-        if masked and OPS[tag] == "HALT":
-            if arg == 4:
-                return (len(OPS) + len(INDEX_OPS)) * 256
-            if 16 <= arg < 32:
-                return (len(OPS) + len(INDEX_OPS) + 1) * 256 + arg - 16
-        if divergent and OPS[tag] == "HALT":
-            branch_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS)
-            if 32 <= arg < 48:
-                return branch_tag * 256 + arg - 32
-            if arg in (5, 6):
-                return (branch_tag + arg - 4) * 256
-        if looping:
-            loop_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS) + len(BRANCH_OPS)
-            if OPS[tag] == "LOAD_TILE" and arg >= 32:
-                return loop_tag * 256 + arg
-            if OPS[tag] == "BARRIER" and 1 <= arg <= 16:
-                return (loop_tag + 1) * 256 + arg - 1
-        return wire
-
     op_names = (
         OPS
         + (INDEX_OPS if indexed else ())
@@ -272,17 +279,52 @@ def build(
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
         c.token_feature(
-            f"rom.{bit}", lambda t, bit=bit: (rom_payload(t) >> bit) & 1, full=True
+            f"rom.{bit}",
+            lambda t, bit=bit: (
+                (
+                    rom_payload(
+                        t,
+                        indexed=indexed,
+                        masked=masked,
+                        divergent=divergent,
+                        looping=looping,
+                    )
+                    >> bit
+                )
+                & 1
+            ),
+            full=True,
         )
         for bit in range(8 + op_width)
     ]
+    if resident_rom:
+        bank0 = match("rom.bank.0", ROM_BANK)
+        bank1 = match("rom.bank.1", ROM_BANK + 1)
+        bank_load = bank0 + bank1
+        (upload_bank,) = c.slot_head(
+            "rom.bank", {0: bank_load}, {0: load_rom}, {2: bank1}, bank_load
+        )
+        keys = {
+            16 * warp + address: c.and_([key, selected], f"rom.write.{warp}.{address}")
+            for warp, selected in enumerate((one - upload_bank, upload_bank))
+            for address, key in keys.items()
+        }
+        queries = {
+            16 * warp + address: c.and_(
+                [tick, active, selected], f"rom.query.{warp}.{address}"
+            )
+            for warp, selected in enumerate((one - warp_bit, warp_bit))
+            for address, active in enumerate(pc_hot)
+        }
+    else:
+        queries = {
+            i: c.and_([tick, active], f"rom.query.{i}")
+            for i, active in enumerate(pc_hot)
+        }
     payload = c.slot_head(
         "rom",
         keys,
-        {
-            i: c.and_([tick, active], f"rom.query.{i}")
-            for i, active in enumerate(pc_hot)
-        },
+        queries,
         {2 + bit: value for bit, value in enumerate(rom_bits)},
         load_rom,
     )
@@ -718,6 +760,7 @@ def build_standalone(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    resident_rom: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -727,6 +770,7 @@ def build_standalone(
         masked=masked,
         divergent=divergent,
         looping=looping,
+        resident_rom=resident_rom,
     )
     return build_qwen(
         circuit,

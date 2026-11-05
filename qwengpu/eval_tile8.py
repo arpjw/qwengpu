@@ -49,11 +49,14 @@ from qwengpu.compiled_tile8 import (
     READ_REG,
     READ_STORE,
     REGISTER,
+    ROM_BANK,
+    ROM_PAYLOAD_BITS,
     SNAPSHOT_BITS,
     build,
     build_standalone,
     nibbles,
     program_tokens,
+    rom_payload,
 )
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_control import hex_bits, snapshot
@@ -66,6 +69,7 @@ MASKED_FIXTURES = FIXTURES.with_name("masked_gate_v1")
 DIVERGENT_FIXTURES = FIXTURES.with_name("divergent_gate_v1")
 LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
+RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -241,7 +245,9 @@ def execute(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    resident_rom: bool = False,
 ) -> dict:
+    looping = looping or resident_rom
     divergent = divergent or looping
     masked = masked or divergent
     indexed = indexed or masked
@@ -277,6 +283,12 @@ def execute(
         "matrix_initial_tokens": 0,
         "matrix_patch_tokens": 0,
     }
+
+    if resident_rom:
+        for warp, tokens in enumerate(rom):
+            pending.extend([ROM_BANK + warp, *tokens])
+        transport["rom_program_tokens"] = sum(len(tokens) for tokens in rom)
+        transport["rom_select_tokens"] = len(rom)
 
     def feed(tokens: list[int], count: int):
         nonlocal cache
@@ -327,8 +339,9 @@ def execute(
             state += branches[warp]
         if looping:
             state += loops[warp]
+        program = [] if resident_rom else rom[warp]
         emitted = feed(
-            [*rom[warp], *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
+            [*program, *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
         )
         control, *packet = emitted
         _check_control(control, warp)
@@ -394,6 +407,15 @@ def execute(
     if resident:
         transport["resident_memory_exact"] = _check_resident_memory(
             cache, circuit, operands, memory, indexed=indexed
+        )
+    if resident_rom:
+        transport["resident_rom_exact"] = all(
+            head_row(cache, circuit, "rom", 16 * warp + address, ROM_PAYLOAD_BITS)
+            == rom_payload(
+                token, indexed=True, masked=True, divergent=True, looping=True
+            )
+            for warp, tokens in enumerate(rom)
+            for address, token in enumerate(tokens)
         )
     return {
         "transport": transport,
@@ -653,6 +675,7 @@ def load_tile_model(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    resident_rom: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -661,6 +684,7 @@ def load_tile_model(
             masked=masked,
             divergent=divergent,
             looping=looping,
+            resident_rom=resident_rom,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -678,6 +702,7 @@ def load_tile_model(
             masked=masked,
             divergent=divergent,
             looping=looping,
+            resident_rom=resident_rom,
         )
     return model.to(device).eval(), circuit
 
@@ -692,6 +717,7 @@ def main() -> None:
     variants.add_argument("--masked", action="store_true")
     variants.add_argument("--divergent", action="store_true")
     variants.add_argument("--looping", action="store_true")
+    variants.add_argument("--resident-rom", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -701,7 +727,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    looping = args.looping
+    resident_rom = args.resident_rom
+    looping = args.looping or resident_rom
     divergent = args.divergent or looping
     masked = args.masked or divergent
     indexed = args.indexed or masked
@@ -716,9 +743,11 @@ def main() -> None:
             "qwengpu-masked9b-v1",
             "qwengpu-divergent9b-v1",
             LOOP_LAYOUT,
+            RESIDENT_ROM_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        looping = layout == LOOP_LAYOUT
+        resident_rom = layout == RESIDENT_ROM_LAYOUT
+        looping = resident_rom or layout == LOOP_LAYOUT
         divergent = looping or layout == "qwengpu-divergent9b-v1"
         masked = divergent or layout == "qwengpu-masked9b-v1"
         indexed = masked or layout == "qwengpu-indexed9b-v1"
@@ -733,6 +762,8 @@ def main() -> None:
             raise ValueError("--divergent requires a divergent checkpoint")
         if args.looping and not looping:
             raise ValueError("--looping requires a looping checkpoint")
+        if args.resident_rom and not resident_rom:
+            raise ValueError("--resident-rom requires a resident ROM checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -772,6 +803,7 @@ def main() -> None:
         masked=masked,
         divergent=divergent,
         looping=looping,
+        resident_rom=resident_rom,
     )
     report = {
         "device": args.device,
@@ -802,6 +834,7 @@ def main() -> None:
             masked=masked,
             divergent=divergent,
             looping=looping,
+            resident_rom=resident_rom,
         )
         transport = observed.pop("transport")
         exact = (
@@ -813,6 +846,7 @@ def main() -> None:
                     and transport["resident_memory_exact"]
                 )
             )
+            and (not resident_rom or transport["resident_rom_exact"])
             and observed["outcome"] == case["expected_outcome"]
             and (
                 case["expected_matrix"] is None

@@ -10,7 +10,13 @@ from pathlib import Path
 import torch
 
 from qwengpu.compiled_tile8 import VOCAB
-from qwengpu.eval_tile8 import LOOP_LAYOUT, execute, load_tile_model, parse_launch
+from qwengpu.eval_tile8 import (
+    LOOP_LAYOUT,
+    RESIDENT_ROM_LAYOUT,
+    execute,
+    load_tile_model,
+    parse_launch,
+)
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
@@ -21,6 +27,11 @@ def main() -> int:
     parser.add_argument("kernel", type=Path)
     parser.add_argument(
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
+    )
+    parser.add_argument(
+        "--resident-rom",
+        action="store_true",
+        help="keep both programs in the launch cache",
     )
     parser.add_argument("--device", choices=("cpu", "mps", "cuda"))
     parser.add_argument("--max-steps", type=int, default=256)
@@ -35,7 +46,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    layout = "standalone-looping"
+    resident_rom = args.resident_rom
+    layout = "standalone-resident-rom" if resident_rom else "standalone-looping"
     try:
         payload = args.kernel.read_bytes()
         launch = parse_launch(json.loads(payload), looping=True)
@@ -45,13 +57,16 @@ def main() -> int:
             )
             if (
                 not isinstance(meta, dict)
-                or meta.get("layout") != LOOP_LAYOUT
+                or meta.get("layout") not in (LOOP_LAYOUT, RESIDENT_ROM_LAYOUT)
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
-            layout = LOOP_LAYOUT
+            layout = meta["layout"]
+            if args.resident_rom and layout != RESIDENT_ROM_LAYOUT:
+                raise ValueError("--resident-rom requires a resident ROM checkpoint")
+            resident_rom = layout == RESIDENT_ROM_LAYOUT
             offset = meta["chip_token_offset"]
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -65,9 +80,18 @@ def main() -> int:
             if torch.backends.mps.is_available()
             else "cpu"
         )
-    model, circuit = load_tile_model(args.model, device, looping=True)
+    model, circuit = load_tile_model(
+        args.model, device, looping=True, resident_rom=resident_rom
+    )
     observed = execute(
-        model, circuit, launch, device, args.max_steps, offset, looping=True
+        model,
+        circuit,
+        launch,
+        device,
+        args.max_steps,
+        offset,
+        looping=True,
+        resident_rom=resident_rom,
     )
     trace = observed.pop("trace")
     schedules = observed.pop("schedules")
@@ -89,7 +113,11 @@ def main() -> int:
     else:
         print(output)
     transport = observed["transport"]
-    if transport["fresh_caches"] != 1 or not transport["resident_memory_exact"]:
+    if (
+        transport["fresh_caches"] != 1
+        or not transport["resident_memory_exact"]
+        or (resident_rom and not transport["resident_rom_exact"])
+    ):
         return 1
     return EXIT_CODES[observed["outcome"]]
 

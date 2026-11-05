@@ -541,3 +541,34 @@ the terminal outcome. The launcher writes JSON to stdout unless given
 tickets. Set `--max-steps` to override the default launch budget of 256.
 Exit codes are 0 for halt, 3 for deadlock, and 4 for budget exhaustion.
 The launcher writes the result before returning any of these codes.
+
+## Resident warp programs
+
+The resident-ROM checkpoint uploads two padded 16-slot programs and
+two bank-select tokens at launch. Both programs stay in the same
+recurrent ROM table. The model selects a row from the scheduled warp
+and its PC. The launcher sends no further program tokens.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-rom --device mps --out "$QWENGPU_DIR/results/resident_rom_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-rom --out /path/to/Qwen3.5-9B-qwengpu-resident-rom
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-rom --device cuda \
+  --out "$QWENGPU_DIR/results/resident_rom_9b_cuda_fla.json"
+```
+
+The evaluator checks all 32 decoded ROM entries in the final cache.
+Use `--resident-rom` with the standalone JSON launcher, or select the
+merged checkpoint with `--model`.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --resident-rom --device mps --out "$QWENGPU_DIR/results/resident_rom_launch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-rom --device cuda \
+  --out "$QWENGPU_DIR/results/resident_rom_launch_9b_cuda_fla.json"
+```

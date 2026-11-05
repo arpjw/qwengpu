@@ -199,8 +199,11 @@ python3 -m qwengpu.run_resident eval/frozen/loop_gate_v1/cooperative_matmul.json
 ```
 
 Add `--model /path/to/Qwen3.5-9B-qwengpu-looping --device cuda` for the
-merged checkpoint. The launcher reports the resulting matrix, shared
-words, instruction count, and launch outcome as JSON.
+merged checkpoint. Pass `--resident-rom` to the standalone launcher or
+use a merge built with `merge9b --resident-rom` to upload each warp program
+once per launch. The model fetches instructions by its scheduled warp
+and PC. The launcher reports the resulting matrix, shared words,
+instruction count, and launch outcome as JSON.
 
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
