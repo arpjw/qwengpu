@@ -1,0 +1,1 @@
+{"initial":[0,255,1,254,127,128,85,170],"program":[{"op":"LOAD","arg":24},{"op":"ADDI","arg":255},{"op":"ADDI","arg":1},{"op":"XORI","arg":255},{"op":"STORE","arg":24},{"op":"ADDI","arg":129},{"op":"LOAD","arg":24},{"op":"HALT"}]}

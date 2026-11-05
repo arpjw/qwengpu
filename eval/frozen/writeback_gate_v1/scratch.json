@@ -1,0 +1,9 @@
+{
+  "initial": [255, 0, 128, 127, 42, 213, 5, 250],
+  "program": [
+    {"op": "STORE", "arg": 0},
+    {"op": "ADDI", "arg": 7},
+    {"op": "LOAD", "arg": 0},
+    {"op": "HALT"}
+  ]
+}
