@@ -1,0 +1,32 @@
+{
+  "warps": [
+    {
+      "initial": [32, 0, 33, 1, 34, 2, 35, 3],
+      "program": [
+        {"op": "MOV_R1"},
+        {"op": "ADDI", "arg": 117},
+        {"op": "IF_LT", "arg": 150},
+        {"op": "SCATTER_R1"},
+        {"op": "ENDIF"},
+        {"op": "BARRIER"},
+        {"op": "BARRIER"},
+        {"op": "LOAD", "arg": 8},
+        {"op": "HALT"}
+      ]
+    },
+    {
+      "initial": [0, 1, 2, 3, 0, 1, 2, 3],
+      "program": [
+        {"op": "MOV_R1"},
+        {"op": "BARRIER"},
+        {"op": "GATHER_R1"},
+        {"op": "IF_LT", "arg": 130},
+        {"op": "REDUCE_SUM"},
+        {"op": "ENDIF"},
+        {"op": "STORE", "arg": 8},
+        {"op": "BARRIER"},
+        {"op": "HALT"}
+      ]
+    }
+  ]
+}

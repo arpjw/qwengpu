@@ -15,7 +15,8 @@ from typing import Literal
 LANES = 8
 SCRATCH_SIZE = 64
 Opcode = Literal["ADDI", "XORI", "IF_LT", "ELSE", "ENDIF", "STORE", "LOAD", "SUM", "HALT",
-                 "WHILE_LT", "ENDWHILE", "MOV_R1", "GATHER_R1", "MUL_R1"]
+                 "WHILE_LT", "ENDWHILE", "MOV_R1", "GATHER_R1", "MUL_R1",
+                 "SCATTER_R1", "BARRIER", "REDUCE_SUM"]
 
 
 @dataclass(frozen=True, slots=True)

@@ -32,6 +32,24 @@ class ControlLoaderTests(unittest.TestCase):
                     data["expected_outcome"],
                 )
 
+    def test_workgroup_barrier_requires_reconvergence(self):
+        data = {
+            "initial": [0] * 8,
+            "program": [
+                {"op": "IF_LT", "arg": 5},
+                {"op": "BARRIER"},
+                {"op": "ENDIF"},
+                {"op": "HALT"},
+            ],
+        }
+        with self.assertRaisesRegex(ValueError, "outside control blocks"):
+            parse_kernel(data, workgroup=True)
+        data["program"] = [{"op": "BARRIER"}, {"op": "HALT"}]
+        with self.assertRaises(ValueError):
+            parse_kernel(data, extended=True)
+        _, program = parse_kernel(data, workgroup=True)
+        self.assertEqual(program[0].op, "BARRIER")
+
     def test_invalid_control_blocks(self):
         invalid = [
             ["ELSE", "HALT"],

@@ -56,6 +56,16 @@ def checkpoint_tokens(bits: list[int]) -> list[int]:
     ]
 
 
+def check_checkpoint(tokens: list[int], snapshot_width: int) -> None:
+    if len(tokens) != (snapshot_width + 7) // 8:
+        raise ValueError("wrong number of generated checkpoint tokens")
+    for index, token in enumerate(tokens):
+        base = CHECKPOINT_BASE + index * 256
+        width = min(8, snapshot_width - index * 8)
+        if not base <= token < base + (1 << width):
+            raise ValueError(f"invalid generated checkpoint token at byte {index}")
+
+
 @torch.no_grad()
 def execute_windows(
     model,
@@ -128,11 +138,7 @@ def execute_windows(
             [generated, *range(EXPORT_BASE, export_end), export_end], all_logits=True
         )
         checkpoint, control = outputs[1:-1], outputs[-1]
-        for index, token in enumerate(checkpoint):
-            base = CHECKPOINT_BASE + index * 256
-            width = min(8, snapshot_width - index * 8)
-            if not base <= token < base + (1 << width):
-                raise ValueError(f"invalid generated checkpoint token at byte {index}")
+        check_checkpoint(checkpoint, snapshot_width)
         if not STATE_BASE <= control < STATE_BASE + 16:
             raise ValueError(f"invalid generated restart token {control}")
         transfers.append(

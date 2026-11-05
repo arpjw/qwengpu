@@ -6,7 +6,7 @@ from chipformer.q35.ir import Target
 from chipformer.q35.prims import Circ, from_bits
 from qwengpu.compiled_rom import KAPPA, CODE_AMP, _increment4
 from qwengpu.compiled_writeback import _add_byte
-from qwengpu.control_reference import ISA_OPS, OPS, MAX_STEPS, validate
+from qwengpu.control_reference import ISA_OPS, OPS, WORKGROUP_OPS, MAX_STEPS, validate
 from qwengpu.reference import Instruction
 
 VOCAB = 65536
@@ -19,9 +19,12 @@ STRIDE = len(OPS) * 256
 ROM_END = ROM_BASE + 16 * STRIDE
 SNAPSHOT_BITS = 380
 CHUNK_BITS = 120
-OP = {name: index for index, name in enumerate(OPS + ISA_OPS)}
+OP = {name: index for index, name in enumerate(OPS + ISA_OPS + WORKGROUP_OPS)}
 # Extra instructions use formerly invalid HALT arguments on the upload wire.
-ISA_UPLOAD = {name: OP["HALT"] * 256 + index for index, name in enumerate(ISA_OPS, 1)}
+ISA_UPLOAD = {
+    name: OP["HALT"] * 256 + index
+    for index, name in enumerate(ISA_OPS + WORKGROUP_OPS, 1)
+}
 ISA_DECODE = {payload: OP[name] * 256 for name, payload in ISA_UPLOAD.items()}
 ISA_SNAPSHOT_BITS = SNAPSHOT_BITS + 64
 
@@ -40,9 +43,9 @@ def state_token(
 
 
 def program_tokens(
-    program: tuple[Instruction, ...], *, extended: bool = False
+    program: tuple[Instruction, ...], *, extended: bool = False, workgroup: bool = False
 ) -> list[int]:
-    links = validate(program, extended=extended)
+    links = validate(program, extended=extended, workgroup=workgroup)
     instructions = list(program) + [Instruction("HALT")] * (16 - len(program))
     rom = []
     for address, ins in enumerate(instructions):
@@ -202,6 +205,12 @@ def _product_byte(
         for column in range(8)
     ]
 
+    return _byte_from_columns(c, columns, list(range(1, 9)), name)
+
+
+def _byte_from_columns(
+    c: Circ, columns: list[Expr], limits: list[int], name: str
+) -> list[Expr]:
     def digit(value: Expr, upper: int, bit: int) -> Expr:
         half = 1 << bit
         terms = []
@@ -212,14 +221,19 @@ def _product_byte(
         return c.node(terms, f"{name}.bit.{bit}")
 
     low = sum((columns[i] * (1 << i) for i in range(4)), Expr())
+    low_limit = sum(limits[i] * (1 << i) for i in range(4))
     carry = c.node(
-        [term for threshold in (16, 32, 48) for term in c.t_ge(low, threshold, 0, 49)],
+        [
+            term
+            for threshold in range(16, low_limit + 1, 16)
+            for term in c.t_ge(low, threshold, 0, low_limit)
+        ],
         f"{name}.carry",
     )
     result = [
         digit(
             sum((columns[i] * (1 << i) for i in range(bit + 1)), Expr()),
-            sum((i + 1) * (1 << i) for i in range(bit + 1)),
+            sum(limits[i] * (1 << i) for i in range(bit + 1)),
             bit,
         )
         for bit in range(4)
@@ -228,7 +242,9 @@ def _product_byte(
         high = carry + sum(
             (columns[i] * (1 << (i - 4)) for i in range(4, bit + 1)), Expr()
         )
-        upper = 3 + sum((i + 1) * (1 << (i - 4)) for i in range(4, bit + 1))
+        upper = low_limit // 16 + sum(
+            limits[i] * (1 << (i - 4)) for i in range(4, bit + 1)
+        )
         # The threshold bit within the high nibble is independent of the low nibble.
         half = 1 << (bit - 4)
         terms = []
@@ -240,9 +256,15 @@ def _product_byte(
 
 
 def build(
-    target: Target | None = None, *, resumable: bool = False, extended: bool = False
+    target: Target | None = None,
+    *,
+    resumable: bool = False,
+    extended: bool = False,
+    workgroup: bool = False,
 ) -> ControlSIMT:
+    extended = extended or workgroup
     resumable = resumable or extended
+    steps = 1 if workgroup else MAX_STEPS
     c = ControlSIMT(target, extended=extended)
     byte_count = (c.snapshot_bits + 7) // 8
     one = c.one
@@ -311,7 +333,7 @@ def build(
             f"op.{op}",
         )
         for op, index in OP.items()
-        if extended or op in OPS
+        if op in OPS or (extended and op in ISA_OPS) or workgroup
     }
     slots = c.onehot_of_bits(arg[:2], "scratch.slot", 4)
     stores = [c.and_([flags["STORE"], slots[s]], f"store.{s}") for s in range(4)]
@@ -339,7 +361,7 @@ def build(
             initial + [Expr()] * 256 + [one] * 8 + [Expr()] * (SNAPSHOT_BITS - 328)
         )
     exits = []
-    for s in range(MAX_STEPS):
+    for s in range(steps):
         prefix = f"s{s}"
         active = c.and_([c.is_tick, stage_hot[s]], f"{prefix}.write")
         lanes = [previous[i * 8 : (i + 1) * 8] for i in range(8)]
@@ -394,8 +416,22 @@ def build(
             8,
             f"{prefix}.mask",
         )
+        if workgroup:
+            sum_columns = [
+                c.node(
+                    [
+                        term
+                        for lane in range(8)
+                        for term in c.t_and([mask[lane], lanes[lane][bit]])
+                    ],
+                    f"{prefix}.reduce.column.{bit}",
+                )
+                for bit in range(8)
+            ]
+            reduction = _byte_from_columns(c, sum_columns, [8] * 8, f"{prefix}.reduce")
         next_lanes = []
         next_r1 = []
+        scatter_addresses = []
         for i in range(8):
             added = _add_byte(c, lanes[i], arg, f"{prefix}.add.{i}")
             xored = [
@@ -424,6 +460,7 @@ def build(
                     [r1[bit] if byte >> bit & 1 else one - r1[bit] for bit in range(5)]
                     for byte in range(32)
                 ]
+                scatter_addresses.append(address_matches)
                 # Stagger the gather lanes so each FFN has room for slot reuse.
                 gather_floor = c.level(*r1, *previous[64:320]) + int(i >= 4)
                 gather = [
@@ -450,6 +487,11 @@ def build(
                         [([move], lanes[i]), ([one - move], r1)], 8, f"{prefix}.r1.{i}"
                     )
                 )
+            if workgroup:
+                enables["REDUCE_SUM"] = c.and_(
+                    [mask[i], flags["REDUCE_SUM"]], f"{prefix}.reduce.active.{i}"
+                )
+                choices.append(([enables["REDUCE_SUM"]], reduction))
             choices.append(([one - sum(enables.values(), Expr())], lanes[i]))
             next_lanes.extend(c.select_bits(choices, 8, f"{prefix}.lane.{i}"))
         next_memory = []
@@ -458,15 +500,39 @@ def build(
                 write = c.and_(
                     [stores[slot], mask[lane]], f"{prefix}.store.{slot}.{lane}"
                 )
-                next_memory.extend(
-                    c.select_bits(
-                        [
-                            ([write], lanes[lane]),
-                            ([one - write], memory[slot][lane * 8 : (lane + 1) * 8]),
-                        ],
-                        8,
-                        f"{prefix}.memory.{slot}.{lane}",
+                choices = [([write], lanes[lane])]
+                keep = one - write
+                if workgroup:
+                    address = slot * 8 + lane
+                    candidates = [
+                        c.and_(
+                            [
+                                flags["SCATTER_R1"],
+                                mask[source],
+                                *scatter_addresses[source][address],
+                            ],
+                            f"{prefix}.scatter.{address}.{source}",
+                        )
+                        for source in range(8)
+                    ]
+                    choices.extend(
+                        (
+                            [hit, *[one - earlier for earlier in candidates[:source]]],
+                            lanes[source],
+                        )
+                        for source, hit in enumerate(candidates)
                     )
+                    keep = (
+                        one
+                        - write
+                        - c.node(
+                            c.t_ge(sum(candidates, Expr()), 1, 0, 8),
+                            f"{prefix}.scatter.any.{address}",
+                        )
+                    )
+                choices.append(([keep], memory[slot][lane * 8 : (lane + 1) * 8]))
+                next_memory.extend(
+                    c.select_bits(choices, 8, f"{prefix}.memory.{slot}.{lane}")
                 )
         values = (
             next_lanes
@@ -487,7 +553,7 @@ def build(
                     {0: active},
                     {
                         0: c.is_tick
-                        + (sum(export, Expr()) if s == MAX_STEPS - 1 else Expr())
+                        + (sum(export, Expr()) if s == steps - 1 else Expr())
                     },
                     {
                         2 + b: v
@@ -499,7 +565,6 @@ def build(
         c.snapshots.append(previous)
     leave = sum(exits, Expr())
     halt = flags["HALT"]
-    exhausted = c.and_([stage_hot[15], c.is_tick, one - halt], "exhausted")
     next_pc = c.select_bits(
         [
             ([halt], pc),
@@ -509,15 +574,20 @@ def build(
         4,
         "next.pc",
     )
-    next_stage = c.select_bits(
-        [
-            ([halt + exhausted], stage),
-            ([one - halt - exhausted], _increment4(c, stage)),
-        ],
-        4,
-        "next.stage",
-    )
-    result = next_pc + next_stage + [halt, exhausted]
+    if workgroup:
+        barrier = flags["BARRIER"]
+        result = next_pc + [Expr()] * 4 + [halt + barrier, barrier]
+    else:
+        exhausted = c.and_([stage_hot[15], c.is_tick, one - halt], "exhausted")
+        next_stage = c.select_bits(
+            [
+                ([halt + exhausted], stage),
+                ([one - halt - exhausted], _increment4(c, stage)),
+            ],
+            4,
+            "next.stage",
+        )
+        result = next_pc + next_stage + [halt, exhausted]
     floor = max(node.level for node in c.nodes)
     if extended:
         # Reserve an FFN sublayer for output and residual cleanup.
@@ -544,11 +614,17 @@ def build(
     return c
 
 
-def build_standalone(*, dtype=None, resumable: bool = False, extended: bool = False):
+def build_standalone(
+    *,
+    dtype=None,
+    resumable: bool = False,
+    extended: bool = False,
+    workgroup: bool = False,
+):
     import torch
     from chipformer.q35.tiny import build as build_qwen
 
-    c = build(resumable=resumable, extended=extended)
+    c = build(resumable=resumable, extended=extended, workgroup=workgroup)
     model = build_qwen(
         c,
         list(range(VOCAB)),

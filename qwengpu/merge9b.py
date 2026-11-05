@@ -92,7 +92,7 @@ def _load_widened_text(src: Path, hidden: int, n_chip: int) -> tuple[dict, torch
 
 
 def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
-                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False) -> dict:
+                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False) -> dict:
     """Write a text-only stock Qwen3.5 checkpoint with the SIMT circuit first."""
     from safetensors.torch import save_file
 
@@ -104,9 +104,9 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     d0, v0, inter = tc0["hidden_size"], tc0["vocab_size"], tc0["intermediate_size"]
     from chipformer.q35.ir import Target
 
-    if sum((rom, writeback, control, resume, isa)) > 1:
+    if sum((rom, writeback, control, resume, isa, workgroup)) > 1:
         raise ValueError("choose one circuit variant")
-    if control or resume or isa:
+    if control or resume or isa or workgroup:
         from qwengpu.compiled_control import VOCAB as chip_vocab
         from qwengpu.compiled_control import build
     elif writeback:
@@ -119,7 +119,12 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         from qwengpu.compiled_add import VOCAB as chip_vocab
         from qwengpu.compiled_add import build
     target = Target(tc0["linear_num_key_heads"], tc0["linear_num_value_heads"], inter)
-    circuit = build(target, resumable=True, extended=isa) if resume or isa else build(target)
+    if workgroup:
+        circuit = build(target, workgroup=True)
+    elif resume or isa:
+        circuit = build(target, resumable=True, extended=isa)
+    else:
+        circuit = build(target)
     # The generic emitter clears its ballast at the exit. Leave a separate
     # marker, written only at the exit, for Qwen's mute gates. It starts at
     # zero, so it cannot disturb the SIMT circuit's earlier sublayers.
@@ -205,7 +210,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         "pad_token_id": tc0.get("eos_token_id", 248044), "eos_token_id": tc0.get("eos_token_id", 248044)},
         indent=2), encoding="utf-8")
     _copy_tokenizer(src, dst)
-    meta = {"layout": ("qwengpu-isa9b-v1" if isa else
+    meta = {"layout": ("qwengpu-workgroup9b-v1" if workgroup else
+                       "qwengpu-isa9b-v1" if isa else
                        "qwengpu-resume9b-v1" if resume else
                        "qwengpu-control9b-v1" if control else
                        "qwengpu-writeback9b-v1" if writeback else
@@ -227,6 +233,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-anti-sink", action="store_true")
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--workgroup", action="store_true",
+                          help="merge the cooperative workgroup ISA")
     variants.add_argument("--isa", action="store_true",
                           help="merge the extended resumable integer ISA")
     variants.add_argument("--resume", action="store_true",
@@ -241,7 +249,7 @@ def main() -> None:
     print(json.dumps(build_merged(args.src, args.out,
                                   fit_sinks=not args.no_anti_sink,
                                   rom=args.rom, writeback=args.writeback, control=args.control,
-                                  resume=args.resume, isa=args.isa)), flush=True)
+                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup)), flush=True)
 
 
 if __name__ == "__main__":

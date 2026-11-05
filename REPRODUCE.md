@@ -251,3 +251,39 @@ the new instructions.
 The default ISA fixture fills the scratch banks, runs a lane-dependent
 loop across a window boundary, and then gathers and multiplies under a
 divergent mask. Use `--kernel` to load a different program.
+
+## Cooperative workgroups
+
+The workgroup launcher accepts a JSON object containing exactly two entries in
+`warps`. Each entry has eight `initial` bytes and up to 16 `program`
+instructions ending in HALT. An optional `shared` array supplies the initial
+32 scratch bytes. The default suite includes a cooperative reduction, two
+interleaved loops, and a deliberate barrier deadlock.
+
+The fixed model executes one warp instruction per call. The host schedules
+ready warps in round-robin order and copies the generated private state and
+shared scratch tokens into the next call. The launcher reports final R0
+values for both warps and the shared bytes alongside the complete trace.
+
+- `SCATTER_R1` writes each active lane's R0 to shared byte `R1 & 31`.
+  The model chooses the lowest active lane number when addresses collide.
+- `REDUCE_SUM` sums active R0 bytes modulo 256 and broadcasts the result
+  to the active lanes.
+- `BARRIER` advances the warp PC and emits a waiting status. The host
+  releases both warps once both have arrived. The loader requires barriers
+  at the top level, after any enclosing branch or loop has closed.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_workgroup \
+  --device mps --out "$QWENGPU_DIR/results/workgroup_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --workgroup --out /path/to/Qwen3.5-9B-qwengpu-workgroup
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_workgroup \
+  /path/to/Qwen3.5-9B-qwengpu-workgroup --device cuda \
+  --out "$QWENGPU_DIR/results/workgroup_9b_cuda_fla.json"
+```
+
+Pass `--kernel path/to/workgroup.json` for one manifest and `--max-steps`
+to change the aggregate instruction guard. A manifest can declare an
+`expected_outcome` of `deadlock` or `step_limit` for negative cases. The
+default expected outcome is `halted`.

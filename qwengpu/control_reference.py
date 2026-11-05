@@ -21,14 +21,19 @@ OPS = (
 
 
 ISA_OPS = ("MOV_R1", "GATHER_R1", "MUL_R1")
+WORKGROUP_OPS = ("SCATTER_R1", "BARRIER", "REDUCE_SUM")
 
 
 def validate(
-    program: tuple[Instruction, ...], *, extended: bool = False
+    program: tuple[Instruction, ...], *, extended: bool = False, workgroup: bool = False
 ) -> dict[int, int]:
     if not 1 <= len(program) <= 16 or program[-1].op != "HALT":
         raise ValueError("control ROM requires final HALT within 16 slots")
-    supported = OPS + ISA_OPS if extended else OPS
+    supported = (
+        OPS
+        + (ISA_OPS if extended or workgroup else ())
+        + (WORKGROUP_OPS if workgroup else ())
+    )
     stack: list[tuple[str, int, bool]] = []
     links: dict[int, int] = {}
     for pc, ins in enumerate(program):
@@ -36,8 +41,13 @@ def validate(
             raise ValueError(f"unsupported control opcode {ins.op}")
         if ins.op in ("STORE", "LOAD") and ins.arg not in (0, 8, 16, 24):
             raise ValueError("scratch addresses must be 0, 8, 16, or 24")
-        if ins.op in ("ELSE", "ENDIF", "ENDWHILE", "HALT", *ISA_OPS) and ins.arg:
+        if (
+            ins.op in ("ELSE", "ENDIF", "ENDWHILE", "HALT", *ISA_OPS, *WORKGROUP_OPS)
+            and ins.arg
+        ):
             raise ValueError(f"{ins.op} takes no argument")
+        if ins.op == "BARRIER" and stack:
+            raise ValueError("BARRIER must be outside control blocks")
         if ins.op in ("IF_LT", "WHILE_LT"):
             if sum(kind == ins.op for kind, _, _ in stack) >= MAX_DEPTH:
                 raise ValueError("maximum nesting depth is two per control stack")
@@ -63,7 +73,7 @@ def validate(
 
 
 def parse_kernel(
-    data: object, *, extended: bool = False
+    data: object, *, extended: bool = False, workgroup: bool = False
 ) -> tuple[tuple[int, ...], tuple[Instruction, ...]]:
     if not isinstance(data, dict):
         raise ValueError("kernel must be an object")
@@ -77,7 +87,11 @@ def parse_kernel(
         raise ValueError("initial must contain eight unsigned bytes")
     if not isinstance(raw, list) or not 1 <= len(raw) <= 16:
         raise ValueError("program must contain 1 through 16 instructions")
-    supported = OPS + ISA_OPS if extended else OPS
+    supported = (
+        OPS
+        + (ISA_OPS if extended or workgroup else ())
+        + (WORKGROUP_OPS if workgroup else ())
+    )
     program = []
     for ins in raw:
         if not isinstance(ins, dict) or ins.get("op") not in supported:
@@ -87,7 +101,7 @@ def parse_kernel(
             raise ValueError("argument must be an unsigned byte")
         program.append(Instruction(ins["op"], arg))
     result = tuple(program)
-    validate(result, extended=extended)
+    validate(result, extended=extended, workgroup=workgroup)
     return tuple(initial), result
 
 
@@ -110,6 +124,20 @@ def step(state: ControlState, program: tuple[Instruction, ...]) -> ControlState:
     if w.halted:
         return state
     ins = program[w.pc]
+    if ins.op in WORKGROUP_OPS:
+        if ins.op == "BARRIER":
+            return replace(state, warp=replace(w, pc=w.pc + 1))
+        active = [lane for lane in range(8) if w.active_mask >> lane & 1]
+        if ins.op == "REDUCE_SUM":
+            total = sum(w.lanes[lane] for lane in active) & 255
+            lanes = tuple(
+                total if lane in active else value for lane, value in enumerate(w.lanes)
+            )
+            return replace(state, warp=replace(w, pc=w.pc + 1, lanes=lanes))
+        scratch = bytearray(w.scratch)
+        for lane in reversed(active):
+            scratch[state.r1[lane] & 31] = w.lanes[lane]
+        return replace(state, warp=replace(w, pc=w.pc + 1, scratch=bytes(scratch)))
     if ins.op in ISA_OPS:
         lanes = list(w.lanes)
         r1 = list(state.r1)
