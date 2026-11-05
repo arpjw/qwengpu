@@ -17,7 +17,6 @@ from qwengpu.compiled_control import (
     STATE_BASE,
     STATE_COUNT,
     TICK,
-    SNAPSHOT_BITS,
     CHUNK_BITS,
     ROM_BASE,
     STRIDE,
@@ -37,24 +36,25 @@ from qwengpu.eval_compiled_rom import head_row
 
 def snapshot(cache, circuit, stage: int) -> list[int] | None:
     packed = 0
-    for chunk, start in enumerate(range(0, SNAPSHOT_BITS, CHUNK_BITS)):
+    for chunk, start in enumerate(range(0, circuit.snapshot_bits, CHUNK_BITS)):
         value = head_row(
             cache,
             circuit,
             f"stage.{stage}.{chunk}",
             0,
-            min(CHUNK_BITS, SNAPSHOT_BITS - start),
+            min(CHUNK_BITS, circuit.snapshot_bits - start),
         )
         if value is None:
             return None
         packed |= value << start
-    return [(packed >> b) & 1 for b in range(SNAPSHOT_BITS)]
+    return [(packed >> b) & 1 for b in range(circuit.snapshot_bits)]
 
 
 def hex_bits(bits: list[int] | None) -> str | None:
     if bits is None:
         return None
-    return f"{sum(v << b for b, v in enumerate(bits)):095x}"
+    width = (len(bits) + 3) // 4
+    return f"{sum(v << b for b, v in enumerate(bits)):0{width}x}"
 
 
 def describe(bits: list[int] | None) -> dict | None:

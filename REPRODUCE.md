@@ -221,3 +221,33 @@ The local smoke command stops deliberately after 49 instructions. The full
 command requires HALT within its 1,200-instruction guard and compares every
 control token, cached snapshot, and exported handoff with an uninterrupted
 interpreter.
+
+## Second register, indexed gather, and byte multiply
+
+The ISA variant adds three zero-argument instructions. Each acts on active
+lanes only.
+
+| Instruction | Effect |
+| --- | --- |
+| `MOV_R1` | Copy the lane's accumulator R0 into R1. |
+| `GATHER_R1` | Load R0 from scratch byte `R1 & 31`. |
+| `MUL_R1` | Replace R0 with `(R0 * R1) & 255`. |
+
+R1 starts at zero. Its eight bytes are appended to the existing snapshot,
+for 444 bits and 56 exported state tokens per handoff. The ROM upload
+preserves its existing address layout by using three reserved payloads for
+the new instructions.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_resume \
+  --isa --device mps --out "$QWENGPU_DIR/results/isa_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --isa --out /path/to/Qwen3.5-9B-qwengpu-isa
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_resume \
+  /path/to/Qwen3.5-9B-qwengpu-isa --device cuda \
+  --out "$QWENGPU_DIR/results/isa_9b_cuda_fla.json"
+```
+
+The default ISA fixture fills the scratch banks, runs a lane-dependent
+loop across a window boundary, and then gathers and multiplies under a
+divergent mask. Use `--kernel` to load a different program.

@@ -14,9 +14,7 @@ from chipformer.q35.ir import Target
 
 from qwengpu.compiled_control import (
     CHECKPOINT_BASE,
-    CHECKPOINT_BYTES,
     EXPORT_BASE,
-    RESUME,
     SNAPSHOT_BITS,
     STATE_BASE,
     STATE_COUNT,
@@ -42,13 +40,19 @@ FIXTURE = (
 )
 
 
+ISA_FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "eval/frozen/isa_gate_v1/divergent_gather_multiply.json"
+)
+
+
 def checkpoint_tokens(bits: list[int]) -> list[int]:
     """Encode the initial snapshot or construct an oracle for verification."""
     return [
         CHECKPOINT_BASE
         + index * 256
         + sum(bit << shift for shift, bit in enumerate(bits[index * 8 : index * 8 + 8]))
-        for index in range(CHECKPOINT_BYTES)
+        for index in range((len(bits) + 7) // 8)
     ]
 
 
@@ -61,8 +65,10 @@ def execute_windows(
     max_steps: int,
     offset: int = 0,
     observe=None,
+    snapshot_width: int = SNAPSHOT_BITS,
 ) -> dict:
     """Execute with opaque checkpoint tokens and optionally observe model state."""
+    export_end = EXPORT_BASE + (snapshot_width + 7) // 8
     checkpoint = initial_checkpoint
     control = state_token(0, 0)
     trace = []
@@ -119,12 +125,12 @@ def execute_windows(
         # Read every byte in one forward pass. The last request emits the
         # same PC with the local step and status reset for the next window.
         outputs = feed(
-            [generated, *range(EXPORT_BASE, RESUME), RESUME], all_logits=True
+            [generated, *range(EXPORT_BASE, export_end), export_end], all_logits=True
         )
         checkpoint, control = outputs[1:-1], outputs[-1]
         for index, token in enumerate(checkpoint):
             base = CHECKPOINT_BASE + index * 256
-            width = min(8, SNAPSHOT_BITS - index * 8)
+            width = min(8, snapshot_width - index * 8)
             if not base <= token < base + (1 << width):
                 raise ValueError(f"invalid generated checkpoint token at byte {index}")
         if not STATE_BASE <= control < STATE_BASE + 16:
@@ -141,7 +147,11 @@ def execute_windows(
 
 
 def oracle(
-    initial: tuple[int, ...], program: tuple[Instruction, ...], max_steps: int
+    initial: tuple[int, ...],
+    program: tuple[Instruction, ...],
+    max_steps: int,
+    *,
+    extended: bool = False,
 ) -> dict:
     state = ControlState(WarpState(lanes=initial))
     trace = []
@@ -151,7 +161,7 @@ def oracle(
         stage = index % MAX_STEPS
         halted = state.warp.halted
         exhausted = stage == MAX_STEPS - 1 and not halted
-        bits = snapshot_bits(state)
+        bits = snapshot_bits(state, extended=extended)
         trace.append(
             {
                 "control": state_token(
@@ -183,7 +193,10 @@ def oracle(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
-    parser.add_argument("--kernel", type=Path, default=FIXTURE)
+    parser.add_argument("--kernel", type=Path)
+    parser.add_argument(
+        "--isa", action="store_true", help="enable the extended integer ISA"
+    )
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -195,15 +208,21 @@ def main() -> None:
     args = parser.parse_args()
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
-    payload = args.kernel.read_bytes()
-    initial, program = parse_kernel(json.loads(payload))
-    expected = oracle(initial, program, args.max_steps)
     meta = None
     offset = 0
+    extended = args.isa
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text())
-        if meta["layout"] != "qwengpu-resume9b-v1":
-            raise ValueError("not a resume checkpoint")
+        if meta["layout"] not in ("qwengpu-resume9b-v1", "qwengpu-isa9b-v1"):
+            raise ValueError("not a resumable checkpoint")
+        extended = meta["layout"] == "qwengpu-isa9b-v1"
+        if args.isa and not extended:
+            raise ValueError("--isa requires an extended checkpoint")
+    kernel = args.kernel or (ISA_FIXTURE if extended else FIXTURE)
+    payload = kernel.read_bytes()
+    initial, program = parse_kernel(json.loads(payload), extended=extended)
+    expected = oracle(initial, program, args.max_steps, extended=extended)
+    if args.model:
         offset = meta["chip_token_offset"]
         model = transformers.AutoModelForCausalLM.from_pretrained(
             args.model, dtype=torch.bfloat16
@@ -216,23 +235,27 @@ def main() -> None:
                 cfg.intermediate_size,
             ),
             resumable=True,
+            extended=extended,
         )
     else:
-        model, circuit = build_standalone(resumable=True)
+        model, circuit = build_standalone(resumable=True, extended=extended)
     model.to(args.device).eval()
     start = time.monotonic()
     observed = execute_windows(
         model,
-        program_tokens(program),
-        checkpoint_tokens(snapshot_bits(ControlState(WarpState(lanes=initial)))),
+        program_tokens(program, extended=extended),
+        checkpoint_tokens(
+            snapshot_bits(ControlState(WarpState(lanes=initial)), extended=extended)
+        ),
         args.device,
         args.max_steps,
         offset,
         observe=lambda cache, stage: hex_bits(snapshot(cache, circuit, stage)),
+        snapshot_width=circuit.snapshot_bits,
     )
     exact = all(observed[key] == value for key, value in expected.items())
     report = {
-        "fixture": args.kernel.name,
+        "fixture": kernel.name,
         "fixture_sha256": hashlib.sha256(payload).hexdigest(),
         "device": args.device,
         "torch": torch.__version__,

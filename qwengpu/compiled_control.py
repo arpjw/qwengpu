@@ -6,7 +6,7 @@ from chipformer.q35.ir import Target
 from chipformer.q35.prims import Circ, from_bits
 from qwengpu.compiled_rom import KAPPA, CODE_AMP, _increment4
 from qwengpu.compiled_writeback import _add_byte
-from qwengpu.control_reference import OPS, MAX_STEPS, validate
+from qwengpu.control_reference import ISA_OPS, OPS, MAX_STEPS, validate
 from qwengpu.reference import Instruction
 
 VOCAB = 65536
@@ -19,7 +19,11 @@ STRIDE = len(OPS) * 256
 ROM_END = ROM_BASE + 16 * STRIDE
 SNAPSHOT_BITS = 380
 CHUNK_BITS = 120
-OP = dict(zip(OPS, range(len(OPS))))
+OP = {name: index for index, name in enumerate(OPS + ISA_OPS)}
+# Extra instructions use formerly invalid HALT arguments on the upload wire.
+ISA_UPLOAD = {name: OP["HALT"] * 256 + index for index, name in enumerate(ISA_OPS, 1)}
+ISA_DECODE = {payload: OP[name] * 256 for name, payload in ISA_UPLOAD.items()}
+ISA_SNAPSHOT_BITS = SNAPSHOT_BITS + 64
 
 CHECKPOINT_BYTES = (SNAPSHOT_BITS + 7) // 8
 CHECKPOINT_BASE = ROM_END
@@ -35,20 +39,23 @@ def state_token(
     return STATE_BASE + pc + (stage << 4) + (int(halted) << 8) + (int(exhausted) << 9)
 
 
-def program_tokens(program: tuple[Instruction, ...]) -> list[int]:
-    links = validate(program)
+def program_tokens(
+    program: tuple[Instruction, ...], *, extended: bool = False
+) -> list[int]:
+    links = validate(program, extended=extended)
     instructions = list(program) + [Instruction("HALT")] * (16 - len(program))
     rom = []
     for address, ins in enumerate(instructions):
         arg = ins.arg // 8 if ins.op in ("STORE", "LOAD") else ins.arg
-        rom.append(ROM_BASE + address * STRIDE + OP[ins.op] * 256 + arg)
+        payload = ISA_UPLOAD.get(ins.op, OP[ins.op] * 256 + arg)
+        rom.append(ROM_BASE + address * STRIDE + payload)
     return rom + [
         LINK_BASE + address * 16 + links.get(address, 0) for address in range(16)
     ]
 
 
 class ControlSIMT(Circ):
-    def __init__(self, target: Target | None = None):
+    def __init__(self, target: Target | None = None, *, extended: bool = False):
         super().__init__(target or Target())
         f = self.token_feature
         self.is_tick = f("is_tick", lambda t: int(t == TICK), full=True)
@@ -91,14 +98,17 @@ class ControlSIMT(Circ):
             for i in range(16)
         ]
         self.is_rom = f("is_rom", lambda t: int(ROM_BASE <= t < ROM_END), full=True)
+
+        def rom_payload(token: int) -> int:
+            if not ROM_BASE <= token < ROM_END:
+                return 0
+            payload = (token - ROM_BASE) % STRIDE
+            return ISA_DECODE.get(payload, payload) if extended else payload
+
         self.raw_rom = [
             f(
                 f"rom.bit.{b}",
-                lambda t, b=b: (
-                    (((t - ROM_BASE) % STRIDE) >> b) & 1
-                    if ROM_BASE <= t < ROM_END
-                    else 0
-                ),
+                lambda t, b=b: (rom_payload(t) >> b) & 1,
                 full=True,
             )
             for b in range(12)
@@ -136,6 +146,7 @@ class ControlSIMT(Circ):
         ]
         self.keep = {next(iter(e.terms)) for e in self.code}
         self.snapshots: list[list[Expr]] = []
+        self.snapshot_bits = ISA_SNAPSHOT_BITS if extended else SNAPSHOT_BITS
 
 
 def _less_byte(c: Circ, left: list[Expr], right: list[Expr], name: str) -> Expr:
@@ -175,8 +186,65 @@ def _stack(c, depth, frames, push, pop, new_frame, name):
     return top, new_depth, result
 
 
-def build(target: Target | None = None, *, resumable: bool = False) -> ControlSIMT:
-    c = ControlSIMT(target)
+def _product_byte(
+    c: Circ, left: list[Expr], right: list[Expr], name: str
+) -> list[Expr]:
+    """Modulo-256 product with parallel bit columns and a nibble carry."""
+    columns = [
+        c.node(
+            [
+                term
+                for i in range(column + 1)
+                for term in c.t_and([left[i], right[column - i]])
+            ],
+            f"{name}.column.{column}",
+        )
+        for column in range(8)
+    ]
+
+    def digit(value: Expr, upper: int, bit: int) -> Expr:
+        half = 1 << bit
+        terms = []
+        for start in range(half, upper + 1, 2 * half):
+            terms += c.t_ge(value, start, 0, upper)
+            if start + half <= upper:
+                terms += c.t_ge(value, start + half, 0, upper, coef=-1)
+        return c.node(terms, f"{name}.bit.{bit}")
+
+    low = sum((columns[i] * (1 << i) for i in range(4)), Expr())
+    carry = c.node(
+        [term for threshold in (16, 32, 48) for term in c.t_ge(low, threshold, 0, 49)],
+        f"{name}.carry",
+    )
+    result = [
+        digit(
+            sum((columns[i] * (1 << i) for i in range(bit + 1)), Expr()),
+            sum((i + 1) * (1 << i) for i in range(bit + 1)),
+            bit,
+        )
+        for bit in range(4)
+    ]
+    for bit in range(4, 8):
+        high = carry + sum(
+            (columns[i] * (1 << (i - 4)) for i in range(4, bit + 1)), Expr()
+        )
+        upper = 3 + sum((i + 1) * (1 << (i - 4)) for i in range(4, bit + 1))
+        # The threshold bit within the high nibble is independent of the low nibble.
+        half = 1 << (bit - 4)
+        terms = []
+        for threshold in range(half, upper + 1, half):
+            sign = 1 if (threshold // half) & 1 else -1
+            terms += c.t_ge(high, threshold, 0, upper, coef=sign)
+        result.append(c.node(terms, f"{name}.bit.{bit}"))
+    return result
+
+
+def build(
+    target: Target | None = None, *, resumable: bool = False, extended: bool = False
+) -> ControlSIMT:
+    resumable = resumable or extended
+    c = ControlSIMT(target, extended=extended)
+    byte_count = (c.snapshot_bits + 7) // 8
     one = c.one
     for code in c.code:
         c.ffn([(-1, one, code), (1, one, -code)], "code.clear", into=code)
@@ -189,10 +257,10 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
                 lambda token, index=index: int(token == EXPORT_BASE + index),
                 full=True,
             )
-            for index in range(CHECKPOINT_BYTES)
+            for index in range(byte_count)
         ]
         resume = c.token_feature(
-            "resume", lambda token: int(token == RESUME), full=True
+            "resume", lambda token: int(token == EXPORT_BASE + byte_count), full=True
         )
     initial = []
     for lane in range(0 if resumable else 8):
@@ -243,19 +311,20 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
             f"op.{op}",
         )
         for op, index in OP.items()
+        if extended or op in OPS
     }
     slots = c.onehot_of_bits(arg[:2], "scratch.slot", 4)
     stores = [c.and_([flags["STORE"], slots[s]], f"store.{s}") for s in range(4)]
     if resumable:
         previous = []
-        for index in range(CHECKPOINT_BYTES):
+        for index in range(byte_count):
             start = CHECKPOINT_BASE + index * 256
             write = c.token_feature(
                 f"restore.{index}",
                 lambda token, start=start: int(start <= token < start + 256),
                 full=True,
             )
-            width = min(8, SNAPSHOT_BITS - index * 8)
+            width = min(8, c.snapshot_bits - index * 8)
             previous.extend(
                 c.slot_head(
                     f"restore.{index}",
@@ -326,6 +395,7 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
             f"{prefix}.mask",
         )
         next_lanes = []
+        next_r1 = []
         for i in range(8):
             added = _add_byte(c, lanes[i], arg, f"{prefix}.add.{i}")
             xored = [
@@ -343,18 +413,45 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
                 op: c.and_([mask[i], flags[op]], f"{prefix}.{op}.{i}")
                 for op in ("ADDI", "XORI", "LOAD")
             }
-            next_lanes.extend(
-                c.select_bits(
-                    [
-                        ([enables["ADDI"]], added),
-                        ([enables["XORI"]], xored),
-                        ([enables["LOAD"]], loaded),
-                        ([one - sum(enables.values(), Expr())], lanes[i]),
-                    ],
-                    8,
-                    f"{prefix}.lane.{i}",
+            choices = [
+                ([enables["ADDI"]], added),
+                ([enables["XORI"]], xored),
+                ([enables["LOAD"]], loaded),
+            ]
+            if extended:
+                r1 = previous[SNAPSHOT_BITS + i * 8 : SNAPSHOT_BITS + (i + 1) * 8]
+                address_matches = [
+                    [r1[bit] if byte >> bit & 1 else one - r1[bit] for bit in range(5)]
+                    for byte in range(32)
+                ]
+                # Stagger the gather lanes so each FFN has room for slot reuse.
+                gather_floor = c.level(*r1, *previous[64:320]) + int(i >= 4)
+                gather = [
+                    c.ffn(
+                        [
+                            term
+                            for byte, address in enumerate(address_matches)
+                            for term in c.t_and(
+                                [*address, previous[64 + 8 * byte + bit]]
+                            )
+                        ],
+                        f"{prefix}.gather.{i}.{bit}",
+                        min_level=gather_floor,
+                    )
+                    for bit in range(8)
+                ]
+                product = _product_byte(c, lanes[i], r1, f"{prefix}.mul.{i}")
+                for op, value in (("GATHER_R1", gather), ("MUL_R1", product)):
+                    enables[op] = c.and_([mask[i], flags[op]], f"{prefix}.{op}.{i}")
+                    choices.append(([enables[op]], value))
+                move = c.and_([mask[i], flags["MOV_R1"]], f"{prefix}.move.{i}")
+                next_r1.extend(
+                    c.select_bits(
+                        [([move], lanes[i]), ([one - move], r1)], 8, f"{prefix}.r1.{i}"
+                    )
                 )
-            )
+            choices.append(([one - sum(enables.values(), Expr())], lanes[i]))
+            next_lanes.extend(c.select_bits(choices, 8, f"{prefix}.lane.{i}"))
         next_memory = []
         for slot in range(4):
             for lane in range(8):
@@ -379,10 +476,11 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
             + branch_frames
             + loop_depth
             + loop_frames
+            + next_r1
         )
-        assert len(values) == SNAPSHOT_BITS
+        assert len(values) == c.snapshot_bits
         previous = []
-        for chunk, start in enumerate(range(0, SNAPSHOT_BITS, CHUNK_BITS)):
+        for chunk, start in enumerate(range(0, c.snapshot_bits, CHUNK_BITS)):
             previous.extend(
                 c.slot_head(
                     f"stage.{s}.{chunk}",
@@ -421,6 +519,9 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
     )
     result = next_pc + next_stage + [halt, exhausted]
     floor = max(node.level for node in c.nodes)
+    if extended:
+        # Reserve an FFN sublayer for output and residual cleanup.
+        floor += 1
     for b, code in enumerate(c.code):
         value = result[b] if b < 10 else one if STATE_BASE >> b & 1 else Expr()
         terms = c.t_const(-KAPPA) + c.t_and([c.is_tick, value], 2 * KAPPA)
@@ -430,7 +531,7 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
             for index, request in enumerate(export):
                 if b < 8:
                     position = index * 8 + b
-                    if position < SNAPSHOT_BITS:
+                    if position < c.snapshot_bits:
                         terms += c.t_and([request, previous[position]], 2 * KAPPA)
                 elif (CHECKPOINT_BASE + index * 256) >> b & 1:
                     terms += c.t_and([request], 2 * KAPPA)
@@ -443,11 +544,11 @@ def build(target: Target | None = None, *, resumable: bool = False) -> ControlSI
     return c
 
 
-def build_standalone(*, dtype=None, resumable: bool = False):
+def build_standalone(*, dtype=None, resumable: bool = False, extended: bool = False):
     import torch
     from chipformer.q35.tiny import build as build_qwen
 
-    c = build(resumable=resumable)
+    c = build(resumable=resumable, extended=extended)
     model = build_qwen(
         c,
         list(range(VOCAB)),

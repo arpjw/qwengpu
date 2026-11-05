@@ -73,6 +73,34 @@ class CompiledControlTests(unittest.TestCase):
             residual[:, next(iter(less.terms))], (tokens & 255) < (tokens >> 8)
         )
 
+    def test_modular_product_all_byte_pairs(self):
+        import numpy as np
+        from chipformer.q35.ir import evaluate
+        from chipformer.q35.prims import Circ
+        from qwengpu.compiled_control import _product_byte
+
+        circuit = Circ()
+        left = [
+            circuit.token_feature(
+                f"left.{bit}", lambda token, bit=bit: (token >> bit) & 1
+            )
+            for bit in range(8)
+        ]
+        right = [
+            circuit.token_feature(
+                f"right.{bit}", lambda token, bit=bit: (token >> (bit + 8)) & 1
+            )
+            for bit in range(8)
+        ]
+        product = _product_byte(circuit, left, right, "product")
+        residual = evaluate(circuit, list(range(65536)), check=True, kernel=True)
+        actual = sum(
+            residual[:, next(iter(expr.terms))].astype(np.int64) << bit
+            for bit, expr in enumerate(product)
+        )
+        tokens = np.arange(65536)
+        np.testing.assert_array_equal(actual, ((tokens & 255) * (tokens >> 8)) & 255)
+
     def test_frozen_traces(self):
         from chipformer.q35.ir import evaluate
         from qwengpu.compiled_control import build, program_tokens, state_token, TICK

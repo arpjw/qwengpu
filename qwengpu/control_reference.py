@@ -1,7 +1,7 @@
 """Independent bounded structured SIMT semantics with data-dependent loops."""
 
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from qwengpu.reference import Instruction, WarpState, step as base_step
 
 MAX_STEPS = 16
@@ -20,17 +20,23 @@ OPS = (
 )
 
 
-def validate(program: tuple[Instruction, ...]) -> dict[int, int]:
+ISA_OPS = ("MOV_R1", "GATHER_R1", "MUL_R1")
+
+
+def validate(
+    program: tuple[Instruction, ...], *, extended: bool = False
+) -> dict[int, int]:
     if not 1 <= len(program) <= 16 or program[-1].op != "HALT":
         raise ValueError("control ROM requires final HALT within 16 slots")
+    supported = OPS + ISA_OPS if extended else OPS
     stack: list[tuple[str, int, bool]] = []
     links: dict[int, int] = {}
     for pc, ins in enumerate(program):
-        if ins.op not in OPS:
+        if ins.op not in supported:
             raise ValueError(f"unsupported control opcode {ins.op}")
         if ins.op in ("STORE", "LOAD") and ins.arg not in (0, 8, 16, 24):
             raise ValueError("scratch addresses must be 0, 8, 16, or 24")
-        if ins.op in ("ELSE", "ENDIF", "ENDWHILE", "HALT") and ins.arg:
+        if ins.op in ("ELSE", "ENDIF", "ENDWHILE", "HALT", *ISA_OPS) and ins.arg:
             raise ValueError(f"{ins.op} takes no argument")
         if ins.op in ("IF_LT", "WHILE_LT"):
             if sum(kind == ins.op for kind, _, _ in stack) >= MAX_DEPTH:
@@ -56,7 +62,9 @@ def validate(program: tuple[Instruction, ...]) -> dict[int, int]:
     return links
 
 
-def parse_kernel(data: object) -> tuple[tuple[int, ...], tuple[Instruction, ...]]:
+def parse_kernel(
+    data: object, *, extended: bool = False
+) -> tuple[tuple[int, ...], tuple[Instruction, ...]]:
     if not isinstance(data, dict):
         raise ValueError("kernel must be an object")
     initial = data.get("initial")
@@ -69,16 +77,17 @@ def parse_kernel(data: object) -> tuple[tuple[int, ...], tuple[Instruction, ...]
         raise ValueError("initial must contain eight unsigned bytes")
     if not isinstance(raw, list) or not 1 <= len(raw) <= 16:
         raise ValueError("program must contain 1 through 16 instructions")
+    supported = OPS + ISA_OPS if extended else OPS
     program = []
     for ins in raw:
-        if not isinstance(ins, dict) or ins.get("op") not in OPS:
+        if not isinstance(ins, dict) or ins.get("op") not in supported:
             raise ValueError("invalid opcode")
         arg = ins.get("arg", 0)
         if type(arg) is not int or not 0 <= arg <= 255:
             raise ValueError("argument must be an unsigned byte")
         program.append(Instruction(ins["op"], arg))
     result = tuple(program)
-    validate(result)
+    validate(result, extended=extended)
     return tuple(initial), result
 
 
@@ -93,6 +102,7 @@ class LoopFrame:
 class ControlState:
     warp: WarpState
     loops: tuple[LoopFrame, ...] = ()
+    r1: tuple[int, ...] = (0,) * 8
 
 
 def step(state: ControlState, program: tuple[Instruction, ...]) -> ControlState:
@@ -100,6 +110,21 @@ def step(state: ControlState, program: tuple[Instruction, ...]) -> ControlState:
     if w.halted:
         return state
     ins = program[w.pc]
+    if ins.op in ISA_OPS:
+        lanes = list(w.lanes)
+        r1 = list(state.r1)
+        for lane in range(8):
+            if not (w.active_mask >> lane) & 1:
+                continue
+            if ins.op == "MOV_R1":
+                r1[lane] = lanes[lane]
+            elif ins.op == "GATHER_R1":
+                lanes[lane] = w.scratch[r1[lane] & 31]
+            else:
+                lanes[lane] = (lanes[lane] * r1[lane]) & 255
+        return replace(
+            state, warp=replace(w, pc=w.pc + 1, lanes=tuple(lanes)), r1=tuple(r1)
+        )
     if ins.op == "WHILE_LT":
         # Resolve the matching end independently of uploaded ROM link tokens.
         depth = 0
@@ -126,23 +151,20 @@ def step(state: ControlState, program: tuple[Instruction, ...]) -> ControlState:
             loops = state.loops
             active = w.active_mask
             pc = end + 1
-        return ControlState(
-            WarpState(pc, active, w.lanes, w.scratch, w.branch_stack), loops
-        )
+        return replace(state, warp=replace(w, pc=pc, active_mask=active), loops=loops)
     if ins.op == "ENDWHILE":
         if not state.loops or state.loops[-1].end != w.pc:
             raise ValueError("ENDWHILE without active loop")
         frame = state.loops[-1]
-        return ControlState(
-            WarpState(
-                frame.begin, frame.parent_mask, w.lanes, w.scratch, w.branch_stack
-            ),
-            state.loops[:-1],
+        return replace(
+            state,
+            warp=replace(w, pc=frame.begin, active_mask=frame.parent_mask),
+            loops=state.loops[:-1],
         )
-    return ControlState(base_step(w, program), state.loops)
+    return replace(state, warp=base_step(w, program))
 
 
-def snapshot_bits(state: ControlState) -> list[int]:
+def snapshot_bits(state: ControlState, *, extended: bool = False) -> list[int]:
     w = state.warp
     fields = [(value, 8) for value in (*w.lanes, *w.scratch[:32])]
     fields.extend([(w.active_mask, 8), (len(w.branch_stack), 2)])
@@ -157,4 +179,6 @@ def snapshot_bits(state: ControlState) -> list[int]:
     fields.append((len(state.loops), 2))
     for i in range(2):
         fields.append((state.loops[i].parent_mask if i < len(state.loops) else 0, 8))
+    if extended:
+        fields.extend((value, 8) for value in state.r1)
     return [(value >> bit) & 1 for value, width in fields for bit in range(width)]
