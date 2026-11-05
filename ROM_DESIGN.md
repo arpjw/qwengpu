@@ -93,3 +93,11 @@ lane output, and actual ROM, register, and scratch cache state to the
 independent interpreter. After this passes, rebuild the pinned 9B merge and
 repeat. Record circuit dimensions and trace latency before considering a
 larger ROM or control flow.
+
+The four JSON inputs are already frozen in
+[`eval/frozen/rom_gate_v1`](eval/frozen/rom_gate_v1). Their SHA-256 hashes and
+host-dispatched baseline results are in
+[`results/rom_gate_host_mps.json`](results/rom_gate_host_mps.json). All four
+passed on standalone MPS. This baseline establishes expected lane and scratch
+behavior; it does not exercise ROM-driven execution. The future integrated
+builder should use these unchanged inputs first.

@@ -60,6 +60,11 @@ passes. Then pursue internal lane writeback, followed by nested control flow
 and multi-warp scaling. [SCOPE.md](SCOPE.md) and [ROM_DESIGN.md](ROM_DESIGN.md)
 give the detailed sequence.
 
+Four JSON kernels for that gate are frozen under
+[`eval/frozen/rom_gate_v1`](eval/frozen/rom_gate_v1). All four passed on the
+current host-dispatched MPS circuit, giving a baseline for the future
+ROM-driven implementation.
+
 ## Compute
 
 One Runpod pod created for this sprint was terminated. It was quoted at

@@ -37,6 +37,7 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/no_else_kernel_mps.json` | JSON kernel runner with IF/ENDIF and no ELSE, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/masked_overwrite_mps.json` | JSON kernel runner with masked overwrite of one scratch slot, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/halt_only_mps.json` | JSON kernel runner with immediate HALT, MPS | 1 program | Initial lanes and empty scratch probed exactly |
+| `results/rom_gate_host_mps.json` | Four frozen next-gate kernels, host-dispatched on MPS | 4 programs | Exact tokens, scratch, and final lane probes |
 
 `results/standalone_cuda.json` and `results/predicate_cuda.json` are retained
 from the earlier 18-head arithmetic circuit. The current-circuit CUDA reports
@@ -94,6 +95,9 @@ individual instructions. Two more exploratory examples passed: an `IF_LT` and
 followed by a full-mask LOAD.
 An immediate-HALT input also passed the final zero-XOR lane probe with no
 earlier arithmetic and empty scratch.
+Four inputs for the next ROM integration gate were frozen before its model
+run. The current host-dispatched circuit passed all four on MPS; the report
+records each fixture SHA-256. The autonomous ROM circuit has not run them.
 
 `results/textcheck_9b_cuda.json` compares six fixed text prompts between the
 base and merged 9B models. All six kept the same next top token, and five kept

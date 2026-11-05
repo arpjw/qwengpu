@@ -34,6 +34,7 @@ raw instructions and read requests; it does not calculate the model's results.
 | Separate 16-slot ROM feasibility spike on MPS | One stock model fetched three different uploaded instruction sequences, generated PC updates, and retained exact ROM state |
 | Exploratory ROM stress check on MPS | The same model fetched 100 16-slot sequences, including 97 seeded ones; 3,100 generated tokens and all recurrent ROM and PC snapshots matched |
 | Example JSON kernel on MPS | A host-dispatched mixed program and final lane probe matched the independent interpreter |
+| Frozen next-gate kernels on MPS | Four straight-line kernels passed on the current host-dispatched circuit and are ready for ROM integration checks |
 | Fixed text check on merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
 
 These are small, fixed execution and integration checks. The circuit uses 27
