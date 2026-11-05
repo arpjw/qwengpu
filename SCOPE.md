@@ -1,6 +1,15 @@
 # QwenGPU scope and next gates
 
-## Current workgroup variant
+## Model-scheduled tile variant
+
+The tile checkpoint selects ready warps, releases barriers, and signals
+completion or deadlock. Each warp owns eight 16-bit accumulators. The
+64-byte shared layout holds two 4×4 byte input matrices and one 4×4
+16-bit output matrix. The fixed 4×4 engine accepts different operands
+and tile programs. Its three frozen fixtures match on MPS and merged CUDA.
+The host relays model-generated control and data tokens between calls.
+
+## General byte workgroup variant
 
 A fixed Qwen3.5-9B checkpoint executes one instruction per scheduled warp
 turn. Two warps carry separate PC, registers, masks, and stacks. The
@@ -8,8 +17,8 @@ round-robin host scheduler copies generated state tokens and releases
 barriers after both arrivals. The model performs indexed loads and stores,
 scatter collision selection, and masked modular reduction in shared
 32-byte scratch. Three frozen workgroups pass on MPS and merged CUDA.
-Larger memory, wider arithmetic, and scheduling inside the model remain
-open. See VALIDATION.md and REPRODUCE.md for the evidence and commands.
+This variant uses the general byte workgroup ISA. See VALIDATION.md and
+REPRODUCE.md for the evidence and commands.
 
 ## Bounded control variant
 

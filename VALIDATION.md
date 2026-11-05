@@ -270,3 +270,29 @@ Reports are `results/workgroup_mps.json` and
 `results/workgroup_9b_cuda_fla.json`. The L40S was terminated after about
 4 minutes 36 seconds at $1.09/hour, an estimated $0.08. No charge had
 posted for that pod at teardown, and the live pod list was empty.
+
+## Model scheduling and tiled matrix multiply
+
+The tile checkpoint passed three frozen cases on MPS and A100 CUDA with
+the pretrained Qwen3.5-9B merge. The two reports match across 26 instruction
+snapshots and 29 scheduling decisions, including terminal decisions.
+The compiler evaluator checked all 18 combinations of warp statuses and
+round-robin priority. All 24 local tests passed.
+
+| Fixture | Instructions | Verified behavior |
+| --- | ---: | --- |
+| 4×4 tiled multiply | 17 | Two warps produce separate 2×4 output tiles in two K phases. The model releases both barriers and all 16 output words match the scalar product modulo 65,536. |
+| Wide addition | 7 | Carries and wraparound match across 16-bit accumulators. A warp continues after its peer halts. |
+| Barrier deadlock | 2 | A waiting warp and a halted peer produce the model's deadlock ticket. |
+
+The host uses model-emitted tickets to route each call and copies the
+generated control packets and memory bytes. Warp selection, readiness,
+and barrier release are model computations. The tile engine has a fixed
+64-byte A/B/C layout and computes unsigned byte products with 16-bit
+accumulation. The merged checkpoint adds 13 layers and contains
+32,365,405,056 bytes of weights.
+
+Reports are `results/tile_mps.json` and `results/tile_9b_cuda_fla.json`.
+The A100 pod was terminated after about five minutes at $1.79/hour,
+an estimated $0.15 for this run. No charge had posted for that pod at
+teardown, and the live pod list was empty.

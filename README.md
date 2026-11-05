@@ -141,6 +141,13 @@ reduction, interleaved loops, and an expected barrier deadlock match on
 MPS and merged Qwen3.5-9B CUDA. Run the suite with
 `python3 -m qwengpu.eval_workgroup --device mps --out workgroup.json`.
 
+The tile variant moves warp selection and barrier release into the model.
+Two warps multiply 4×4 byte matrices in two output tiles with 16-bit
+accumulators and 64 shared bytes. The host relays generated scheduling and
+state tokens. The matrix multiply, wide addition, and deadlock fixtures
+match on MPS and merged Qwen3.5-9B. Run the demo with
+`python3 -m qwengpu.eval_tile --device mps --out tile.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
