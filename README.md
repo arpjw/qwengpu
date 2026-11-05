@@ -124,8 +124,7 @@ The resume variant repeats 16-step windows on one fixed checkpoint. It
 exports live warp state as tokens and reloads them into a fresh cache with
 the original ROM. The host relays the tokens unchanged. Merged Qwen3.5-9B
 ran a divergent scratch loop for 1,082 instructions across 68 windows and
-matched the interpreter at every step. Larger kernels and multiple warps
-remain future work.
+matched the interpreter at every step.
 
 The integer ISA variant adds a second byte register per lane, an indexed
 gather from the 32-byte scratch space, and modulo-256 multiplication.
@@ -133,6 +132,14 @@ Its default kernel fills scratch, crosses a window boundary, and then
 gathers and multiplies under a divergent mask. The complete 25-instruction
 trace and handoff match on MPS and merged Qwen3.5-9B CUDA. Run it locally
 with `python3 -m qwengpu.eval_resume --isa --device mps --out isa.json`.
+
+The workgroup variant runs two eight-lane warps with independent registers
+and control stacks over a shared 32-byte scratch space. It adds indexed
+scatter, masked byte reduction, and barriers. A round-robin host launcher
+relays model-generated state tokens after each warp instruction. Cooperative
+reduction, interleaved loops, and an expected barrier deadlock match on
+MPS and merged Qwen3.5-9B CUDA. Run the suite with
+`python3 -m qwengpu.eval_workgroup --device mps --out workgroup.json`.
 
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and

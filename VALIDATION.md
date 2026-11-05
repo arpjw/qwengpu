@@ -246,3 +246,27 @@ Reports are `results/isa_mps.json` and `results/isa_9b_cuda_fla.json`.
 The H100 pod was terminated after about 6 minutes 19 seconds at $3.99/hour,
 an estimated $0.42 for this run. Its billing read had no posted records
 at teardown, and the live pod list was empty.
+
+## Cooperative workgroups
+
+The three frozen workgroups matched their interpreter traces on standalone
+MPS and merged Qwen3.5-9B on L40S CUDA. All 59 instruction snapshots,
+generated control tokens, and exported checkpoints were identical across
+the two platforms. All 23 local tests passed.
+
+| Fixture | Instructions | Verified behavior |
+| --- | ---: | --- |
+| Cooperative reduction | 18 | Masked scatter resolves collisions by lowest active lane. The consumer gathers across warps, reduces six active bytes modulo 256, and publishes through a second barrier. Both warps finish with `[149, 202, 202, 202, 149, 202, 202, 202]`. |
+| Interleaved loops | 39 | Independent PCs, masks, and loop stacks survive interleaving. One warp executes 25 instructions. The other waits for its peer's publication and loads the result. |
+| Missing barrier | 2 | One warp waits and the other halts. The launcher reports deadlock without releasing the waiting warp. |
+
+The model computes each warp instruction, including scatter priority and
+the waiting status. The host chooses the next ready warp, copies opaque
+state and scratch tokens, and coordinates barrier release. Each scheduled
+instruction starts with a fresh cache. The 9B merge adds 11 layers,
+including its exit marker, and contains 32,705,308,288 bytes of weights.
+
+Reports are `results/workgroup_mps.json` and
+`results/workgroup_9b_cuda_fla.json`. The L40S was terminated after about
+4 minutes 36 seconds at $1.09/hour, an estimated $0.08. No charge had
+posted for that pod at teardown, and the live pod list was empty.

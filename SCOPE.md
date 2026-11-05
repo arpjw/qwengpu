@@ -1,6 +1,17 @@
 # QwenGPU scope and next gates
 
-## Latest control variant
+## Current workgroup variant
+
+A fixed Qwen3.5-9B checkpoint executes one instruction per scheduled warp
+turn. Two warps carry separate PC, registers, masks, and stacks. The
+round-robin host scheduler copies generated state tokens and releases
+barriers after both arrivals. The model performs indexed loads and stores,
+scatter collision selection, and masked modular reduction in shared
+32-byte scratch. Three frozen workgroups pass on MPS and merged CUDA.
+Larger memory, wider arithmetic, and scheduling inside the model remain
+open. See VALIDATION.md and REPRODUCE.md for the evidence and commands.
+
+## Bounded control variant
 
 The new control builder supports two levels each of structured divergence
 and data-dependent WHILE loops, including loops inside branches and branches
@@ -10,9 +21,9 @@ ROM slots and a 16-step execution budget. Budget exhaustion is reported
 separately from HALT. All 14 frozen cases pass on MPS, optimized CUDA, and the pretrained 9B merge;
 see VALIDATION.md for exact evidence. CONTROL_DESIGN.md defines exact semantics.
 
-## What exists now
+## Original SIMT prototype
 
-The current artifact is an eight-lane SIMT circuit compiled into stock
+The original artifact is an eight-lane SIMT circuit compiled into stock
 Qwen3.5 layers, then merged before a pretrained Qwen3.5-9B text model. Each
 lane has one byte accumulator. The circuit implements masked ADD and XOR,
 data-dependent comparison masks, one-level IF/ELSE/ENDIF, and four scratch
