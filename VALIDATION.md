@@ -35,6 +35,10 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/no_else_kernel_mps.json` | JSON kernel runner with IF/ENDIF and no ELSE, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/masked_overwrite_mps.json` | JSON kernel runner with masked overwrite of one scratch slot, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 
+`results/standalone_cuda.json` and `results/predicate_cuda.json` are retained
+from the earlier 18-head arithmetic circuit. The current-circuit CUDA reports
+are the `*_cuda_fla.json` files in the table.
+
 The 9B branch suite compares every generated mask and lane-result token against
 the expected execution. The memory suites compare generated lane tokens and
 inspect each scratch head's recurrent state after STORE. The mixed program
