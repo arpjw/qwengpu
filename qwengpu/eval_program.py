@@ -123,13 +123,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--extra-cases", type=int, default=8,
-                        help="seeded additional cases for a merged model")
+    parser.add_argument("--extra-cases", type=int,
+                        help="seeded additional cases (default: 8 for a merge, 0 standalone)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else
                         "mps" if torch.backends.mps.is_available() else "cpu")
     args = parser.parse_args()
-    if args.extra_cases < 0:
+    if args.extra_cases is not None and args.extra_cases < 0:
         parser.error("--extra-cases must be nonnegative")
+    extra_cases = args.extra_cases if args.extra_cases is not None else (8 if args.model else 0)
     offset = 0
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text(encoding="utf-8"))
@@ -150,12 +151,12 @@ def main() -> None:
         ((100,) * 8, 0, 9, 13, 5),
         ((100,) * 8, 255, 9, 13, 5),
     ]
-    if args.model:
+    if extra_cases:
         rng = random.Random(20261105)
         cases.extend((tuple(rng.randrange(256) for _ in range(LANES)),
                       rng.randrange(256), rng.randrange(256),
                       rng.randrange(256), rng.randrange(256))
-                     for _ in range(args.extra_cases))
+                     for _ in range(extra_cases))
     report = {"device": args.device, "torch": torch.__version__,
               "transformers": transformers.__version__, "circuit": circuit.stats(),
               "merge": meta, "cases": []}

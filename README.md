@@ -5,6 +5,8 @@ Qwen3.5 layers. It builds on the [QwenCPU](https://github.com/arpjw/qwencpu)
 experiment and uses [Qwenputer](https://github.com/divagr18/qwenputer)'s
 generic circuit compiler as a backend. The CPU, GPU, and compiler names here
 refer to simulated machines inside model state, not physical hardware.
+The processor weights are constructed by the compiler; this experiment does
+not fine-tune the pretrained model.
 
 The repository contains an independent eight-lane reference machine.
 Each lane has an unsigned byte accumulator. The warp shares an instruction
@@ -26,7 +28,8 @@ raw instructions and read requests; it does not calculate the model's results.
 | Standalone stock Qwen3.5 on Apple MPS | 8/8 adds, 8/8 generated-mask adds, 4/4 sequences, 4/4 divergent programs, 4/4 scratch programs, 4/4 ADD/XOR programs, and 4/4 mixed programs exact |
 | Standalone stock Qwen3.5 on CUDA with optimized DeltaNet | The same seven suites exact; causal convolution used the reference kernel |
 | Pretrained Qwen3.5-9B merge on CUDA | 12/12 divergent, 12/12 scratch, 12/12 ADD/XOR, and 12/12 mixed programs exact, including generated tokens and scratch-state inspection |
-| Exploratory 9B mixed-program stress check | 100/100 seeded programs exact, including generated tokens and scratch-state inspection |
+| Exploratory 9B mixed-program stress check | 100/100 programs exact, including 96 seeded cases, generated tokens, and scratch-state inspection |
+| Exploratory MPS mixed-program stress check | The same 100 programs were exact, with identical generated tokens to the 9B CUDA run |
 | Separate 16-slot ROM feasibility spike on MPS | One stock model fetched three different uploaded instruction sequences, generated PC updates, and retained exact ROM state |
 | Exploratory ROM stress check on MPS | The same model fetched 100 16-slot sequences, including 97 seeded ones; 3,100 generated tokens and all recurrent ROM and PC snapshots matched |
 | Example JSON kernel on MPS | A host-dispatched mixed program and final lane probe matched the independent interpreter |
@@ -63,7 +66,8 @@ python3 -m qwengpu.run_kernel examples/mixed_kernel.json --device mps \
 instructions in JSON. It validates the supported one-level branch and
 four-slot scratch subset. The example ends with lane values
 `[1, 2, 3, 4, 5, 6, 7, 8]`. Pass `--model` with a rebuilt 9B checkpoint to
-use the pretrained merge.
+use the pretrained merge. That CLI path has not been separately run; the 9B
+checks above used the evaluator directly.
 [`examples/no_else_kernel.json`](examples/no_else_kernel.json) shows a branch
 that reconverges without an `ELSE`.
 [`examples/masked_overwrite_kernel.json`](examples/masked_overwrite_kernel.json)

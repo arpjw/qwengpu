@@ -27,6 +27,9 @@ export PYTHONPATH="$QWENPUTER_DIR:$QWENGPU_DIR"
   --device mps --out "$QWENGPU_DIR/results/alu_mps.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_program \
   --device mps --out "$QWENGPU_DIR/results/program_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_program \
+  --device mps --extra-cases 96 \
+  --out "$QWENGPU_DIR/results/program_stress_mps.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_rom_spike \
   --device mps --out "$QWENGPU_DIR/results/rom_spike_mps.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_rom_spike \

@@ -19,7 +19,8 @@ Fixed checks on MPS and CUDA cover direct instructions, branch paths, scratch
 state, and mixed programs. The 9B merge passed 12 cases in each of the
 branch, scratch, ADD/XOR, and mixed program suites. These checks use fixed
 and seeded cases; they do not establish correctness for arbitrary programs.
-An exploratory 100-case run of the same mixed-program shape also passed.
+An exploratory 100-case run of the same mixed-program shape also passed on
+both standalone MPS and merged 9B CUDA, with identical generated tokens.
 An isolated 16-slot ROM and PC circuit fetched three uploaded sequences
 exactly on MPS. It has not yet been connected to the SIMT ALU.
 An exploratory extension checked 100 uploaded sequences on the same model

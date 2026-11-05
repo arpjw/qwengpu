@@ -28,6 +28,7 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/alu_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_stress_cuda_fla.json` | Pretrained Qwen3.5-9B merge, exploratory seeded mixed programs | 100 | 100 exact |
+| `results/program_stress_mps.json` | Standalone Qwen3.5, exploratory mixed programs on MPS | 100 | 100 exact |
 | `results/rom_spike_mps.json` | Separate 16-slot stock Qwen3.5 ROM circuit on MPS | 3 programs | 3 exact |
 | `results/rom_spike_stress_mps.json` | Same ROM circuit, exploratory contents on MPS | 100 programs | 100 exact |
 | `results/example_kernel_mps.json` | JSON kernel runner on standalone Qwen3.5, MPS | 1 program | Exact tokens, scratch, and final lane probe |
@@ -47,11 +48,14 @@ checkpoint was built from Qwen/Qwen3.5-9B revision
 `c202236235762e1c871ad0ccb60c8ee5ba337b9a` with Qwenputer compiler source
 at `ca13310e2f9f788d1dd3feeea8213c1b0c23913c`. It is not included here.
 
-The 100-case stress run used the same mixed-program shape with 96 additional
-seeded inputs and operands after the 12-case suite. All 100 generated-token
-traces and final scratch snapshots matched the reference. This was an
-exploratory extension, not a separately held-out test or a statistical
-reliability estimate.
+The 100-case stress run used four fixed cases and 96 seeded cases of the same
+mixed-program shape. The first 12 cases repeat the original suite. All 100
+generated-token traces and final scratch snapshots matched the reference.
+This was an exploratory extension. It was not separately held out and does
+not provide a statistical reliability estimate.
+The same 100 inputs and program instructions were run on the standalone MPS
+model. All 100 traces and scratch snapshots matched the reference, and the
+generated token sequences were identical to the 9B CUDA run.
 
 The ROM spike is a separate two-head, three-layer circuit. One stock model
 object loaded three different 16-slot instruction payload sequences into
