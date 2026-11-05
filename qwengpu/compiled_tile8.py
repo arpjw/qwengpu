@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from chipformer.dsl.graph import Expr
 from chipformer.q35.ir import Target
-from chipformer.q35.prims import Circ
+from chipformer.q35.prims import Circ, from_bits
 
 from qwengpu.compiled_rom import CODE_AMP, KAPPA, _increment4
 from qwengpu.compiled_tile import (
@@ -13,20 +13,25 @@ from qwengpu.compiled_tile import (
     READY1,
     ROM,
     SCHEDULE,
-    TICKET,
     TICK,
+    TICKET,
     VOCAB,
     _word_from_columns,
     control_token,
 )
 
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
+INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
 STRIDE = 256 * len(OPS)
 C_MEMORY = ROM + 16 * STRIDE
 REGISTER = C_MEMORY + 4096
 OPERAND = REGISTER + 512
 READ_REG = 2112
 READ_STORE = 2144
+READ_INDEX = 2176
+INDEX_REGISTER = 0x9000
+INDEX_OPERAND = 0xA000
+INDEX_WORDS = 128
 NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
@@ -38,7 +43,13 @@ CHUNK_BITS = 120
 def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
     padded = program + (("HALT", 0),) * (16 - len(program))
     return [
-        ROM + address * STRIDE + OPS.index(op) * 256 + arg
+        ROM
+        + address * STRIDE
+        + (
+            OPS.index("HALT") * 256 + 1 + INDEX_OPS.index(op)
+            if op in INDEX_OPS
+            else OPS.index(op) * 256 + arg
+        )
         for address, (op, arg) in enumerate(padded)
     ]
 
@@ -47,7 +58,11 @@ def nibbles(base: int, data: list[int]) -> list[int]:
     return [base + address * 16 + value for address, value in enumerate(data)]
 
 
-def build(target: Target | None = None, *, resident: bool = False) -> Circ:
+def build(
+    target: Target | None = None, *, resident: bool = False, indexed: bool = False
+) -> Circ:
+    resident = resident or indexed
+    operand_base = INDEX_OPERAND if indexed else OPERAND
     c = Circ(target or Target())
     one = c.one
 
@@ -62,6 +77,11 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
     resets = [match("ready.0", READY0), match("ready.1", READY1)]
     reads = [match(f"register.read.{index}", READ_REG + index) for index in range(32)]
     writes = [match(f"store.read.{index}", READ_STORE + index) for index in range(32)]
+    index_reads = (
+        [match(f"index.read.{nib}", READ_INDEX + nib) for nib in range(16)]
+        if indexed
+        else []
+    )
     code = [
         c.token_feature(
             f"code.{bit}",
@@ -146,15 +166,23 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
         for i in range(16)
     }
     load_rom = between("rom.load", ROM, ROM + 16 * STRIDE)
+
+    def rom_payload(token: int) -> int:
+        if not ROM <= token < ROM + 16 * STRIDE:
+            return 0
+        wire = (token - ROM) % STRIDE
+        tag, arg = divmod(wire, 256)
+        if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
+            return (len(OPS) + arg - 1) * 256
+        return wire
+
+    op_names = OPS + INDEX_OPS if indexed else OPS
+    op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
         c.token_feature(
-            f"rom.{bit}",
-            lambda t, bit=bit: (
-                (((t - ROM) % STRIDE) >> bit) & 1 if ROM <= t < ROM + 16 * STRIDE else 0
-            ),
-            full=True,
+            f"rom.{bit}", lambda t, bit=bit: (rom_payload(t) >> bit) & 1, full=True
         )
-        for bit in range(11)
+        for bit in range(8 + op_width)
     ]
     payload = c.slot_head(
         "rom",
@@ -173,25 +201,27 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
                 tick,
                 *[
                     payload[8 + bit] if tag >> bit & 1 else one - payload[8 + bit]
-                    for bit in range(3)
+                    for bit in range(op_width)
                 ],
             ],
             f"op.{op}",
         )
-        for tag, op in enumerate(OPS)
+        for tag, op in enumerate(op_names)
     }
     k_hot = c.onehot_of_bits(arg[:3], "tile.k", 8)
     raw_nibble = {2 + bit: raw[bit] for bit in range(4)}
 
+    input_keys: dict[int, Expr] = {}
+
     def lookup(
         name: str, base: int, addresses: list[int], selects: list[Expr]
     ) -> list[Expr]:
-        keys = {
-            slot: between(
-                f"{name}.load.{slot}", base + address * 16, base + (address + 1) * 16
-            )
-            for slot, address in enumerate(addresses)
-        }
+        keys = {}
+        for slot, address in enumerate(addresses):
+            start = base + address * 16
+            if start not in input_keys:
+                input_keys[start] = between(f"{name}.load.{slot}", start, start + 16)
+            keys[slot] = input_keys[start]
         return c.slot_head(
             name, keys, dict(enumerate(selects)), raw_nibble, sum(keys.values(), Expr())
         )
@@ -211,7 +241,7 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
         bit
         for nib in range(2)
         for bit in lookup(
-            f"A.{nib}", OPERAND, [2 * i + nib for i in range(64)], a_queries
+            f"A.{nib}", operand_base, [2 * i + nib for i in range(64)], a_queries
         )
     ]
     b = [
@@ -220,7 +250,7 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
             for nib in range(2)
             for bit in lookup(
                 f"B.{col}.{nib}",
-                OPERAND,
+                operand_base,
                 [128 + 2 * (8 * k + col) + nib for k in range(8)],
                 b_queries,
             )
@@ -240,6 +270,63 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
         )
     ]
 
+    next_index = []
+    grants = []
+    indexed_values = []
+    if indexed:
+        prior_addresses = []
+        for lane in range(8):
+            address = [
+                bit
+                for nib, width in enumerate((4, 3))
+                for bit in lookup(
+                    f"index.{lane}.{nib}", INDEX_REGISTER, [2 * lane + nib], [tick]
+                )[:width]
+            ]
+            queries = [
+                c.and_(
+                    [
+                        ops["LOAD_INDEX"],
+                        *[
+                            value if word >> bit & 1 else one - value
+                            for bit, value in enumerate(address)
+                        ],
+                    ],
+                    f"gather.{lane}.{word}",
+                )
+                for word in range(INDEX_WORDS)
+            ]
+            for nib in range(4):
+                slots = [
+                    base // 16 + 4 * word + nib
+                    for base in (INDEX_OPERAND, C_MEMORY)
+                    for word in range(INDEX_WORDS // 2)
+                ]
+                indexed_values.extend(lookup(f"shared.{lane}.{nib}", 0, slots, queries))
+            next_index.extend(
+                c.select_bits(
+                    [
+                        ([ops["SAVE_INDEX"]], old[16 * lane : 16 * lane + 7]),
+                        ([one - ops["SAVE_INDEX"]], address),
+                    ],
+                    7,
+                    f"index.next.{lane}",
+                )
+            )
+            # STORE_INDEX retains the old address, so it can use the same snapshot.
+            addr = from_bits(address)
+            earlier = [
+                c.node(c.t_eq(addr - prior, 0, -127, 127), f"scatter.same.{lane}.{i}")
+                for i, prior in enumerate(prior_addresses)
+            ]
+            grants.append(
+                c.and_(
+                    [ops["STORE_INDEX"], *[one - equal for equal in earlier]],
+                    f"scatter.grant.{lane}",
+                )
+            )
+            prior_addresses.append(addr)
+
     updated = []
     for lane in range(8):
         columns = []
@@ -258,20 +345,20 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
             )
             limits.append(len(pairs) + 1 + int(bit < 8))
         updated.extend(_word_from_columns(c, columns, limits, f"lane.{lane}.word"))
-    result = c.select_bits(
-        [([ops["LOAD_TILE"]], c_row), ([one - ops["LOAD_TILE"]], updated)],
-        128,
-        "register.next",
-    )
-    bits = result + [ops["STORE_TILE"], *row_bits]
-    c.snapshot_bits = SNAPSHOT_BITS
+    sources = [([ops["LOAD_TILE"]], c_row)]
+    if indexed:
+        sources.append(([ops["LOAD_INDEX"]], indexed_values))
+    sources.append(([one - sum((gate[0] for gate, _ in sources), Expr())], updated))
+    result = c.select_bits(sources, 128, "register.next")
+    bits = result + [ops["STORE_TILE"], *row_bits, *next_index, *grants]
+    c.snapshot_bits = len(bits)
     saved = []
-    for chunk, start in enumerate(range(0, SNAPSHOT_BITS, CHUNK_BITS)):
+    for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
         saved.extend(
             c.slot_head(
                 f"stage.0.{chunk}",
                 {0: tick},
-                {0: sum(reads + writes, Expr())},
+                {0: sum(reads + writes + index_reads, Expr())},
                 {
                     2 + bit: value
                     for bit, value in enumerate(bits[start : start + CHUNK_BITS])
@@ -314,14 +401,39 @@ def build(target: Target | None = None, *, resident: bool = False) -> Circ:
                     )
                 elif (C_MEMORY + 16 * nib) >> bit & 1:
                     terms += c.t_and([write, saved[128]], 2 * KAPPA)
+        if indexed:
+            for nib, read in enumerate(index_reads):
+                lane, half = divmod(nib, 2)
+                if bit < (4 if half == 0 else 3):
+                    index_bit = saved[SNAPSHOT_BITS + 7 * lane + 4 * half + bit]
+                    terms += c.t_and([read, index_bit], 2 * KAPPA)
+                elif (INDEX_REGISTER + 16 * nib) >> bit & 1:
+                    terms += c.t_and([read], 2 * KAPPA)
+            for nib, write in enumerate(writes):
+                lane, digit = divmod(nib, 4)
+                index_start = SNAPSHOT_BITS + 7 * lane
+                address = saved[index_start : index_start + 7]
+                gate = [write, saved[SNAPSHOT_BITS + 56 + lane]]
+                if bit < 4:
+                    terms += c.t_and([*gate, saved[4 * nib + bit]], 2 * KAPPA)
+                elif bit < 6:
+                    if digit >> (bit - 4) & 1:
+                        terms += c.t_and(gate, 2 * KAPPA)
+                elif bit < 12:
+                    terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
+                else:
+                    if INDEX_OPERAND >> bit & 1:
+                        terms += c.t_and([*gate, one - address[6]], 2 * KAPPA)
+                    if C_MEMORY >> bit & 1:
+                        terms += c.t_and([*gate, address[6]], 2 * KAPPA)
         c.ffn(terms, f"exit.code.{bit}", into=expr, min_level=floor + 1)
     return c
 
 
-def build_standalone(*, resident: bool = False):
+def build_standalone(*, resident: bool = False, indexed: bool = False):
     from chipformer.q35.tiny import build as build_qwen
 
-    circuit = build(resident=resident)
+    circuit = build(resident=resident, indexed=indexed)
     return build_qwen(
         circuit,
         list(range(VOCAB)),

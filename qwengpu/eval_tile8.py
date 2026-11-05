@@ -15,8 +15,8 @@ from qwengpu.compiled_tile import (
     READY0,
     READY1,
     SCHEDULE,
-    TICKET,
     TICK,
+    TICKET,
     control_token,
 )
 from qwengpu.compiled_tile8 import (
@@ -24,12 +24,18 @@ from qwengpu.compiled_tile8 import (
     C_MEMORY,
     DEADLOCK,
     DONE,
+    INDEX_OPERAND,
+    INDEX_OPS,
+    INDEX_REGISTER,
+    INDEX_WORDS,
     NO_WRITE,
     OPERAND,
     OPS,
+    READ_INDEX,
     READ_REG,
     READ_STORE,
     REGISTER,
+    SNAPSHOT_BITS,
     build,
     build_standalone,
     nibbles,
@@ -41,6 +47,7 @@ from qwengpu.eval_tile import _check_control, _unsigned
 
 FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
 RESIDENT_FIXTURES = FIXTURES.with_name("resident_gate_v1")
+INDEXED_FIXTURES = FIXTURES.with_name("indexed_gate_v1")
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -59,7 +66,7 @@ PROGRAM = (
 )
 
 
-def _parse_case(data: object) -> dict:
+def _parse_case(data: object, *, indexed: bool = False) -> dict:
     if not isinstance(data, dict):
         raise ValueError("8x8 case must be an object")
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
@@ -86,6 +93,7 @@ def _parse_case(data: object) -> dict:
         if not isinstance(raw, list) or len(raw) != 2:
             raise ValueError("programs must contain two kernels")
         programs = []
+        names = OPS + INDEX_OPS if indexed else OPS
         for program in raw:
             if not isinstance(program, list) or not 1 <= len(program) <= 16:
                 raise ValueError(
@@ -93,7 +101,7 @@ def _parse_case(data: object) -> dict:
                 )
             ops = []
             for index, ins in enumerate(program):
-                if not isinstance(ins, dict) or ins.get("op") not in OPS:
+                if not isinstance(ins, dict) or ins.get("op") not in names:
                     raise ValueError("invalid tile opcode")
                 op, arg = ins["op"], ins.get("arg", 0)
                 limit = {"MAC_K": 7, "ADD16I": 255}.get(op, 0)
@@ -118,10 +126,15 @@ def _digits(values: list[int], width: int) -> list[int]:
     return [(value >> shift) & 15 for value in values for shift in range(0, width, 4)]
 
 
-def _matrix(tokens: list[int]) -> list[list[int]]:
-    words = [
-        sum((tokens[i + j] & 15) << (4 * j) for j in range(4)) for i in range(0, 256, 4)
+def _words(tokens: list[int]) -> list[int]:
+    return [
+        sum((tokens[i + j] & 15) << (4 * j) for j in range(4))
+        for i in range(0, len(tokens), 4)
     ]
+
+
+def _matrix(tokens: list[int]) -> list[list[int]]:
+    words = _words(tokens)
     return [words[index : index + 8] for index in range(0, 64, 8)]
 
 
@@ -135,14 +148,21 @@ def execute(
     offset: int = 0,
     *,
     resident: bool = False,
+    indexed: bool = False,
 ) -> dict:
+    resident = resident or indexed
+    operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 1
-    operands = nibbles(OPERAND, _digits(case["a"] + case["b"], 8))
+    operands = nibbles(operand_base, _digits(case["a"] + case["b"], 8))
     memory = nibbles(C_MEMORY, _digits(case["c"], 16))
     registers = [nibbles(REGISTER, [0] * 32) for _ in range(2)]
     rom = [program_tokens(program) for program in case["programs"]]
-    reads = [*range(READ_REG, READ_REG + 32), *range(READ_STORE, READ_STORE + 32)]
+    indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
+    reads = list(range(READ_REG, READ_REG + 32))
+    if indexed:
+        reads.extend(range(READ_INDEX, READ_INDEX + 16))
+    reads.extend(range(READ_STORE, READ_STORE + 32))
     schedules = []
     trace = []
     cache = None
@@ -196,25 +216,35 @@ def execute(
         else:
             prefix = [*operands, *memory, controls[warp]]
             transport["matrix_initial_tokens"] += len(operands) + len(memory)
+        state = registers[warp] + (indices[warp] if indexed else [])
         emitted = feed(
-            [*rom[warp], *prefix, *registers[warp], ticket, TICK, *reads], 65
+            [*rom[warp], *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
         )
         control, *packet = emitted
         _check_control(control, warp)
-        next_registers, patch = packet[:32], packet[32:]
+        next_registers, patch = packet[:32], packet[-32:]
         for nib, token in enumerate(next_registers):
             if not REGISTER + 16 * nib <= token < REGISTER + 16 * (nib + 1):
                 raise ValueError(f"invalid register packet at nibble {nib}")
-        if any(token != NO_WRITE for token in patch):
-            if any(not C_MEMORY <= token < C_MEMORY + 4096 for token in patch):
-                raise ValueError("invalid tagged C write")
-            addresses = [(token - C_MEMORY) // 16 for token in patch]
-            if len(set(addresses)) != 32:
-                raise ValueError("repeated C write address")
-            for address, token in zip(addresses, patch, strict=True):
-                memory[address] = token
+        if indexed:
+            indices[warp] = packet[32:-32]
+            for nib, token in enumerate(indices[warp]):
+                start = INDEX_REGISTER + 16 * nib
+                if not start <= token < start + (8 if nib % 2 else 16):
+                    raise ValueError(f"invalid index packet at nibble {nib}")
+        updates = [token for token in patch if token != NO_WRITE]
+        if not indexed and updates and len(updates) != 32:
+            raise ValueError("incomplete tagged C write")
+        if len({token // 16 for token in updates}) != len(updates):
+            raise ValueError("repeated tagged write address")
+        for token in updates:
+            if C_MEMORY <= token < C_MEMORY + 4096:
+                memory[(token - C_MEMORY) // 16] = token
+            elif indexed and INDEX_OPERAND <= token < INDEX_OPERAND + 4096:
+                operands[(token - INDEX_OPERAND) // 16] = token
+            else:
+                raise ValueError("invalid tagged shared-memory write")
         if resident:
-            updates = [] if patch[0] == NO_WRITE else patch
             pending = [control, *updates]
             transport["matrix_patch_tokens"] += len(updates)
         controls = controls[:]
@@ -225,13 +255,14 @@ def execute(
                 "warp": warp,
                 "control": control,
                 "registers": next_registers,
+                **({"indices": indices[warp]} if indexed else {}),
                 "patch": patch,
                 "snapshot": hex_bits(snapshot(cache, circuit, 0)),
             }
         )
     if resident:
         transport["resident_memory_exact"] = _check_resident_memory(
-            cache, circuit, operands, memory
+            cache, circuit, operands, memory, indexed=indexed
         )
     return {
         "transport": transport,
@@ -239,11 +270,12 @@ def execute(
         "trace": trace,
         "outcome": outcome,
         "matrix": _matrix(memory),
+        **({"shared_words": _words(operands + memory)} if indexed else {}),
     }
 
 
 def _check_resident_memory(
-    cache, circuit, operands: list[int], memory: list[int]
+    cache, circuit, operands: list[int], memory: list[int], *, indexed: bool = False
 ) -> bool:
     for address, token in enumerate(operands):
         byte, nibble = divmod(address, 2)
@@ -258,15 +290,26 @@ def _check_resident_memory(
         row, nibble = divmod(address, 32)
         if head_row(cache, circuit, f"C.{nibble}", row, 4) != token & 15:
             return False
+    if indexed:
+        for address, token in enumerate(operands + memory):
+            word, nib = divmod(address, 4)
+            for lane in range(8):
+                if (
+                    head_row(cache, circuit, f"shared.{lane}.{nib}", word, 4)
+                    != token & 15
+                ):
+                    return False
     return True
 
 
-def oracle(case: dict, max_steps: int) -> dict:
+def oracle(case: dict, max_steps: int, *, indexed: bool = False) -> dict:
     pcs = [0, 0]
     states = [0, 0]
     tile = 0
     last = 1
     acc = [[0] * 8 for _ in range(2)]
+    indices = [[0] * 8 for _ in range(2)]
+    operands = bytearray(case["a"] + case["b"])
     c = case["c"][:]
     schedules = []
     trace = []
@@ -308,26 +351,63 @@ def oracle(case: dict, max_steps: int) -> dict:
             acc[warp] = c[start : start + 8]
         elif op == "MAC_K":
             acc[warp] = [
-                (v + case["a"][start + arg] * case["b"][8 * arg + col]) & 65535
+                (v + operands[start + arg] * operands[64 + 8 * arg + col]) & 65535
                 for col, v in enumerate(acc[warp])
             ]
         elif op == "ADD16I":
             acc[warp] = [(v + arg) & 65535 for v in acc[warp]]
         elif op == "BARRIER":
             states[warp] = 2
+        elif op == "SAVE_INDEX":
+            indices[warp] = [v % INDEX_WORDS for v in acc[warp]]
+        elif op == "LOAD_INDEX":
+            acc[warp] = [
+                int.from_bytes(operands[2 * addr : 2 * addr + 2], "little")
+                if addr < 64
+                else c[addr - 64]
+                for addr in indices[warp]
+            ]
         patch = [NO_WRITE] * 32
         if op == "STORE_TILE":
             c[start : start + 8] = acc[warp]
             patch = nibbles(C_MEMORY + 512 * row, _digits(acc[warp], 16))
+        grants = 0
+        if op == "STORE_INDEX":
+            claimed = set()
+            for lane, (addr, word) in enumerate(
+                zip(indices[warp], acc[warp], strict=True)
+            ):
+                if addr in claimed:
+                    continue
+                claimed.add(addr)
+                grants |= 1 << lane
+                if addr < 64:
+                    operands[2 * addr : 2 * addr + 2] = word.to_bytes(2, "little")
+                    base = INDEX_OPERAND + 64 * addr
+                else:
+                    c[addr - 64] = word
+                    base = C_MEMORY + 64 * (addr - 64)
+                patch[4 * lane : 4 * lane + 4] = nibbles(base, _digits([word], 16))
         packed = sum(word << (16 * lane) for lane, word in enumerate(acc[warp]))
         packed |= (int(op == "STORE_TILE") + 2 * row) << 128
+        if indexed:
+            packed |= sum(
+                value << (SNAPSHOT_BITS + 7 * lane)
+                for lane, value in enumerate(indices[warp])
+            )
+            packed |= grants << (SNAPSHOT_BITS + 56)
         trace.append(
             {
                 "warp": warp,
                 "control": control_token(warp, pcs[warp], states[warp]),
                 "registers": nibbles(REGISTER, _digits(acc[warp], 16)),
+                **(
+                    {"indices": nibbles(INDEX_REGISTER, _digits(indices[warp], 8))}
+                    if indexed
+                    else {}
+                ),
                 "patch": patch,
-                "snapshot": f"{packed:033x}",
+                "snapshot": f"{packed:0{49 if indexed else 33}x}",
             }
         )
     return {
@@ -335,6 +415,17 @@ def oracle(case: dict, max_steps: int) -> dict:
         "trace": trace,
         "outcome": outcome,
         "matrix": [c[i : i + 8] for i in range(0, 64, 8)],
+        **(
+            {
+                "shared_words": [
+                    int.from_bytes(operands[i : i + 2], "little")
+                    for i in range(0, len(operands), 2)
+                ]
+                + c,
+            }
+            if indexed
+            else {}
+        ),
     }
 
 
@@ -342,7 +433,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
     parser.add_argument("--kernel", type=Path)
-    parser.add_argument("--resident", action="store_true")
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident", action="store_true")
+    variants.add_argument("--indexed", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -353,17 +446,28 @@ def main() -> None:
         parser.error("--max-steps must be positive")
     meta = None
     offset = 0
-    resident = args.resident
+    indexed = args.indexed
+    resident = args.resident or indexed
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text())
-        if meta["layout"] not in ("qwengpu-tile8-9b-v1", "qwengpu-resident9b-v1"):
+        layout = meta["layout"]
+        if layout not in (
+            "qwengpu-tile8-9b-v1",
+            "qwengpu-resident9b-v1",
+            "qwengpu-indexed9b-v1",
+        ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident = meta["layout"] == "qwengpu-resident9b-v1"
+        indexed = layout == "qwengpu-indexed9b-v1"
+        resident = indexed or layout == "qwengpu-resident9b-v1"
         if args.resident and not resident:
             raise ValueError("--resident requires a resident checkpoint")
+        if args.indexed and not indexed:
+            raise ValueError("--indexed requires an indexed checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
+    if indexed and not args.kernel:
+        paths.extend(sorted(INDEXED_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -371,7 +475,7 @@ def main() -> None:
             (
                 path.name,
                 hashlib.sha256(payload).hexdigest(),
-                _parse_case(json.loads(payload)),
+                _parse_case(json.loads(payload), indexed=indexed),
             )
         )
     if not cases:
@@ -390,9 +494,10 @@ def main() -> None:
                 cfg.intermediate_size,
             ),
             resident=resident,
+            indexed=indexed,
         )
     else:
-        model, circuit = build_standalone(resident=resident)
+        model, circuit = build_standalone(resident=resident, indexed=indexed)
     model.to(args.device).eval()
     report = {
         "device": args.device,
@@ -403,9 +508,16 @@ def main() -> None:
         "cases": [],
     }
     for name, digest, case in cases:
-        expected = oracle(case, args.max_steps)
+        expected = oracle(case, args.max_steps, indexed=indexed)
         observed = execute(
-            model, circuit, case, args.device, args.max_steps, offset, resident=resident
+            model,
+            circuit,
+            case,
+            args.device,
+            args.max_steps,
+            offset,
+            resident=resident,
+            indexed=indexed,
         )
         transport = observed.pop("transport")
         exact = (

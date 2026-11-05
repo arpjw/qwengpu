@@ -377,3 +377,35 @@ The default resident suite includes the 8×8 seeded multiply, deadlock,
 and a case that overwrites an accumulator after a store and then reloads
 from C. The reports count input tokens and check the final A, B, and C
 rows directly in the model cache.
+
+## Indexed resident shared memory
+
+The indexed variant extends the resident tile engine with a 7-bit index
+register per lane. `SAVE_INDEX` copies the low seven bits of the 16-bit
+accumulator to that register. `LOAD_INDEX` reads the selected shared word
+into the accumulator. `STORE_INDEX` writes the accumulator to the selected
+word. The lowest lane number wins when several lanes in one instruction
+target the same word. Stores from different warp turns take effect in
+scheduler order.
+
+Word addresses 0–31 cover A and 32–63 cover B, with two consecutive bytes
+per word in little-endian order. Addresses 64–127 cover C. Indexed and
+tiled operations share the same contents. The model computes the
+addresses and emits tagged write tokens. The host feeds those tokens
+back into the same inference cache before the next scheduling call and
+relays the per-warp accumulator and index packets.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --indexed --device mps --out "$QWENGPU_DIR/results/indexed_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --indexed --out /path/to/Qwen3.5-9B-qwengpu-indexed
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-indexed --device cuda \
+  --out "$QWENGPU_DIR/results/indexed_9b_cuda_fla.json"
+```
+
+The default suite includes the resident fixtures, a cross-warp
+scatter-and-gather case, and a read/write sweep of all 128 word
+addresses. The sweep also verifies that writes from indexed operations
+are visible to tile loads and tile stores are visible to indexed loads.

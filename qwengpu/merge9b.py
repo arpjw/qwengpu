@@ -92,7 +92,7 @@ def _load_widened_text(src: Path, hidden: int, n_chip: int) -> tuple[dict, torch
 
 
 def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
-                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False, tile: bool = False, tile8: bool = False, resident: bool = False) -> dict:
+                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False, tile: bool = False, tile8: bool = False, resident: bool = False, indexed: bool = False) -> dict:
     """Write a text-only stock Qwen3.5 checkpoint with the SIMT circuit first."""
     from safetensors.torch import save_file
 
@@ -104,9 +104,9 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     d0, v0, inter = tc0["hidden_size"], tc0["vocab_size"], tc0["intermediate_size"]
     from chipformer.q35.ir import Target
 
-    if sum((rom, writeback, control, resume, isa, workgroup, tile, tile8, resident)) > 1:
+    if sum((rom, writeback, control, resume, isa, workgroup, tile, tile8, resident, indexed)) > 1:
         raise ValueError("choose one circuit variant")
-    if tile8 or resident:
+    if tile8 or resident or indexed:
         from qwengpu.compiled_tile8 import VOCAB as chip_vocab
         from qwengpu.compiled_tile8 import build
     elif tile:
@@ -125,8 +125,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         from qwengpu.compiled_add import VOCAB as chip_vocab
         from qwengpu.compiled_add import build
     target = Target(tc0["linear_num_key_heads"], tc0["linear_num_value_heads"], inter)
-    if resident:
-        circuit = build(target, resident=True)
+    if resident or indexed:
+        circuit = build(target, resident=resident, indexed=indexed)
     elif workgroup:
         circuit = build(target, workgroup=True)
     elif resume or isa:
@@ -218,7 +218,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         "pad_token_id": tc0.get("eos_token_id", 248044), "eos_token_id": tc0.get("eos_token_id", 248044)},
         indent=2), encoding="utf-8")
     _copy_tokenizer(src, dst)
-    meta = {"layout": ("qwengpu-resident9b-v1" if resident else
+    meta = {"layout": ("qwengpu-indexed9b-v1" if indexed else
+                       "qwengpu-resident9b-v1" if resident else
                        "qwengpu-tile8-9b-v1" if tile8 else
                        "qwengpu-tile9b-v1" if tile else
                        "qwengpu-workgroup9b-v1" if workgroup else
@@ -244,6 +245,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-anti-sink", action="store_true")
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--indexed", action="store_true",
+                          help="merge the resident tiled engine with indexed shared memory")
     variants.add_argument("--resident", action="store_true",
                           help="merge the resident 8x8 tiled engine")
     variants.add_argument("--tile8", action="store_true",
@@ -266,7 +269,7 @@ def main() -> None:
     print(json.dumps(build_merged(args.src, args.out,
                                   fit_sinks=not args.no_anti_sink,
                                   rom=args.rom, writeback=args.writeback, control=args.control,
-                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup, tile=args.tile, tile8=args.tile8, resident=args.resident)), flush=True)
+                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup, tile=args.tile, tile8=args.tile8, resident=args.resident, indexed=args.indexed)), flush=True)
 
 
 if __name__ == "__main__":
