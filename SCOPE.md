@@ -11,11 +11,15 @@ The indexed variant uses the same resident cache for tiled operations
 and arbitrary 16-bit accesses. It covers 128 word addresses with
 per-lane indices and model-computed scatter priority.
 
-The next gate brings lane masks into the resident engine. Prove that
-inactive lanes preserve their registers and issue no writes, and that
-the lowest active lane wins scatter collisions. Then extend the
-model-selected PC with the structured divergence and loop controls
-already validated in the general byte workgroup variant.
+The masked variant adds per-warp lane masks. Inactive lanes preserve
+their registers and issue no writes. The lowest active lane wins
+scatter collisions, and a warp with an empty mask can reach a barrier.
+
+The next gate brings structured divergence into the resident engine.
+Save the parent and predicate masks so the model can execute both
+paths and restore the parent at reconvergence. Test nested branches
+and a predicate whose source accumulator changes in the first path.
+Then extend the model-selected PC with data-dependent loop control.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

@@ -169,6 +169,13 @@ and cross-warp scatter and gather match on MPS and merged Qwen3.5-9B.
 Run the suite with
 `python3 -m qwengpu.eval_tile8 --indexed --device mps --out indexed.json`.
 
+The masked resident variant lets each warp select active lanes from a
+bit of each accumulator and reactivate all lanes explicitly. Inactive
+lanes preserve registers and skip writes. Scatter priority follows the
+lowest active lane targeting each word. All six fixtures match on MPS
+and merged Qwen3.5-9B. Run the suite with
+`python3 -m qwengpu.eval_tile8 --masked --device mps --out masked.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

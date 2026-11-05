@@ -365,3 +365,23 @@ The indexed merge adds 15 layers, uses width 6,144, and contains
 38,299,060,352 bytes of weights. See `results/indexed_mps.json` and
 `results/indexed_9b_cuda_fla.json`. Both resident and indexed CUDA suites
 ran on the same A100. See `RUNPOD_LEDGER.md` for teardown and billing.
+
+## Lane masks in the resident engine
+
+All six frozen cases match across standalone MPS and merged Qwen3.5-9B
+on A100. The reports agree on all 478 instruction snapshots and 484
+scheduler decisions. Each launch uses one inference cache. All 25 local
+tests passed, and the unmasked indexed MPS report was byte-for-byte
+unchanged on rerun.
+
+The masked scatter case gives the two warps different masks. In the
+first warp, lane 0 and lane 1 target the same word. Lane 1 writes
+because lane 0 is inactive. The fixture also exercises masked tile
+loads and stores, multiply-accumulate, immediate addition, index saves,
+and indexed loads. Both warps then switch to empty masks, issue no
+scatter writes, and reach the barrier. Both regain full masks when
+their next row pair starts.
+
+The merge adds 16 layers, uses width 6,144, and contains 38,954,248,704
+bytes of weights. See `results/masked_mps.json` and
+`results/masked_9b_cuda_fla.json`.
