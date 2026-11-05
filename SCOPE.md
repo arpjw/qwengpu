@@ -13,6 +13,11 @@ write results back to lane state. This is a functional SIMT proof, not a
 general-purpose or fast GPU.
 The [JSON kernel runner](qwengpu/run_kernel.py) validates and dispatches
 supported programs for local experimentation.
+For a uniform ADD or XOR immediate, the current runner feeds eight operand
+tokens, one execution token, eight read requests, and eight generated result
+tokens back into the model. That is 25 one-token forward calls per vector
+instruction after initialization. ROM operands and internal writeback target
+this protocol cost.
 
 The repository includes an independent interpreter with richer semantics.
 Fixed checks on MPS and CUDA cover direct instructions, branch paths, scratch

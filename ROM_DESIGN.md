@@ -33,6 +33,10 @@ integration, but widens the merged embedding and output vocabulary. A later
 two-token opcode/argument encoding could use fewer IDs at the cost of an
 extra ROM read or head. Measure the merged checkpoint size and token latency
 before changing the proven packed encoding.
+At the current 4,864 hidden dimensions, 32,768 additional BF16 rows in both
+the embedding and untied output head would add about 608 MiB of weights.
+This is a lower-bound design estimate; the integrated circuit may also widen
+the model or add padded token rows.
 
 ## Execution protocol
 
