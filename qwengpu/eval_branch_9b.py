@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 
 import torch
@@ -25,7 +26,15 @@ def main() -> None:
     cases = [
         (tuple(range(8)), 4, 10, 20, 1),
         ((255, 0, 128, 127, 0, 1, 200, 199), 128, 1, 250, 7),
+        ((100,) * 8, 0, 9, 13, 5),
+        ((100,) * 8, 255, 9, 13, 5),
     ]
+    random_source = random.Random(4169)
+    cases.extend((tuple(random_source.randrange(256) for _ in range(8)),
+                  random_source.randrange(256),
+                  random_source.randrange(256),
+                  random_source.randrange(256),
+                  random_source.randrange(256)) for _ in range(8))
     report = {"device": args.device, "torch": torch.__version__,
               "transformers": transformers.__version__, "merge": meta,
               "cases": []}
