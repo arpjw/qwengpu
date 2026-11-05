@@ -148,6 +148,12 @@ state tokens. The matrix multiply, wide addition, and deadlock fixtures
 match on MPS and merged Qwen3.5-9B. Run the demo with
 `python3 -m qwengpu.eval_tile --device mps --out tile.json`.
 
+The 8×8 tile variant expands shared memory to 256 bytes. The model
+advances four row pairs, reloads C before accumulation, and emits
+address-tagged writes for every output word. The seeded 8×8 multiply
+and deliberate deadlock match on MPS and merged Qwen3.5-9B. Run them with
+`python3 -m qwengpu.eval_tile8 --device mps --out tile8.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

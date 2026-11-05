@@ -296,3 +296,20 @@ Reports are `results/tile_mps.json` and `results/tile_9b_cuda_fla.json`.
 The A100 pod was terminated after about five minutes at $1.79/hour,
 an estimated $0.15 for this run. No charge had posted for that pod at
 teardown, and the live pod list was empty.
+
+## 8×8 model-scheduled matrix multiply
+
+The seeded dense case computes `C = (C + A @ B) mod 65536` for 64 output
+words. It executed 116 instructions across four row pairs. The model
+released 12 barriers, advanced the row pair three times, and emitted
+256 distinct write tags covering every output nibble. The resulting
+matrix and every intermediate register snapshot matched the interpreter.
+The separate missing-barrier case ended in the model's deadlock decision.
+
+MPS and merged Qwen3.5-9B A100 traces are identical across both cases,
+covering 118 instructions and 120 scheduler decisions. All 25 local tests
+passed. The merge has 15 added layers, width 5,120, and 31,916,314,752 bytes
+of weights. Reports are `results/tile8_mps.json` and
+`results/tile8_9b_cuda_fla.json`. The A100 was terminated after about
+8 minutes 55 seconds at $1.79/hour, an estimated $0.27. The live pod list
+was empty and billing for this pod had yet to post at teardown.

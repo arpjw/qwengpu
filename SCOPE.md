@@ -1,5 +1,22 @@
 # QwenGPU scope and next gates
 
+## Current milestone and next gate
+
+The 8×8 tile engine runs four row pairs with model-owned advancement and
+PC resets. Its 256 shared bytes hold A, B, and C. Model-generated write
+tags cover the full C region, and the host relays them unchanged. The
+seeded multiply and deliberate deadlock match on MPS and merged 9B.
+
+The next gate is resident tile memory. Upload A, B, and C once per launch
+and carry the same inference cache through scheduling and execution. Feed
+back the model's tagged stores as updates, preserve exact PCs and output,
+and report input token counts against the current fresh-cache protocol.
+After that, bring indexed memory and the general SIMT ISA into a common
+model-scheduled engine. Keep the fixed, validated variants available.
+
+Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
+reconcile pending estimates before provisioning more resources.
+
 ## Model-scheduled tile variant
 
 The tile checkpoint selects ready warps, releases barriers, and signals
