@@ -27,6 +27,13 @@ value. The current isolated ROM spike uploads all 16 slots for this reason.
 The host may upload tokens and launch the kernel; it does not choose or send
 individual instructions during execution.
 
+Packing address and an 11-bit instruction into one upload token gives 32,768
+possible upload IDs before other trace tokens. This simplifies the first
+integration, but widens the merged embedding and output vocabulary. A later
+two-token opcode/argument encoding could use fewer IDs at the cost of an
+extra ROM read or head. Measure the merged checkpoint size and token latency
+before changing the proven packed encoding.
+
 ## Execution protocol
 
 1. Upload `ROM_LOAD(address, opcode, argument)` tokens and an initial

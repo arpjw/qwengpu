@@ -33,6 +33,8 @@ export PYTHONPATH="$QWENPUTER_DIR:$QWENGPU_DIR"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_rom_spike \
   --device mps --out "$QWENGPU_DIR/results/rom_spike_mps.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_rom_spike \
+  --device cpu --out "$QWENGPU_DIR/results/rom_spike_cpu.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_rom_spike \
   --device mps --extra-programs 97 \
   --out "$QWENGPU_DIR/results/rom_spike_stress_mps.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
