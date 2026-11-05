@@ -7,10 +7,15 @@ cache per launch. A, B, and initial C are uploaded once. The host relays
 model-tagged writes into the same cache. MPS and merged Qwen3.5-9B agree
 on the dense multiply, store-and-reload, and deliberate deadlock traces.
 
-The next gate adds lane-indexed loads and stores to the resident tile
-engine. It will share the same memory with tiled arithmetic and support
-deterministic arbitration when lanes write the same address. Bringing
-the general SIMT control ISA into this engine follows that gate.
+The indexed variant uses the same resident cache for tiled operations
+and arbitrary 16-bit accesses. It covers 128 word addresses with
+per-lane indices and model-computed scatter priority.
+
+The next gate brings lane masks into the resident engine. Prove that
+inactive lanes preserve their registers and issue no writes, and that
+the lowest active lane wins scatter collisions. Then extend the
+model-selected PC with the structured divergence and loop controls
+already validated in the general byte workgroup variant.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

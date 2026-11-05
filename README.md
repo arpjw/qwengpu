@@ -161,6 +161,14 @@ from 73,434 to 14,694 while preserving the full trace. The multiply, store-and-r
 deadlock traces match on MPS and merged Qwen3.5-9B. Run the suite with
 `python3 -m qwengpu.eval_tile8 --resident --device mps --out resident.json`.
 
+The indexed resident variant gives each lane a 7-bit address register
+and access to all 128 shared 16-bit words. The model gathers and
+scatters from the same memory used for tiled multiply. The lowest lane
+number wins same-instruction write collisions. The full address sweep
+and cross-warp scatter and gather match on MPS and merged Qwen3.5-9B.
+Run the suite with
+`python3 -m qwengpu.eval_tile8 --indexed --device mps --out indexed.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

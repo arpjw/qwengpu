@@ -335,3 +335,33 @@ The host still relays register packets and model-generated write tokens.
 The merge adds 15 layers, uses width 5,120, and contains 31,916,314,752
 bytes of weights. See `results/resident_mps.json` and
 `results/resident_9b_cuda_fla.json`.
+
+## Indexed resident shared memory
+
+Five frozen fixtures matched across standalone MPS and merged
+Qwen3.5-9B on A100. Their 350 instruction traces, 355 scheduler
+decisions, and final shared words were identical. Each launch used one
+inference cache. The evaluator checked the tiled memory rows and all
+eight indexed read ports directly in the final cache.
+
+| Fixture | Instructions | Tagged updates |
+| --- | ---: | ---: |
+| Deliberate deadlock | 2 | 0 |
+| Seeded dense multiply | 116 | 256 |
+| Store and reload | 48 | 256 |
+| Full address sweep | 128 | 768 |
+| Cross-warp scatter and gather | 56 | 160 |
+
+The sweep covers all 128 word addresses and exercises indexed stores
+followed by tile loads, and tile stores followed by indexed loads.
+The collision fixture targets the A/B and C regions, checks the lowest
+lane priority, and gathers after both warps reach a model-managed
+barrier. The host relays the tagged writes and register packets. The
+indexed variant uses 18,406 input tokens on the dense case, compared
+with 14,694 for the resident tile variant. All 25 local tests passed.
+The prior resident MPS report was byte-for-byte unchanged when rerun.
+
+The indexed merge adds 15 layers, uses width 6,144, and contains
+38,299,060,352 bytes of weights. See `results/indexed_mps.json` and
+`results/indexed_9b_cuda_fla.json`. Both resident and indexed CUDA suites
+ran on the same A100. See `RUNPOD_LEDGER.md` for teardown and billing.
