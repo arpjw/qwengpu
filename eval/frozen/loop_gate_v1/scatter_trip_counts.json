@@ -1,0 +1,139 @@
+{
+  "name": "Lane-specific loop counts and a cross-warp gather",
+  "c": [
+    12,
+    13,
+    14,
+    15,
+    16,
+    0,
+    0,
+    0,
+    15,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "programs": [
+    [
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 3
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "LOAD_INDEX"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 3
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "LOAD_INDEX"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}

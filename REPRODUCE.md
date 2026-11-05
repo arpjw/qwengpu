@@ -456,3 +456,30 @@ other per-warp registers.
 The two branch fixtures exercise a predicate whose source changes in
 the first path, reconvergence to a partial mask, and an empty nested
 path that emits no writes.
+
+## Data-dependent loops in the resident engine
+
+`WHILE_BIT k` tests accumulator bit `k` for each active lane. If any
+lane qualifies, the model saves the parent mask and enters the body
+with those lanes. Otherwise it selects the instruction after the
+matching `ENDWHILE`. At `ENDWHILE` it restores the parent mask and
+selects the matching `WHILE_BIT` to retest the lanes. The assembler
+links the two program locations when it uploads the ROM. Branch and
+loop stacks each support two levels per warp. Mask replacement,
+barriers, and halt require a reconverged warp.
+
+The host relays the model's control, stack, and write packets, and
+enforces the evaluator's instruction budget. The suite includes
+different per-lane trip counts, nested loops with a branch, a gather
+after a two-warp barrier, and an intentionally nonterminating loop that
+reaches the default 256-instruction budget.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --looping --device mps --out "$QWENGPU_DIR/results/looping_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --looping --out /path/to/Qwen3.5-9B-qwengpu-looping
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-looping --device cuda \
+  --out "$QWENGPU_DIR/results/looping_9b_cuda_fla.json"
+```

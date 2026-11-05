@@ -25,6 +25,7 @@ OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
 INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
 MASK_OPS = ("MASK_ALL", "MASK_BIT")
 BRANCH_OPS = ("IF_BIT", "ELSE", "ENDIF")
+LOOP_OPS = ("WHILE_BIT", "ENDWHILE")
 STRIDE = 256 * len(OPS)
 C_MEMORY = ROM + 16 * STRIDE
 REGISTER = C_MEMORY + 4096
@@ -42,6 +43,10 @@ BRANCH_OFFSET = MASK_OFFSET + 8
 BRANCH_REGISTER = 0x9200
 READ_BRANCH = READ_MASK + 2
 BRANCH_NIBBLES = 9
+LOOP_OFFSET = BRANCH_OFFSET + 4 * BRANCH_NIBBLES
+LOOP_REGISTER = 0x9300
+READ_LOOP = READ_BRANCH + BRANCH_NIBBLES
+LOOP_NIBBLES = 5
 NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
@@ -53,7 +58,17 @@ CHUNK_BITS = 120
 def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
     padded = program + (("HALT", 0),) * (16 - len(program))
 
-    def wire(op: str, arg: int) -> int:
+    links = {}
+    opens = []
+    for address, (op, _) in enumerate(program):
+        if op == "WHILE_BIT":
+            opens.append(address)
+        elif op == "ENDWHILE":
+            start = opens.pop()
+            links[start] = address + 1
+            links[address] = start
+
+    def wire(address: int, op: str, arg: int) -> int:
         # The reserved HALT immediates extend the ROM without changing its stride.
         halt = OPS.index("HALT") * 256
         if op in INDEX_OPS:
@@ -68,10 +83,15 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
             return halt + 5
         if op == "ENDIF":
             return halt + 6
+        # A validated loop exits past its ENDWHILE, so its packed argument is nonzero.
+        if op == "WHILE_BIT":
+            return OPS.index("LOAD_TILE") * 256 + 16 * links[address] + arg
+        if op == "ENDWHILE":
+            return OPS.index("BARRIER") * 256 + 1 + links[address]
         return OPS.index(op) * 256 + arg
 
     return [
-        ROM + address * STRIDE + wire(op, arg)
+        ROM + address * STRIDE + wire(address, op, arg)
         for address, (op, arg) in enumerate(padded)
     ]
 
@@ -87,7 +107,9 @@ def build(
     indexed: bool = False,
     masked: bool = False,
     divergent: bool = False,
+    looping: bool = False,
 ) -> Circ:
+    divergent = divergent or looping
     masked = masked or divergent
     indexed = indexed or masked
     resident = resident or indexed
@@ -122,6 +144,11 @@ def build(
             for nib in range(BRANCH_NIBBLES)
         ]
         if divergent
+        else []
+    )
+    loop_reads = (
+        [match(f"loop.read.{nib}", READ_LOOP + nib) for nib in range(LOOP_NIBBLES)]
+        if looping
         else []
     )
     code = [
@@ -227,6 +254,12 @@ def build(
                 return branch_tag * 256 + arg - 32
             if arg in (5, 6):
                 return (branch_tag + arg - 4) * 256
+        if looping:
+            loop_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS) + len(BRANCH_OPS)
+            if OPS[tag] == "LOAD_TILE" and arg >= 32:
+                return loop_tag * 256 + arg
+            if OPS[tag] == "BARRIER" and 1 <= arg <= 16:
+                return (loop_tag + 1) * 256 + arg - 1
         return wire
 
     op_names = (
@@ -234,6 +267,7 @@ def build(
         + (INDEX_OPS if indexed else ())
         + (MASK_OPS if masked else ())
         + (BRANCH_OPS if divergent else ())
+        + (LOOP_OPS if looping else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -331,6 +365,7 @@ def build(
     active = [one] * 8
     next_mask = []
     next_branch = []
+    next_loop = []
     if masked:
         active = [
             bit
@@ -352,7 +387,9 @@ def build(
             )
 
         if divergent:
-            predicate_op = ops["MASK_BIT"] + ops["IF_BIT"]
+            predicate_op = (
+                ops["MASK_BIT"] + ops["IF_BIT"] + (ops["WHILE_BIT"] if looping else 0)
+            )
             predicate = [selected_bit(lane, predicate_op) for lane in range(8)]
             stack = [
                 bit
@@ -381,28 +418,46 @@ def build(
                     zip(top[:8], top[8:], strict=True)
                 )
             ]
-            next_mask = c.select_bits(
-                [
-                    ([ops["IF_BIT"]], then_mask),
-                    ([ops["ELSE"]], else_mask),
-                    ([ops["ENDIF"]], top[:8]),
-                    ([ops["MASK_BIT"]], predicate),
-                    ([ops["MASK_ALL"]], 255),
-                    (
-                        [
-                            one
-                            - ops["IF_BIT"]
-                            - ops["ELSE"]
-                            - ops["ENDIF"]
-                            - ops["MASK_BIT"]
-                            - ops["MASK_ALL"]
-                        ],
-                        active,
-                    ),
-                ],
-                8,
-                "branch.mask.next",
+            mask_sources = [
+                ([ops["IF_BIT"]], then_mask),
+                ([ops["ELSE"]], else_mask),
+                ([ops["ENDIF"]], top[:8]),
+                ([ops["MASK_BIT"]], predicate),
+                ([ops["MASK_ALL"]], 255),
+            ]
+            keep_mask = (
+                one
+                - ops["IF_BIT"]
+                - ops["ELSE"]
+                - ops["ENDIF"]
+                - ops["MASK_BIT"]
+                - ops["MASK_ALL"]
             )
+            if looping:
+                loop = [
+                    bit
+                    for nib in range(LOOP_NIBBLES)
+                    for bit in lookup(f"loop.{nib}", LOOP_REGISTER, [nib], [tick])
+                ]
+                any_lane = c.node(c.t_ge(sum(then_mask, Expr()), 1, 0, 8), "loop.any")
+                enter = c.and_([ops["WHILE_BIT"], any_lane], "loop.enter")
+                leave = c.and_([ops["WHILE_BIT"], one - any_lane], "loop.leave")
+                loop_top, loop_depth, loop_frames = _stack(
+                    c,
+                    loop[:2],
+                    [loop[4:12], loop[12:20]],
+                    enter,
+                    ops["ENDWHILE"],
+                    active,
+                    "loop",
+                )
+                next_loop = loop_depth + [Expr(), Expr()] + loop_frames
+                mask_sources.extend(
+                    [([enter], then_mask), ([ops["ENDWHILE"]], loop_top)]
+                )
+                keep_mask = keep_mask - enter - ops["ENDWHILE"]
+            mask_sources.append(([keep_mask], active))
+            next_mask = c.select_bits(mask_sources, 8, "branch.mask.next")
         else:
             next_mask = [
                 ops["MASK_ALL"]
@@ -528,6 +583,7 @@ def build(
         *grants,
         *next_mask,
         *next_branch,
+        *next_loop,
     ]
     c.snapshot_bits = len(bits)
     saved = []
@@ -538,7 +594,13 @@ def build(
                 {0: tick},
                 {
                     0: sum(
-                        reads + writes + index_reads + mask_reads + branch_reads, Expr()
+                        reads
+                        + writes
+                        + index_reads
+                        + mask_reads
+                        + branch_reads
+                        + loop_reads,
+                        Expr(),
                     )
                 },
                 {
@@ -550,9 +612,13 @@ def build(
         )
 
     halted = ops["HALT"]
-    next_pc = c.select_bits(
-        [([halted], pc), ([one - halted], _increment4(c, pc))], 4, "pc.next"
-    )
+    pc_sources = [([halted], pc)]
+    increment = one - halted
+    if looping:
+        pc_sources.extend([([leave], arg[4:8]), ([ops["ENDWHILE"]], arg[:4])])
+        increment = increment - leave - ops["ENDWHILE"]
+    pc_sources.append(([increment], _increment4(c, pc)))
+    next_pc = c.select_bits(pc_sources, 4, "pc.next")
     execution = next_pc + [halted, ops["BARRIER"], warp_bit]
     floor = max(node.level for node in c.nodes)
     for bit, expr in enumerate(code):
@@ -625,6 +691,13 @@ def build(
                     )
                 elif (BRANCH_REGISTER + 16 * nib) >> bit & 1:
                     branch_terms += c.t_and([read], 2 * KAPPA)
+            for nib, read in enumerate(loop_reads):
+                if bit < 4:
+                    branch_terms += c.t_and(
+                        [read, saved[LOOP_OFFSET + 4 * nib + bit]], 2 * KAPPA
+                    )
+                elif (LOOP_REGISTER + 16 * nib) >> bit & 1:
+                    branch_terms += c.t_and([read], 2 * KAPPA)
             if branch_terms:
                 c.ffn(
                     branch_terms, f"exit.branch.{bit}", into=expr, min_level=floor + 1
@@ -644,11 +717,16 @@ def build_standalone(
     indexed: bool = False,
     masked: bool = False,
     divergent: bool = False,
+    looping: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
     circuit = build(
-        resident=resident, indexed=indexed, masked=masked, divergent=divergent
+        resident=resident,
+        indexed=indexed,
+        masked=masked,
+        divergent=divergent,
+        looping=looping,
     )
     return build_qwen(
         circuit,

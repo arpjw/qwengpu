@@ -1,0 +1,165 @@
+{
+  "name": "Nested loops and a branch preserve their parent masks",
+  "c": [
+    8,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "programs": [
+    [
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 3
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 1
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 0
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "ELSE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 2
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 4
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 3
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 1
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 0
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "ELSE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 2
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 4
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}

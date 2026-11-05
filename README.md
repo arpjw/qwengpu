@@ -182,6 +182,13 @@ and reconvergence restores the saved parent mask. All eight fixtures
 match on MPS and merged Qwen3.5-9B. Run the suite with
 `python3 -m qwengpu.eval_tile8 --divergent --device mps --out divergent.json`.
 
+The looping resident variant adds model-selected back edges and exits.
+`WHILE_BIT` uses a per-lane accumulator bit, and `ENDWHILE` restores the
+parent mask before retesting. A single checkpoint supports two levels
+each of branches and loops, 16-bit accumulation, and indexed shared
+memory. Run the suite with
+`python3 -m qwengpu.eval_tile8 --looping --device mps --out looping.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
