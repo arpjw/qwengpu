@@ -21,9 +21,6 @@ from safetensors import safe_open
 from chipformer.q35.emit import Layout, allocate, check_bf16, embedding_rows, emit_layers
 from chipformer.q35.merge import IN_COLS, OUT_ROWS, WIDE_NORMS, pick_hidden
 from chipformer.q35.tiny import code_gain
-from qwengpu.compiled_add import VOCAB, build
-
-
 SRC_TEXT = "model.language_model."
 DST_TEXT = "model."
 TAU_TEXT = 2.0**-40
@@ -94,7 +91,8 @@ def _load_widened_text(src: Path, hidden: int, n_chip: int) -> tuple[dict, torch
     return sd, embedding, head
 
 
-def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True) -> dict:
+def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
+                 rom: bool = False) -> dict:
     """Write a text-only stock Qwen3.5 checkpoint with the SIMT circuit first."""
     from safetensors.torch import save_file
 
@@ -106,9 +104,14 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True) ->
     d0, v0, inter = tc0["hidden_size"], tc0["vocab_size"], tc0["intermediate_size"]
     from chipformer.q35.ir import Target
 
+    if rom:
+        from qwengpu.compiled_rom import VOCAB as chip_vocab
+        from qwengpu.compiled_rom import build
+    else:
+        from qwengpu.compiled_add import VOCAB as chip_vocab
+        from qwengpu.compiled_add import build
     target = Target(tc0["linear_num_key_heads"], tc0["linear_num_value_heads"], inter)
     circuit = build(target)
-    chip_vocab = VOCAB
     # The generic emitter clears its ballast at the exit. Leave a separate
     # marker, written only at the exit, for Qwen's mute gates. It starts at
     # zero, so it cannot disturb the SIMT circuit's earlier sublayers.
@@ -194,7 +197,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True) ->
         "pad_token_id": tc0.get("eos_token_id", 248044), "eos_token_id": tc0.get("eos_token_id", 248044)},
         indent=2), encoding="utf-8")
     _copy_tokenizer(src, dst)
-    meta = {"layout": "qwengpu9b-v1", "chip_token_offset": v0,
+    meta = {"layout": "qwengpu-rom9b-v1" if rom else "qwengpu9b-v1",
+            "chip_token_offset": v0,
             "chip_vocab": chip_vocab,
             "chip_layers": n_chip, "hidden": hidden, "slots": allocation.n_slots,
             "code_dims": code_dims, "tau_dim": layout.tau,
@@ -210,9 +214,12 @@ def main() -> None:
     parser.add_argument("src", type=Path, help="Qwen3.5-9B source snapshot")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-anti-sink", action="store_true")
+    parser.add_argument("--rom", action="store_true",
+                        help="merge the autonomous straight-line ROM circuit")
     args = parser.parse_args()
     print(json.dumps(build_merged(args.src, args.out,
-                                  fit_sinks=not args.no_anti_sink)), flush=True)
+                                  fit_sinks=not args.no_anti_sink,
+                                  rom=args.rom)), flush=True)
 
 
 if __name__ == "__main__":

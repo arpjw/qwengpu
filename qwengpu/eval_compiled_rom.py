@@ -11,10 +11,10 @@ from pathlib import Path
 import torch
 import transformers
 
-from chipformer.q35.ir import A_BIT, A_REF, Head
+from chipformer.q35.ir import A_BIT, A_REF, Head, Target
 
 from qwengpu.compiled_rom import (ROM_LOAD_BASE, ROM_SLOTS, SCRATCH_SLOTS,
-                                  STATE_BASE, TICK, build_standalone, load_a,
+                                  STATE_BASE, TICK, build, build_standalone, load_a,
                                   out_token, program_tokens, read_lane,
                                   state_token)
 from qwengpu.reference import LANES, WarpState, step
@@ -44,13 +44,15 @@ def head_row(cache, circuit, name: str, slot: int, bits: int) -> int | None:
 
 
 @torch.no_grad()
-def evaluate_case(model, circuit, initial, program, device: str) -> dict:
+def evaluate_case(model, circuit, initial, program, device: str,
+                  offset: int = 0) -> dict:
     start = time.monotonic()
     rom_tokens = program_tokens(program)
     prefix = [load_a(lane, value) for lane, value in enumerate(initial)]
     prefix.extend(rom_tokens)
     prefix.append(state_token(0))
-    output = model(input_ids=torch.tensor([prefix], device=device), use_cache=True)
+    output = model(input_ids=torch.tensor([[token + offset for token in prefix]],
+                                            device=device), use_cache=True)
     cache = output.past_key_values
     reference = WarpState(lanes=initial)
     generated = []
@@ -59,10 +61,10 @@ def evaluate_case(model, circuit, initial, program, device: str) -> dict:
 
     def feed(token: int) -> int:
         nonlocal cache
-        result = model(input_ids=torch.tensor([[token]], device=device),
+        result = model(input_ids=torch.tensor([[token + offset]], device=device),
                        past_key_values=cache, use_cache=True)
         cache = result.past_key_values
-        return int(result.logits[0, -1].argmax())
+        return int(result.logits[0, -1].argmax()) - offset
 
     for _ in range(ROM_SLOTS + 1):
         if reference.halted:
@@ -116,6 +118,8 @@ def evaluate_case(model, circuit, initial, program, device: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("model", nargs="?", type=Path,
+                        help="optional merged Qwen3.5-9B checkpoint")
     parser.add_argument("--cases-dir", type=Path,
                         default=Path(__file__).resolve().parents[1] /
                         "eval/frozen/rom_gate_v1")
@@ -123,18 +127,37 @@ def main() -> None:
     parser.add_argument("--device", default="mps" if torch.backends.mps.is_available()
                         else "cpu")
     args = parser.parse_args()
-    paths = sorted(args.cases_dir.glob("*.json"))
+    paths = sorted(path for path in args.cases_dir.glob("*.json")
+                   if not path.name.startswith("._"))
     if len(paths) != 4:
         raise ValueError("expected exactly four frozen ROM-gate kernels")
-    model, circuit = build_standalone()
+    offset = 0
+    if args.model:
+        meta = json.loads((args.model / "qwengpu9b.json").read_text(encoding="utf-8"))
+        if meta["layout"] != "qwengpu-rom9b-v1":
+            raise ValueError("merged checkpoint does not contain the ROM circuit")
+        if int(meta["chip_vocab"]) != 1 << 16:
+            raise ValueError("merged checkpoint uses a different ROM vocabulary")
+        offset = int(meta["chip_token_offset"])
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            args.model, dtype=torch.bfloat16).to(args.device).eval()
+        cfg = model.config
+        circuit = build(Target(cfg.linear_num_key_heads,
+                               cfg.linear_num_value_heads,
+                               cfg.intermediate_size))
+    else:
+        model, circuit = build_standalone()
+        meta = None
     model.to(args.device).eval()
     report = {"device": args.device, "torch": torch.__version__,
               "transformers": transformers.__version__, "circuit": circuit.stats(),
+              "merge": meta,
               "cases": []}
     for path in paths:
         payload = path.read_bytes()
         initial, program = parse_kernel(json.loads(payload))
-        result = evaluate_case(model, circuit, initial, program, args.device)
+        result = evaluate_case(model, circuit, initial, program, args.device,
+                               offset=offset)
         result["fixture"] = path.name
         result["fixture_sha256"] = hashlib.sha256(payload).hexdigest()
         report["cases"].append(result)

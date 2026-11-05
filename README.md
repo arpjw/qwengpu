@@ -35,7 +35,10 @@ raw instructions and read requests; it does not calculate the model's results.
 | Exploratory ROM stress check on MPS | The same model fetched 100 16-slot sequences, including 97 seeded ones; 3,100 generated tokens and all recurrent ROM and PC snapshots matched |
 | Example JSON kernel on MPS | A host-dispatched mixed program and final lane probe matched the independent interpreter |
 | Frozen next-gate kernels on MPS | Four straight-line kernels passed on the current host-dispatched circuit and are ready for ROM integration checks |
-| Fixed text check on merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
+| Integrated 16-slot ROM and ALU on MPS and optimized CUDA | Four frozen programs exact, including every generated PC/halt and lane token plus final recurrent ROM, PC, registers, and scratch |
+| Integrated ROM inside pretrained Qwen3.5-9B on CUDA | The same four frozen programs passed with exact generated tokens and final recurrent machine state |
+| Fixed text check on ROM 9B merge | 6/6 same next token; 5/6 identical first four greedy tokens; maximum next-logit difference 0.2734375 |
+| Fixed text check on earlier merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
 
 These are small, fixed execution and integration checks. The circuit uses 27
 Gated DeltaNet heads and 12 circuit layers. The 9B merge adds an exit layer,
@@ -77,13 +80,21 @@ shows masked writes preserving inactive lanes in the same scratch slot.
 [`examples/halt_only_kernel.json`](examples/halt_only_kernel.json) checks the
 zero-work boundary.
 
-The next gates are program memory and instruction fetch, internal register
-writeback, nested divergence, larger memory, and larger held-out
+A separate integrated ROM circuit now fetches and executes uploaded straight-line
+programs from model state. Run `python3 -m qwengpu.eval_compiled_rom --device mps
+--out results/compiled_rom_mps.json` for its four frozen fixtures. It uses 13
+circuit layers and 19 heads; its 9B merge adds an exit layer and uses hidden
+size 4,608. It passed the same frozen fixtures on CUDA. It retains fixed lane
+read/feedback after every non-halt
+TICK. See [ROM_DESIGN.md](ROM_DESIGN.md).
+
+The next gates are internal register writeback, nested divergence, larger
+memory, and larger held-out
 program suites. The reference interpreter checks model traces and is not used
-to compute the model's outputs. The current one-level branch trace is driven by
+to compute the model's outputs. The earlier one-level branch trace is driven by
 host-supplied raw instruction tokens, so this is a SIMT circuit prototype and
 not yet a self-contained programmable GPU. See [SCOPE.md](SCOPE.md) for the
-next gates, [ROM_DESIGN.md](ROM_DESIGN.md) for the isolated fetch experiment,
+next gates, [ROM_DESIGN.md](ROM_DESIGN.md) for integrated instruction fetch,
 and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands. The
 [two-hour checkpoint](CHECKPOINT.md) summarizes the sprint and next decision.
 

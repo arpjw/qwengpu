@@ -97,3 +97,28 @@ The merged checkpoint accepts raw SIMT token IDs by adding the
 `chip_token_offset` in its `qwengpu9b.json` metadata. The copied text
 tokenizer handles ordinary text only. The evaluator provides instruction
 tokens and read requests; it does not calculate the expected model output.
+
+## Integrated ROM variant
+
+The ROM variant is a separate checkpoint with a different token protocol.
+Use the same pinned source model, compiler, and environment above:
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_compiled_rom \
+  --device mps --out "$QWENGPU_DIR/results/compiled_rom_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_compiled_rom \
+  --device cuda --out "$QWENGPU_DIR/results/compiled_rom_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --rom --out /path/to/Qwen3.5-9B-qwengpu-rom
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_compiled_rom \
+  /path/to/Qwen3.5-9B-qwengpu-rom --device cuda \
+  --out "$QWENGPU_DIR/results/compiled_rom_9b_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.textcheck_9b \
+  /path/to/Qwen3.5-9B /path/to/Qwen3.5-9B-qwengpu-rom --device cuda \
+  --out "$QWENGPU_DIR/results/textcheck_rom_9b_cuda.json"
+```
+
+Transfer source using Git or disable macOS archive metadata with
+`COPYFILE_DISABLE=1` when creating tar archives. The fixture loader ignores
+AppleDouble `._` files. Check disk space before rebuilding: the ROM vocabulary
+is larger than the earlier host-dispatched variant.

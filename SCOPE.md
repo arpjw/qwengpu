@@ -28,7 +28,8 @@ An exploratory 100-case run of the same mixed-program shape also passed on
 both standalone MPS and merged 9B CUDA, with identical generated tokens.
 An additional 32-case four-shape suite passed on standalone MPS only.
 An isolated 16-slot ROM and PC circuit fetched three uploaded sequences
-exactly on MPS. It has not yet been connected to the SIMT ALU.
+exactly on MPS. The separate integrated builder now connects ROM fetch to the straight-line
+SIMT ALU and passes the four frozen gate programs on MPS and optimized CUDA.
 An exploratory extension checked 100 uploaded sequences on the same model
 object with fresh caches, also exactly.
 See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
@@ -43,7 +44,8 @@ See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
 | 4. Memory and warp scale | Grow scratch capacity and add a second independent warp | Test bank independence, masked writes, address boundaries, and warp isolation; report model width, head, layer, token, and latency costs |
 | 5. Pretrained model integration | Rebuild the 9B merge from pinned source and test a separate text path | Frozen SIMT suites pass, and text behavior is measured on a broader fixed corpus, including text after SIMT with cache handoff |
 
-Gate 1 is the next experiment. QwenCPU's dynamic ROM shows a possible
+Gate 1 passed on standalone MPS, optimized CUDA, and the pinned 9B merge. Gate 2 is the next
+architecture experiment. QwenCPU's dynamic ROM shows a possible
 Gated DeltaNet encoding, but the GPU circuit needs its own instruction format
 and sequencer. Start with at most 16 straight-line ADD, XOR, STORE, LOAD, and
 HALT instructions; add divergence in Gate 3. Program upload and launch may

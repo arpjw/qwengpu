@@ -38,38 +38,51 @@ decisive experiment. Exact evidence and reproduction commands are in
   five kept the same first four greedy tokens. One continuation changed, and
   the maximum absolute next-logit difference across prompts was 0.25.
 
+## ROM continuation
+
+The integrated builder `qwengpu/compiled_rom.py` now executes four frozen
+straight-line programs from uploaded recurrent ROM state. One standalone
+model object with fresh caches passed all four on MPS and optimized CUDA:
+202 generated PC/halt and lane tokens per run, plus exact final ROM, PC,
+register, and scratch state. The rebuilt 9B merge passed the same four
+fixtures, also exactly. All 15 local tests pass.
+
+The ROM variant uses 19 heads and 13 circuit layers. Its separate 9B merge
+uses 14 chip layers including the exit marker, hidden size 4,608, and a
+65,536-row chip vocabulary. The temporary checkpoint occupies about 27 GiB.
+It preserves the source untied text output head.
+
 ## Current boundary
 
-The host still supplies each SIMT instruction and eight lane read/feedback
-pairs after lane-changing operations. The ROM spike is not connected to the
-SIMT ALU. The compiled circuit has one warp, one-level divergence, byte
-arithmetic, and 32 scratch bytes. This is a functional proof; acceleration
-has not been measured. Text after a SIMT trace and broad language fidelity
-have not been established. Model weights are excluded from GitHub; the pinned
-source revision and merge builder reproduce them.
+The original divergent circuit still receives raw instructions from the host.
+The separate ROM circuit fetches its own straight-line instructions but still
+uses eight lane READ/result-feedback pairs after each non-halt TICK. Neither
+variant combines autonomous ROM with divergent branches yet. Both have one
+warp, byte arithmetic, and 32 scratch bytes. No acceleration has been measured.
+Text after an execution trace and broad language fidelity remain open.
 
 ## Next decisive gate
 
-Integrate the 16-slot ROM and model-held PC with the eight-lane ALU in a
-separate circuit builder. Require one checkpoint to execute at least four
-different valid straight-line kernels from fresh caches without the host
-sending individual instructions. Compare generated PC/halt and lane tokens,
-plus actual ROM, register, and scratch state, against the interpreter on MPS
-and optimized CUDA. Rebuild the 9B merge only after the standalone model
-passes. Then pursue internal lane writeback, followed by nested control flow
-and multi-warp scaling. [SCOPE.md](SCOPE.md) and [ROM_DESIGN.md](ROM_DESIGN.md)
-give the detailed sequence.
+Implement internal writeback in the ROM variant. Freeze multi-instruction
+programs and require the same lane/scratch traces without eight host READ
+and output-feedback pairs after every instruction. Keep program upload and
+launch in the host, then use a fixed TICK/state-feedback protocol. Inspect
+intermediate registers to catch errors hidden by later overwrites. Repeat on
+standalone MPS, optimized CUDA, and the pinned 9B merge before adding control
+flow. Then add bounded divergence and finally warp/memory scaling.
 
-Four JSON kernels for that gate are frozen under
-[`eval/frozen/rom_gate_v1`](eval/frozen/rom_gate_v1). All four passed on the
-current host-dispatched MPS circuit, giving a baseline for the future
-ROM-driven implementation.
+## Text and compute after ROM integration
 
-## Compute
+The new ROM merge kept the next top token on 6/6 fixed text prompts and the
+first four greedy tokens on 5/6. The Moon continuation changed. Maximum
+absolute next-logit difference was 0.2734375. This is a small integration
+check; text fidelity and text after an execution trace remain open.
 
-One Runpod pod created for this sprint was terminated. It was quoted at
-$2.49/hour and existed for about 53 minutes, giving an approximate $2.20 GPU
-time projection. The per-pod billing read at 08:14 UTC posted $1.2180 across
-two hourly records. The data available did not explain that difference, and
-no final invoice was checked. No pod remains running; both figures are below
-the $74 approved ceiling.
+Both task-created Runpod pods are terminated, and the live pod list is empty.
+The first pod has posted billing of $2.2022584788501263, including GPU and disk.
+The ROM continuation pod existed from November 5, 10:50:42 to about 11:02:15
+Pacific at the quoted $2.49/hour, approximately $0.48 of GPU time. Its billing
+query had no records immediately after termination, so $0.48 is an estimate,
+not a posted charge. Combined posted first-pod billing plus that estimate is
+about $2.68, below the approved $74 ceiling. Model weights were temporary;
+source, pinned revisions, and result reports are saved in the private repo.

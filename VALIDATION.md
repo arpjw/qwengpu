@@ -5,7 +5,8 @@ The independent reference machine supports eight lanes, one shared program
 counter, nested structured divergence, lane-indexed scratch memory, addition,
 XOR, and reduction. The compiled circuit currently supports addition, XOR,
 data-dependent masks, one-level divergence, result writeback, and four scratch
-bytes per lane. Integrated instruction fetch remains open.
+bytes per lane. A separate integrated ROM variant adds straight-line instruction fetch and a
+model-held PC; its branch support remains open.
 
 | Evidence | Model | Cases | Result |
 | --- | --- | ---: | --- |
@@ -37,6 +38,9 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/no_else_kernel_mps.json` | JSON kernel runner with IF/ENDIF and no ELSE, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/masked_overwrite_mps.json` | JSON kernel runner with masked overwrite of one scratch slot, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/halt_only_mps.json` | JSON kernel runner with immediate HALT, MPS | 1 program | Initial lanes and empty scratch probed exactly |
+| `results/compiled_rom_mps.json` | Integrated ROM and ALU, stock Qwen3.5 MPS | 4 frozen programs | Exact tokens and final ROM, PC, registers, scratch |
+| `results/compiled_rom_9b_cuda_fla.json` | Integrated ROM in pretrained Qwen3.5-9B, optimized CUDA | 4 frozen programs | Exact tokens and final ROM, PC, registers, scratch |
+| `results/compiled_rom_cuda_fla.json` | Integrated ROM and ALU, stock Qwen3.5 optimized CUDA | 4 frozen programs | Exact tokens and final ROM, PC, registers, scratch |
 | `results/rom_gate_host_mps.json` | Four frozen next-gate kernels, host-dispatched on MPS | 4 programs | Exact tokens, scratch, and final lane probes |
 
 `results/standalone_cuda.json` and `results/predicate_cuda.json` are retained
@@ -97,7 +101,11 @@ An immediate-HALT input also passed the final zero-XOR lane probe with no
 earlier arithmetic and empty scratch.
 Four inputs for the next ROM integration gate were frozen before its model
 run. The current host-dispatched circuit passed all four on MPS; the report
-records each fixture SHA-256. The autonomous ROM circuit has not run them.
+records each fixture SHA-256. The integrated ROM circuit now passes those
+same unchanged fixtures on MPS, optimized CUDA, and the pretrained 9B merge,
+with 202 exact generated
+tokens in each run and identical final ROM, PC, lane, and scratch state.
+These are four frozen straight-line fixtures, not an exhaustive program suite.
 
 `results/textcheck_9b_cuda.json` compares six fixed text prompts between the
 base and merged 9B models. All six kept the same next top token, and five kept
@@ -107,11 +115,16 @@ token changed. The maximum absolute next-logit difference across prompts was
 SIMT trace was not tested; QwenCPU previously needed separate caches for text
 handoff, so that remains the starting design for QwenGPU's future text bridge.
 
-The Runpod check used one RTX PRO 6000 Blackwell Server Edition pod. The model
-outputs were copied into this repository; model weights stayed on the
-temporary pod. The pod was terminated and the pod list was empty. Its live
-quoted rate was $2.49/hour and it existed for about 53 minutes, implying
-roughly $2.20 of GPU time at that rate. A per-pod billing read at 08:14 UTC
-showed $1.2180 across two hourly records, including $1.2138 GPU and $0.0042
-disk. The difference between the rate projection and posted records is not
-explained by the available billing data; no final invoice was checked.
+The ROM merge's `results/textcheck_rom_9b_cuda.json` uses the same six prompts.
+It kept all six next top tokens and five four-token continuations; the Moon
+continuation changed. Its maximum absolute next-logit difference was
+0.2734375. These checks use fresh text caches and do not test language after
+a ROM execution trace.
+
+Two task-created RTX PRO 6000 Blackwell Server Edition pods were terminated.
+The live pod list was empty after the ROM run. First-pod posted billing is
+$2.2022584788501263. The second pod existed for about 11.5 minutes at a live
+quoted $2.49/hour, implying approximately $0.48 of GPU time. Its billing
+query immediately after termination returned no records; the estimate is not
+a posted charge. Source and reports were copied before termination; weights
+remained on temporary pod disks. See CHECKPOINT.md for the compute summary.
