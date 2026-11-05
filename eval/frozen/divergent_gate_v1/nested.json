@@ -1,0 +1,185 @@
+{
+  "name": "Nested branches restore a partial parent and retain the original predicate",
+  "c": [
+    0,
+    9,
+    10,
+    11,
+    4,
+    13,
+    14,
+    15,
+    9,
+    0,
+    11,
+    10,
+    13,
+    4,
+    15,
+    14,
+    0,
+    9,
+    10,
+    11,
+    4,
+    13,
+    14,
+    15,
+    9,
+    0,
+    11,
+    10,
+    13,
+    4,
+    15,
+    14,
+    0,
+    9,
+    10,
+    11,
+    4,
+    13,
+    14,
+    15,
+    9,
+    0,
+    11,
+    10,
+    13,
+    4,
+    15,
+    14,
+    0,
+    9,
+    10,
+    11,
+    4,
+    13,
+    14,
+    15,
+    9,
+    0,
+    11,
+    10,
+    13,
+    4,
+    15,
+    14
+  ],
+  "programs": [
+    [
+      {
+        "op": "MASK_ALL"
+      },
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "MASK_BIT",
+        "arg": 3
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 0
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 1
+      },
+      {
+        "op": "ADD16I",
+        "arg": 4
+      },
+      {
+        "op": "ELSE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 8
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "ELSE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 16
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "MASK_ALL"
+      },
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "MASK_BIT",
+        "arg": 3
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 0
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 1
+      },
+      {
+        "op": "ADD16I",
+        "arg": 4
+      },
+      {
+        "op": "ELSE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 8
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "ELSE"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 16
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}

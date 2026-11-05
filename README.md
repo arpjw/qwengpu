@@ -176,6 +176,11 @@ lowest active lane targeting each word. All six fixtures match on MPS
 and merged Qwen3.5-9B. Run the suite with
 `python3 -m qwengpu.eval_tile8 --masked --device mps --out masked.json`.
 
+The divergent resident variant adds two levels of `IF_BIT`, optional
+`ELSE`, and `ENDIF` per warp. Saved predicates determine both paths,
+and reconvergence restores the saved parent mask. Run the suite with
+`python3 -m qwengpu.eval_tile8 --divergent --device mps --out divergent.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

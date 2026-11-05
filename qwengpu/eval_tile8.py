@@ -21,6 +21,10 @@ from qwengpu.compiled_tile import (
 )
 from qwengpu.compiled_tile8 import (
     ADVANCE,
+    BRANCH_NIBBLES,
+    BRANCH_OFFSET,
+    BRANCH_OPS,
+    BRANCH_REGISTER,
     C_MEMORY,
     DEADLOCK,
     DONE,
@@ -34,6 +38,7 @@ from qwengpu.compiled_tile8 import (
     NO_WRITE,
     OPERAND,
     OPS,
+    READ_BRANCH,
     READ_INDEX,
     READ_MASK,
     READ_REG,
@@ -53,6 +58,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
 RESIDENT_FIXTURES = FIXTURES.with_name("resident_gate_v1")
 INDEXED_FIXTURES = FIXTURES.with_name("indexed_gate_v1")
 MASKED_FIXTURES = FIXTURES.with_name("masked_gate_v1")
+DIVERGENT_FIXTURES = FIXTURES.with_name("divergent_gate_v1")
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -71,7 +77,35 @@ PROGRAM = (
 )
 
 
-def _parse_case(data: object, *, indexed: bool = False, masked: bool = False) -> dict:
+def _validate_branches(program: list[tuple[str, int]]) -> None:
+    else_seen = []
+    for op, _ in program:
+        if op == "IF_BIT":
+            if len(else_seen) == 2:
+                raise ValueError("branch nesting exceeds two levels")
+            else_seen.append(False)
+        elif op == "ELSE":
+            if not else_seen or else_seen[-1]:
+                raise ValueError("ELSE requires an open IF_BIT without an ELSE")
+            else_seen[-1] = True
+        elif op == "ENDIF":
+            if not else_seen:
+                raise ValueError("ENDIF requires an open IF_BIT")
+            else_seen.pop()
+        elif else_seen and op in (*MASK_OPS, "BARRIER", "HALT"):
+            raise ValueError(f"{op} requires a reconverged warp")
+    if else_seen:
+        raise ValueError("unterminated IF_BIT")
+
+
+def _parse_case(
+    data: object,
+    *,
+    indexed: bool = False,
+    masked: bool = False,
+    divergent: bool = False,
+) -> dict:
+    masked = masked or divergent
     if not isinstance(data, dict):
         raise ValueError("8x8 case must be an object")
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
@@ -102,6 +136,7 @@ def _parse_case(data: object, *, indexed: bool = False, masked: bool = False) ->
             OPS
             + (INDEX_OPS if indexed or masked else ())
             + (MASK_OPS if masked else ())
+            + (BRANCH_OPS if divergent else ())
         )
         for program in raw:
             if not isinstance(program, list) or not 1 <= len(program) <= 16:
@@ -113,12 +148,16 @@ def _parse_case(data: object, *, indexed: bool = False, masked: bool = False) ->
                 if not isinstance(ins, dict) or ins.get("op") not in names:
                     raise ValueError("invalid tile opcode")
                 op, arg = ins["op"], ins.get("arg", 0)
-                limit = {"MAC_K": 7, "ADD16I": 255, "MASK_BIT": 15}.get(op, 0)
+                limit = {"MAC_K": 7, "ADD16I": 255, "MASK_BIT": 15, "IF_BIT": 15}.get(
+                    op, 0
+                )
                 if type(arg) is not int or not 0 <= arg <= limit:
                     raise ValueError(f"invalid {op} argument")
                 if (op == "HALT") != (index == len(program) - 1):
                     raise ValueError("HALT must appear exactly once at the end")
                 ops.append((op, arg))
+            if divergent:
+                _validate_branches(ops)
             programs.append(tuple(ops))
         matrix = None
     return {
@@ -159,7 +198,9 @@ def execute(
     resident: bool = False,
     indexed: bool = False,
     masked: bool = False,
+    divergent: bool = False,
 ) -> dict:
+    masked = masked or divergent
     indexed = indexed or masked
     resident = resident or indexed
     operand_base = INDEX_OPERAND if indexed else OPERAND
@@ -171,11 +212,14 @@ def execute(
     rom = [program_tokens(program) for program in case["programs"]]
     indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
     masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
+    branches = [nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(2)]
     reads = list(range(READ_REG, READ_REG + 32))
     if indexed:
         reads.extend(range(READ_INDEX, READ_INDEX + 16))
     if masked:
         reads.extend(range(READ_MASK, READ_MASK + 2))
+    if divergent:
+        reads.extend(range(READ_BRANCH, READ_BRANCH + BRANCH_NIBBLES))
     reads.extend(range(READ_STORE, READ_STORE + 32))
     schedules = []
     trace = []
@@ -233,6 +277,8 @@ def execute(
         state = registers[warp] + (indices[warp] if indexed else [])
         if masked:
             state += masks[warp]
+        if divergent:
+            state += branches[warp]
         emitted = feed(
             [*rom[warp], *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
         )
@@ -254,6 +300,12 @@ def execute(
                 start = MASK_REGISTER + 16 * nib
                 if not start <= token < start + 16:
                     raise ValueError(f"invalid mask packet at nibble {nib}")
+        if divergent:
+            branches[warp] = packet[50:-32]
+            for nib, token in enumerate(branches[warp]):
+                start = BRANCH_REGISTER + 16 * nib
+                if not start <= token < start + (3 if nib == 0 else 16):
+                    raise ValueError(f"invalid branch packet at nibble {nib}")
         updates = [token for token in patch if token != NO_WRITE]
         if not indexed and updates and len(updates) != 32:
             raise ValueError("incomplete tagged C write")
@@ -279,6 +331,7 @@ def execute(
                 "registers": next_registers,
                 **({"indices": indices[warp]} if indexed else {}),
                 **({"mask": masks[warp]} if masked else {}),
+                **({"branch": branches[warp]} if divergent else {}),
                 "patch": patch,
                 "snapshot": hex_bits(snapshot(cache, circuit, 0)),
             }
@@ -326,8 +379,14 @@ def _check_resident_memory(
 
 
 def oracle(
-    case: dict, max_steps: int, *, indexed: bool = False, masked: bool = False
+    case: dict,
+    max_steps: int,
+    *,
+    indexed: bool = False,
+    masked: bool = False,
+    divergent: bool = False,
 ) -> dict:
+    masked = masked or divergent
     indexed = indexed or masked
     pcs = [0, 0]
     states = [0, 0]
@@ -336,6 +395,7 @@ def oracle(
     acc = [[0] * 8 for _ in range(2)]
     indices = [[0] * 8 for _ in range(2)]
     masks = [255, 255]
+    branches: list[list[tuple[int, int]]] = [[], []]
     operands = bytearray(case["a"] + case["b"])
     c = case["c"][:]
     schedules = []
@@ -404,6 +464,16 @@ def oracle(
             masks[warp] = 255
         elif op == "MASK_BIT":
             masks[warp] = sum(((v >> arg) & 1) << lane for lane, v in enumerate(before))
+        elif op == "IF_BIT":
+            selected = sum(((v >> arg) & 1) << lane for lane, v in enumerate(before))
+            masks[warp] = active & selected
+            branches[warp].append((active, masks[warp]))
+        elif op == "ELSE":
+            parent, then_mask = branches[warp][-1]
+            masks[warp] = parent & ~then_mask
+        elif op == "ENDIF":
+            parent, _ = branches[warp].pop()
+            masks[warp] = parent
         acc[warp] = [
             value if active >> lane & 1 else before[lane]
             for lane, value in enumerate(candidate)
@@ -443,6 +513,17 @@ def oracle(
         if masked:
             packed |= masks[warp] << MASK_OFFSET
         width = 51 if masked else 49 if indexed else 33
+        branch_tokens = []
+        if divergent:
+            depth = len(branches[warp])
+            frame_bytes = [value for frame in branches[warp] for value in frame]
+            frame_bytes.extend([0] * (4 - len(frame_bytes)))
+            branch_tokens = nibbles(BRANCH_REGISTER, [depth, *_digits(frame_bytes, 8)])
+            branch_word = sum(
+                (token & 15) << (4 * i) for i, token in enumerate(branch_tokens)
+            )
+            packed |= branch_word << BRANCH_OFFSET
+            width = (BRANCH_OFFSET + 4 * BRANCH_NIBBLES) // 4
         trace.append(
             {
                 "warp": warp,
@@ -459,6 +540,7 @@ def oracle(
                     if masked
                     else {}
                 ),
+                **({"branch": branch_tokens} if divergent else {}),
                 "snapshot": f"{packed:0{width}x}",
             }
         )
@@ -489,6 +571,7 @@ def main() -> None:
     variants.add_argument("--resident", action="store_true")
     variants.add_argument("--indexed", action="store_true")
     variants.add_argument("--masked", action="store_true")
+    variants.add_argument("--divergent", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -499,7 +582,8 @@ def main() -> None:
         parser.error("--max-steps must be positive")
     meta = None
     offset = 0
-    masked = args.masked
+    divergent = args.divergent
+    masked = args.masked or divergent
     indexed = args.indexed or masked
     resident = args.resident or indexed
     if args.model:
@@ -510,9 +594,11 @@ def main() -> None:
             "qwengpu-resident9b-v1",
             "qwengpu-indexed9b-v1",
             "qwengpu-masked9b-v1",
+            "qwengpu-divergent9b-v1",
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        masked = layout == "qwengpu-masked9b-v1"
+        divergent = layout == "qwengpu-divergent9b-v1"
+        masked = divergent or layout == "qwengpu-masked9b-v1"
         indexed = masked or layout == "qwengpu-indexed9b-v1"
         resident = indexed or layout == "qwengpu-resident9b-v1"
         if args.resident and not resident:
@@ -521,6 +607,8 @@ def main() -> None:
             raise ValueError("--indexed requires an indexed checkpoint")
         if args.masked and not masked:
             raise ValueError("--masked requires a masked checkpoint")
+        if args.divergent and not divergent:
+            raise ValueError("--divergent requires a divergent checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -528,6 +616,8 @@ def main() -> None:
         paths.extend(sorted(INDEXED_FIXTURES.glob("*.json")))
     if masked and not args.kernel:
         paths.extend(sorted(MASKED_FIXTURES.glob("*.json")))
+    if divergent and not args.kernel:
+        paths.extend(sorted(DIVERGENT_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -535,7 +625,12 @@ def main() -> None:
             (
                 path.name,
                 hashlib.sha256(payload).hexdigest(),
-                _parse_case(json.loads(payload), indexed=indexed, masked=masked),
+                _parse_case(
+                    json.loads(payload),
+                    indexed=indexed,
+                    masked=masked,
+                    divergent=divergent,
+                ),
             )
         )
     if not cases:
@@ -556,10 +651,11 @@ def main() -> None:
             resident=resident,
             indexed=indexed,
             masked=masked,
+            divergent=divergent,
         )
     else:
         model, circuit = build_standalone(
-            resident=resident, indexed=indexed, masked=masked
+            resident=resident, indexed=indexed, masked=masked, divergent=divergent
         )
     model.to(args.device).eval()
     report = {
@@ -571,7 +667,9 @@ def main() -> None:
         "cases": [],
     }
     for name, digest, case in cases:
-        expected = oracle(case, args.max_steps, indexed=indexed, masked=masked)
+        expected = oracle(
+            case, args.max_steps, indexed=indexed, masked=masked, divergent=divergent
+        )
         observed = execute(
             model,
             circuit,
@@ -582,6 +680,7 @@ def main() -> None:
             resident=resident,
             indexed=indexed,
             masked=masked,
+            divergent=divergent,
         )
         transport = observed.pop("transport")
         exact = (

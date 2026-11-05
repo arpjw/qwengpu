@@ -432,3 +432,27 @@ host relays with the register packet.
   /path/to/Qwen3.5-9B-qwengpu-masked --device cuda \
   --out "$QWENGPU_DIR/results/masked_9b_cuda_fla.json"
 ```
+
+## Nested branches in the resident engine
+
+`IF_BIT k` selects the lanes that are already active and have
+accumulator bit `k` set. The model saves the parent and selected masks.
+`ELSE` selects the other lanes from the saved parent. `ENDIF` restores
+the parent mask. `ELSE` is optional, and each warp supports two levels
+of nesting. Mask replacement, barriers, and halt require a
+reconverged warp. The host relays the model's branch packet with the
+other per-warp registers.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --divergent --device mps --out "$QWENGPU_DIR/results/divergent_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --divergent --out /path/to/Qwen3.5-9B-qwengpu-divergent
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-divergent --device cuda \
+  --out "$QWENGPU_DIR/results/divergent_9b_cuda_fla.json"
+```
+
+The two branch fixtures exercise a predicate whose source changes in
+the first path, reconvergence to a partial mask, and an empty nested
+path that emits no writes.

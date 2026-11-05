@@ -6,6 +6,7 @@ from chipformer.dsl.graph import Expr
 from chipformer.q35.ir import Target
 from chipformer.q35.prims import Circ, from_bits
 
+from qwengpu.compiled_control import _stack
 from qwengpu.compiled_rom import CODE_AMP, KAPPA, _increment4
 from qwengpu.compiled_tile import (
     CONTROL,
@@ -23,6 +24,7 @@ from qwengpu.compiled_tile import (
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
 INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
 MASK_OPS = ("MASK_ALL", "MASK_BIT")
+BRANCH_OPS = ("IF_BIT", "ELSE", "ENDIF")
 STRIDE = 256 * len(OPS)
 C_MEMORY = ROM + 16 * STRIDE
 REGISTER = C_MEMORY + 4096
@@ -36,6 +38,10 @@ INDEX_WORDS = 128
 READ_MASK = READ_INDEX + 16
 MASK_REGISTER = 0x9100
 MASK_OFFSET = 196
+BRANCH_OFFSET = MASK_OFFSET + 8
+BRANCH_REGISTER = 0x9200
+READ_BRANCH = READ_MASK + 2
+BRANCH_NIBBLES = 9
 NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
@@ -56,6 +62,12 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
             return halt + 4
         if op == "MASK_BIT":
             return halt + 16 + arg
+        if op == "IF_BIT":
+            return halt + 32 + arg
+        if op == "ELSE":
+            return halt + 5
+        if op == "ENDIF":
+            return halt + 6
         return OPS.index(op) * 256 + arg
 
     return [
@@ -74,7 +86,9 @@ def build(
     resident: bool = False,
     indexed: bool = False,
     masked: bool = False,
+    divergent: bool = False,
 ) -> Circ:
+    masked = masked or divergent
     indexed = indexed or masked
     resident = resident or indexed
     operand_base = INDEX_OPERAND if indexed else OPERAND
@@ -100,6 +114,14 @@ def build(
     mask_reads = (
         [match(f"mask.read.{nib}", READ_MASK + nib) for nib in range(2)]
         if masked
+        else []
+    )
+    branch_reads = (
+        [
+            match(f"branch.read.{nib}", READ_BRANCH + nib)
+            for nib in range(BRANCH_NIBBLES)
+        ]
+        if divergent
         else []
     )
     code = [
@@ -199,9 +221,20 @@ def build(
                 return (len(OPS) + len(INDEX_OPS)) * 256
             if 16 <= arg < 32:
                 return (len(OPS) + len(INDEX_OPS) + 1) * 256 + arg - 16
+        if divergent and OPS[tag] == "HALT":
+            branch_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS)
+            if 32 <= arg < 48:
+                return branch_tag * 256 + arg - 32
+            if arg in (5, 6):
+                return (branch_tag + arg - 4) * 256
         return wire
 
-    op_names = OPS + (INDEX_OPS if indexed else ()) + (MASK_OPS if masked else ())
+    op_names = (
+        OPS
+        + (INDEX_OPS if indexed else ())
+        + (MASK_OPS if masked else ())
+        + (BRANCH_OPS if divergent else ())
+    )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
         c.token_feature(
@@ -297,6 +330,7 @@ def build(
 
     active = [one] * 8
     next_mask = []
+    next_branch = []
     if masked:
         active = [
             bit
@@ -304,25 +338,81 @@ def build(
             for bit in lookup(f"mask.{nib}", MASK_REGISTER, [nib], [tick])
         ]
         selectors = c.onehot_of_bits(arg[:4], "mask.bit", 16)
-        for lane, prior in enumerate(active):
-            selected = c.node(
+
+        def selected_bit(lane: int, gate: Expr) -> Expr:
+            return c.node(
                 [
                     term
                     for selector, value in zip(
                         selectors, old[16 * lane : 16 * (lane + 1)], strict=True
                     )
-                    for term in c.t_and([selector, value, ops["MASK_BIT"]])
+                    for term in c.t_and([selector, value, gate])
                 ],
                 f"mask.selected.{lane}",
             )
-            next_mask.append(
+
+        if divergent:
+            predicate_op = ops["MASK_BIT"] + ops["IF_BIT"]
+            predicate = [selected_bit(lane, predicate_op) for lane in range(8)]
+            stack = [
+                bit
+                for nib in range(BRANCH_NIBBLES)
+                for bit in lookup(f"branch.{nib}", BRANCH_REGISTER, [nib], [tick])
+            ]
+            then_mask = [
+                c.and_([enabled, test], f"branch.then.{lane}")
+                for lane, (enabled, test) in enumerate(
+                    zip(active, predicate, strict=True)
+                )
+            ]
+            top, depth, frames = _stack(
+                c,
+                stack[:2],
+                [stack[4:20], stack[20:36]],
+                ops["IF_BIT"],
+                ops["ENDIF"],
+                active + then_mask,
+                "branch",
+            )
+            next_branch = depth + [Expr(), Expr()] + frames
+            else_mask = [
+                c.and_([parent, one - chosen], f"branch.else.{lane}")
+                for lane, (parent, chosen) in enumerate(
+                    zip(top[:8], top[8:], strict=True)
+                )
+            ]
+            next_mask = c.select_bits(
+                [
+                    ([ops["IF_BIT"]], then_mask),
+                    ([ops["ELSE"]], else_mask),
+                    ([ops["ENDIF"]], top[:8]),
+                    ([ops["MASK_BIT"]], predicate),
+                    ([ops["MASK_ALL"]], 255),
+                    (
+                        [
+                            one
+                            - ops["IF_BIT"]
+                            - ops["ELSE"]
+                            - ops["ENDIF"]
+                            - ops["MASK_BIT"]
+                            - ops["MASK_ALL"]
+                        ],
+                        active,
+                    ),
+                ],
+                8,
+                "branch.mask.next",
+            )
+        else:
+            next_mask = [
                 ops["MASK_ALL"]
-                + selected
+                + selected_bit(lane, ops["MASK_BIT"])
                 + c.and_(
                     [prior, one - ops["MASK_BIT"] - ops["MASK_ALL"]],
                     f"mask.keep.{lane}",
                 )
-            )
+                for lane, prior in enumerate(active)
+            ]
 
     next_index = []
     grants = []
@@ -431,7 +521,14 @@ def build(
                 f"masked.result.{lane}",
             )
         ]
-    bits = result + [ops["STORE_TILE"], *row_bits, *next_index, *grants, *next_mask]
+    bits = result + [
+        ops["STORE_TILE"],
+        *row_bits,
+        *next_index,
+        *grants,
+        *next_mask,
+        *next_branch,
+    ]
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -439,7 +536,11 @@ def build(
             c.slot_head(
                 f"stage.0.{chunk}",
                 {0: tick},
-                {0: sum(reads + writes + index_reads + mask_reads, Expr())},
+                {
+                    0: sum(
+                        reads + writes + index_reads + mask_reads + branch_reads, Expr()
+                    )
+                },
                 {
                     2 + bit: value
                     for bit, value in enumerate(bits[start : start + CHUNK_BITS])
@@ -513,16 +614,42 @@ def build(
                 terms += c.t_and([read, saved[MASK_OFFSET + 4 * nib + bit]], 2 * KAPPA)
             elif (MASK_REGISTER + 16 * nib) >> bit & 1:
                 terms += c.t_and([read], 2 * KAPPA)
-        c.ffn(terms, f"exit.code.{bit}", into=expr, min_level=floor + 1)
+        if divergent:
+            # Split the extra packet across FFNs to fit the standalone model's
+            # intermediate width, including compiler cleanup units.
+            branch_terms = []
+            for nib, read in enumerate(branch_reads):
+                if bit < 4:
+                    branch_terms += c.t_and(
+                        [read, saved[BRANCH_OFFSET + 4 * nib + bit]], 2 * KAPPA
+                    )
+                elif (BRANCH_REGISTER + 16 * nib) >> bit & 1:
+                    branch_terms += c.t_and([read], 2 * KAPPA)
+            if branch_terms:
+                c.ffn(
+                    branch_terms, f"exit.branch.{bit}", into=expr, min_level=floor + 1
+                )
+        c.ffn(
+            terms,
+            f"exit.code.{bit}",
+            into=expr,
+            min_level=floor + (3 if divergent else 1),
+        )
     return c
 
 
 def build_standalone(
-    *, resident: bool = False, indexed: bool = False, masked: bool = False
+    *,
+    resident: bool = False,
+    indexed: bool = False,
+    masked: bool = False,
+    divergent: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
-    circuit = build(resident=resident, indexed=indexed, masked=masked)
+    circuit = build(
+        resident=resident, indexed=indexed, masked=masked, divergent=divergent
+    )
     return build_qwen(
         circuit,
         list(range(VOCAB)),

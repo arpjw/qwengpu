@@ -1,0 +1,167 @@
+{
+  "name": "Empty nested path skips scatter, then reconverges without ELSE",
+  "c": [
+    1,
+    32769,
+    32770,
+    3,
+    4,
+    32772,
+    32773,
+    6,
+    32775,
+    7,
+    8,
+    32776,
+    32777,
+    9,
+    10,
+    32778,
+    1,
+    32769,
+    32770,
+    3,
+    4,
+    32772,
+    32773,
+    6,
+    32775,
+    7,
+    8,
+    32776,
+    32777,
+    9,
+    10,
+    32778,
+    1,
+    32769,
+    32770,
+    3,
+    4,
+    32772,
+    32773,
+    6,
+    32775,
+    7,
+    8,
+    32776,
+    32777,
+    9,
+    10,
+    32778,
+    1,
+    32769,
+    32770,
+    3,
+    4,
+    32772,
+    32773,
+    6,
+    32775,
+    7,
+    8,
+    32776,
+    32777,
+    9,
+    10,
+    32778
+  ],
+  "programs": [
+    [
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 15
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 14
+      },
+      {
+        "op": "ADD16I",
+        "arg": 99
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "LOAD_INDEX"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "LOAD_TILE"
+      },
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 15
+      },
+      {
+        "op": "IF_BIT",
+        "arg": 14
+      },
+      {
+        "op": "ADD16I",
+        "arg": 99
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "ADD16I",
+        "arg": 1
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "ENDIF"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "LOAD_INDEX"
+      },
+      {
+        "op": "STORE_TILE"
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}
