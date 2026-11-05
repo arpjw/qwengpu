@@ -445,3 +445,17 @@ writes. All 25 local tests passed.
 Reports are `results/cooperative_matmul_mps.json` and
 `results/cooperative_matmul_9b_cuda_fla.json`. The merge metadata
 matches the checkpoint used for the data-dependent loop gate.
+
+## Resident JSON launcher
+
+The launcher ran the cooperative fixture on MPS and the merged 9B
+checkpoint. The output matrix, shared words, transport counts,
+instruction count, and outcome match the evaluator on both platforms.
+With `--trace`, the merged launcher also reproduced all 132 instruction
+snapshots and 133 scheduling decisions. See
+`results/cooperative_launch_mps.json` and
+`results/cooperative_launch_9b_cuda_fla.json`.
+
+The MPS launcher returned exit code 3 with a deadlock result and
+exit code 4 with a budget-exhaustion result at three instructions.
+An invalid zero budget returned exit code 2. All 25 local tests passed.

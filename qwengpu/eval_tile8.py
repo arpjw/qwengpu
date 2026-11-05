@@ -65,6 +65,7 @@ INDEXED_FIXTURES = FIXTURES.with_name("indexed_gate_v1")
 MASKED_FIXTURES = FIXTURES.with_name("masked_gate_v1")
 DIVERGENT_FIXTURES = FIXTURES.with_name("divergent_gate_v1")
 LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
+LOOP_LAYOUT = "qwengpu-looping9b-v1"
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -109,7 +110,7 @@ def _control_links(program: list[tuple[str, int]]) -> dict[int, int]:
     return links
 
 
-def _parse_case(
+def parse_launch(
     data: object,
     *,
     indexed: bool = False,
@@ -124,24 +125,10 @@ def _parse_case(
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
     b = _unsigned(data.get("b", [0] * 64), 64, 255, "b")
     initial = _unsigned(data.get("c", [0] * 64), 64, 65535, "c")
-    outcome = data.get("expected_outcome", "halted")
-    if outcome not in ("halted", "deadlock", "step_limit"):
-        raise ValueError("invalid expected_outcome")
     raw = data.get("programs")
     links = [{}, {}]
     if raw is None:
         programs = [PROGRAM, (("ADD16I", 0),) + PROGRAM]
-        matrix = [
-            [
-                (
-                    initial[row * 8 + col]
-                    + sum(a[row * 8 + k] * b[k * 8 + col] for k in range(8))
-                )
-                & 65535
-                for col in range(8)
-            ]
-            for row in range(8)
-        ]
     else:
         if not isinstance(raw, list) or len(raw) != 2:
             raise ValueError("programs must contain two kernels")
@@ -178,7 +165,37 @@ def _parse_case(
             if divergent:
                 links[warp] = _control_links(ops)
             programs.append(tuple(ops))
-        matrix = None
+    return {"a": a, "b": b, "c": initial, "programs": programs, "links": links}
+
+
+def _parse_case(
+    data: object,
+    *,
+    indexed: bool = False,
+    masked: bool = False,
+    divergent: bool = False,
+    looping: bool = False,
+) -> dict:
+    case = parse_launch(
+        data, indexed=indexed, masked=masked, divergent=divergent, looping=looping
+    )
+    outcome = data.get("expected_outcome", "halted")
+    if outcome not in ("halted", "deadlock", "step_limit"):
+        raise ValueError("invalid expected_outcome")
+    matrix = None
+    if data.get("programs") is None:
+        a, b, initial = case["a"], case["b"], case["c"]
+        matrix = [
+            [
+                (
+                    initial[row * 8 + col]
+                    + sum(a[row * 8 + k] * b[k * 8 + col] for k in range(8))
+                )
+                & 65535
+                for col in range(8)
+            ]
+            for row in range(8)
+        ]
     if "expected_matrix" in data:
         expected_matrix = data["expected_matrix"]
         if not isinstance(expected_matrix, list) or len(expected_matrix) != 8:
@@ -191,15 +208,7 @@ def _parse_case(
                 "expected_matrix disagrees with the default matrix product"
             )
         matrix = supplied
-    return {
-        "a": a,
-        "b": b,
-        "c": initial,
-        "programs": programs,
-        "links": links,
-        "expected_outcome": outcome,
-        "expected_matrix": matrix,
-    }
+    return {**case, "expected_outcome": outcome, "expected_matrix": matrix}
 
 
 def _digits(values: list[int], width: int) -> list[int]:
@@ -635,6 +644,44 @@ def oracle(
     }
 
 
+def load_tile_model(
+    checkpoint: Path | None,
+    device: str,
+    *,
+    resident: bool = False,
+    indexed: bool = False,
+    masked: bool = False,
+    divergent: bool = False,
+    looping: bool = False,
+):
+    if checkpoint is None:
+        model, circuit = build_standalone(
+            resident=resident,
+            indexed=indexed,
+            masked=masked,
+            divergent=divergent,
+            looping=looping,
+        )
+    else:
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            checkpoint, dtype=torch.bfloat16
+        )
+        cfg = model.config
+        circuit = build(
+            Target(
+                cfg.linear_num_key_heads,
+                cfg.linear_num_value_heads,
+                cfg.intermediate_size,
+            ),
+            resident=resident,
+            indexed=indexed,
+            masked=masked,
+            divergent=divergent,
+            looping=looping,
+        )
+    return model.to(device).eval(), circuit
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
@@ -654,7 +701,6 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    offset = 0
     looping = args.looping
     divergent = args.divergent or looping
     masked = args.masked or divergent
@@ -669,10 +715,10 @@ def main() -> None:
             "qwengpu-indexed9b-v1",
             "qwengpu-masked9b-v1",
             "qwengpu-divergent9b-v1",
-            "qwengpu-looping9b-v1",
+            LOOP_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        looping = layout == "qwengpu-looping9b-v1"
+        looping = layout == LOOP_LAYOUT
         divergent = looping or layout == "qwengpu-divergent9b-v1"
         masked = divergent or layout == "qwengpu-masked9b-v1"
         indexed = masked or layout == "qwengpu-indexed9b-v1"
@@ -717,33 +763,16 @@ def main() -> None:
     if not cases:
         raise ValueError("no tile manifests found")
 
-    if args.model:
-        offset = meta["chip_token_offset"]
-        model = transformers.AutoModelForCausalLM.from_pretrained(
-            args.model, dtype=torch.bfloat16
-        )
-        cfg = model.config
-        circuit = build(
-            Target(
-                cfg.linear_num_key_heads,
-                cfg.linear_num_value_heads,
-                cfg.intermediate_size,
-            ),
-            resident=resident,
-            indexed=indexed,
-            masked=masked,
-            divergent=divergent,
-            looping=looping,
-        )
-    else:
-        model, circuit = build_standalone(
-            resident=resident,
-            indexed=indexed,
-            masked=masked,
-            divergent=divergent,
-            looping=looping,
-        )
-    model.to(args.device).eval()
+    offset = meta["chip_token_offset"] if meta is not None else 0
+    model, circuit = load_tile_model(
+        args.model,
+        args.device,
+        resident=resident,
+        indexed=indexed,
+        masked=masked,
+        divergent=divergent,
+        looping=looping,
+    )
     report = {
         "device": args.device,
         "torch": torch.__version__,

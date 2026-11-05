@@ -190,6 +190,18 @@ memory. All eleven fixtures match on MPS and merged Qwen3.5-9B. Run the
 suite with
 `python3 -m qwengpu.eval_tile8 --looping --device mps --out looping.json`.
 
+Launch a two-warp kernel with the resident runner. The cooperative
+example publishes tiled multiply rows and gathers them into a divergent
+loop on the peer warp.
+
+```sh
+python3 -m qwengpu.run_resident eval/frozen/loop_gate_v1/cooperative_matmul.json
+```
+
+Add `--model /path/to/Qwen3.5-9B-qwengpu-looping --device cuda` for the
+merged checkpoint. The launcher reports the resulting matrix, shared
+words, instruction count, and launch outcome as JSON.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

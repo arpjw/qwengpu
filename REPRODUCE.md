@@ -512,3 +512,32 @@ QWENGPU_COOPERATIVE_KERNEL="$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_ma
   --kernel "$QWENGPU_COOPERATIVE_KERNEL" --device cuda \
   --out "$QWENGPU_DIR/results/cooperative_matmul_9b_cuda_fla.json"
 ```
+
+## Run a resident kernel from JSON
+
+Launch the looping checkpoint with `qwengpu.run_resident`. Use flat
+64-element arrays `a` and `b` for unsigned bytes and `c` for unsigned
+16-bit words, all in row-major order. Omitted arrays start at zero.
+`programs` contains two arrays of one through sixteen instruction
+objects, each ending in `HALT`. An instruction has an `op` and an
+optional integer `arg`. Omitting `programs` selects the dense tiled
+multiply. Evaluation fixtures can include `expected_matrix` and
+`expected_outcome` for use by the evaluator.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --device mps --out "$QWENGPU_DIR/results/cooperative_launch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-looping --device cuda --trace \
+  --out "$QWENGPU_DIR/results/cooperative_launch_9b_cuda_fla.json"
+```
+
+The result identifies its format, checkpoint, and input digest. It
+contains the final matrix, all 128 shared words, transport counts, and
+the terminal outcome. The launcher writes JSON to stdout unless given
+`--out`. Pass `--trace` to include instruction snapshots and scheduler
+tickets. Set `--max-steps` to override the default launch budget of 256.
+Exit codes are 0 for halt, 3 for deadlock, and 4 for budget exhaustion.
+The launcher writes the result before returning any of these codes.

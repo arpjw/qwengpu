@@ -30,8 +30,15 @@ and divergent loop in one launch. The producer and consumer share one
 inference cache. Their final rows agree with a separate scalar result
 on MPS and merged Qwen3.5-9B.
 
-The next gate exposes the unified checkpoint through a kernel runner
-with an explicit JSON launch and result format.
+The resident launcher exposes the unified checkpoint through a JSON
+launch and result format. It runs the cooperative fixture on MPS and
+merged Qwen3.5-9B and exposes halt, deadlock, and step-limit outcomes.
+
+The next gate keeps both warp programs resident. Upload each ROM once
+at launch, have the model's ticket and PC select the correct program,
+and verify exact traces with two different programs in one cache.
+Report input token counts before and after. Keep the validated
+looping checkpoint available.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
