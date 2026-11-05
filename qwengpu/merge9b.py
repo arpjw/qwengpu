@@ -92,7 +92,7 @@ def _load_widened_text(src: Path, hidden: int, n_chip: int) -> tuple[dict, torch
 
 
 def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
-                 rom: bool = False, writeback: bool = False) -> dict:
+                 rom: bool = False, writeback: bool = False, control: bool = False) -> dict:
     """Write a text-only stock Qwen3.5 checkpoint with the SIMT circuit first."""
     from safetensors.torch import save_file
 
@@ -104,9 +104,12 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     d0, v0, inter = tc0["hidden_size"], tc0["vocab_size"], tc0["intermediate_size"]
     from chipformer.q35.ir import Target
 
-    if rom and writeback:
+    if sum((rom, writeback, control)) > 1:
         raise ValueError("choose one circuit variant")
-    if writeback:
+    if control:
+        from qwengpu.compiled_control import VOCAB as chip_vocab
+        from qwengpu.compiled_control import build
+    elif writeback:
         from qwengpu.compiled_writeback import VOCAB as chip_vocab
         from qwengpu.compiled_writeback import build
     elif rom:
@@ -202,7 +205,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         "pad_token_id": tc0.get("eos_token_id", 248044), "eos_token_id": tc0.get("eos_token_id", 248044)},
         indent=2), encoding="utf-8")
     _copy_tokenizer(src, dst)
-    meta = {"layout": ("qwengpu-writeback9b-v1" if writeback else
+    meta = {"layout": ("qwengpu-control9b-v1" if control else
+                       "qwengpu-writeback9b-v1" if writeback else
                        "qwengpu-rom9b-v1" if rom else "qwengpu9b-v1"),
             "chip_token_offset": v0,
             "chip_vocab": chip_vocab,
@@ -221,6 +225,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-anti-sink", action="store_true")
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--control", action="store_true",
+                          help="merge bounded loops and nested divergence")
     variants.add_argument("--writeback", action="store_true",
                           help="merge bounded internal-writeback circuit")
     variants.add_argument("--rom", action="store_true",
@@ -228,7 +234,7 @@ def main() -> None:
     args = parser.parse_args()
     print(json.dumps(build_merged(args.src, args.out,
                                   fit_sinks=not args.no_anti_sink,
-                                  rom=args.rom, writeback=args.writeback)), flush=True)
+                                  rom=args.rom, writeback=args.writeback, control=args.control)), flush=True)
 
 
 if __name__ == "__main__":

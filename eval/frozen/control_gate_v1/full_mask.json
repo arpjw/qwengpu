@@ -1,0 +1,44 @@
+{
+  "initial": [
+    42,
+    42,
+    42,
+    42,
+    42,
+    42,
+    42,
+    42
+  ],
+  "program": [
+    {
+      "op": "IF_LT",
+      "arg": 255
+    },
+    {
+      "op": "STORE",
+      "arg": 24
+    },
+    {
+      "op": "ADDI",
+      "arg": 1
+    },
+    {
+      "op": "ELSE"
+    },
+    {
+      "op": "XORI",
+      "arg": 255
+    },
+    {
+      "op": "ENDIF"
+    },
+    {
+      "op": "LOAD",
+      "arg": 24
+    },
+    {
+      "op": "HALT"
+    }
+  ],
+  "expected_outcome": "halted"
+}

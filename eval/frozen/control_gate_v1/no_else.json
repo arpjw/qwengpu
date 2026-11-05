@@ -1,0 +1,29 @@
+{
+  "initial": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "program": [
+    {
+      "op": "IF_LT",
+      "arg": 4
+    },
+    {
+      "op": "ADDI",
+      "arg": 9
+    },
+    {
+      "op": "ENDIF"
+    },
+    {
+      "op": "HALT"
+    }
+  ],
+  "expected_outcome": "halted"
+}

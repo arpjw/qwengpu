@@ -1,0 +1,37 @@
+{
+  "initial": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "program": [
+    {
+      "op": "WHILE_LT",
+      "arg": 2
+    },
+    {
+      "op": "STORE",
+      "arg": 0
+    },
+    {
+      "op": "ADDI",
+      "arg": 1
+    },
+    {
+      "op": "ENDWHILE"
+    },
+    {
+      "op": "LOAD",
+      "arg": 0
+    },
+    {
+      "op": "HALT"
+    }
+  ],
+  "expected_outcome": "halted"
+}
