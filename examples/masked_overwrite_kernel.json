@@ -1,0 +1,12 @@
+{
+  "initial": [0, 1, 2, 3, 4, 5, 6, 7],
+  "program": [
+    {"op": "STORE", "arg": 0},
+    {"op": "IF_LT", "arg": 4},
+    {"op": "ADDI", "arg": 10},
+    {"op": "STORE", "arg": 0},
+    {"op": "ENDIF"},
+    {"op": "LOAD", "arg": 0},
+    {"op": "HALT"}
+  ]
+}

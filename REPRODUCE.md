@@ -32,6 +32,12 @@ export PYTHONPATH="$QWENPUTER_DIR:$QWENGPU_DIR"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
   "$QWENGPU_DIR/examples/mixed_kernel.json" --device mps \
   --out "$QWENGPU_DIR/results/example_kernel_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
+  "$QWENGPU_DIR/examples/no_else_kernel.json" --device mps \
+  --out "$QWENGPU_DIR/results/no_else_kernel_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
+  "$QWENGPU_DIR/examples/masked_overwrite_kernel.json" --device mps \
+  --out "$QWENGPU_DIR/results/masked_overwrite_mps.json"
 ```
 
 Use `--device cuda` on a CUDA host. For the optimized DeltaNet path, install
@@ -41,9 +47,10 @@ Transformers reference path in the recorded CUDA checks.
 
 The 9B merge uses the public Qwen/Qwen3.5-9B snapshot at revision
 `c202236235762e1c871ad0ccb60c8ee5ba337b9a`. The measured build used a
-96 GB GPU, more than 60 GB of disk, and enough host RAM for the widened
+96 GB GPU, a 60 GB container disk, and enough host RAM for the widened
 checkpoint. The source snapshot was about 19 GB and the merged checkpoint
-about 25 GB. Both are temporary local files, not repository contents.
+about 25 GB; the container reached about 49 GB used. Both are temporary
+local files, not repository contents.
 
 ```sh
 "$QWENPUTER_DIR/.venv/bin/hf" download Qwen/Qwen3.5-9B \

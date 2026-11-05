@@ -1,0 +1,216 @@
+{
+  "device": "mps",
+  "model": "standalone",
+  "circuit": {
+    "layers": 12,
+    "dims": 1223,
+    "heads": 27,
+    "ffn_units": 1155,
+    "max_units": 248,
+    "max_heads": 16
+  },
+  "initial": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "program": [
+    {
+      "op": "STORE",
+      "arg": 0
+    },
+    {
+      "op": "IF_LT",
+      "arg": 4
+    },
+    {
+      "op": "ADDI",
+      "arg": 10
+    },
+    {
+      "op": "STORE",
+      "arg": 0
+    },
+    {
+      "op": "ENDIF",
+      "arg": 0
+    },
+    {
+      "op": "LOAD",
+      "arg": 0
+    },
+    {
+      "op": "HALT",
+      "arg": 0
+    }
+  ],
+  "generated": [
+    4111,
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407,
+    4351,
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407,
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407
+  ],
+  "expected": [
+    4111,
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407,
+    4351,
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407,
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407
+  ],
+  "observed_scratch": [
+    [
+      10,
+      11,
+      12,
+      13,
+      4,
+      5,
+      6,
+      7
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "expected_scratch": [
+    [
+      10,
+      11,
+      12,
+      13,
+      4,
+      5,
+      6,
+      7
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "tokens_exact": true,
+  "scratch_exact": true,
+  "exact": true,
+  "final_probe": [
+    4618,
+    4875,
+    5132,
+    5389,
+    5636,
+    5893,
+    6150,
+    6407
+  ],
+  "final_lanes": [
+    10,
+    11,
+    12,
+    13,
+    4,
+    5,
+    6,
+    7
+  ],
+  "seconds": 1.475
+}

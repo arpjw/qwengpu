@@ -63,6 +63,10 @@ instructions in JSON. It validates the supported one-level branch and
 four-slot scratch subset. The example ends with lane values
 `[1, 2, 3, 4, 5, 6, 7, 8]`. Pass `--model` with a rebuilt 9B checkpoint to
 use the pretrained merge.
+[`examples/no_else_kernel.json`](examples/no_else_kernel.json) shows a branch
+that reconverges without an `ELSE`.
+[`examples/masked_overwrite_kernel.json`](examples/masked_overwrite_kernel.json)
+shows masked writes preserving inactive lanes in the same scratch slot.
 
 The next gates are program memory and instruction fetch, internal register
 writeback, nested divergence, larger memory, and larger held-out
