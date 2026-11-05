@@ -20,12 +20,17 @@ ELSE uses the saved predicate, and ENDIF restores the parent mask.
 The fixtures exercise an empty branch, a partial parent mask, and
 accumulator changes between IF_BIT and ELSE.
 
-The next gate adds data-dependent loops to the resident engine.
-Have the model choose the loop back edge or exit from the active
-lane predicates. Verify different lane trip counts, an empty loop,
-and reconvergence when one warp exits before the other. Include a
-step-budget fixture and a kernel that combines a loop with indexed
-memory or a nested branch.
+The looping variant chooses data-dependent back edges and exits in
+the model. One checkpoint supports 16-bit arithmetic, 128 indexed
+shared words, barriers, and two levels each of branches and loops.
+Its host relays state packets and enforces a launch instruction budget.
+
+The next gate demonstrates one cooperative kernel on that checkpoint.
+Have one warp produce a tiled multiply row, publish it at a barrier,
+and have its peer gather the result and apply a data-dependent loop
+before storing a final row. Check both outputs with a scalar reference.
+Then expose the unified checkpoint through a user-facing kernel
+runner with an explicit launch and result format.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

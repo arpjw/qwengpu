@@ -404,3 +404,25 @@ four earlier variants retained their compiler graphs and snapshot
 layouts. The merge adds 17 layers, uses width 6,400, and contains
 41,259,716,992 bytes of weights. See `results/divergent_mps.json`
 and `results/divergent_9b_cuda_fla.json`.
+
+## Data-dependent loops in the resident engine
+
+All eleven frozen cases match across standalone MPS and merged
+Qwen3.5-9B on A100. The reports agree on 1,097 instruction snapshots
+and 1,108 scheduler decisions. Each launch uses one inference cache.
+The eight prior cases retain their traces after accounting for the
+added loop packet. All 25 local tests passed.
+
+| Fixture | Instructions | Verified behavior |
+| --- | ---: | --- |
+| Nested loops with a branch | 47 | Both stacks survive interleaving and restore their parent masks. The first row finishes at `[16, 16, 16, 16, 17, 20, 20, 0]`. |
+| Indexed scatter with different trip counts | 76 | One warp's successive iterations publish 4, 3, 2, and 1 words. Its peer reaches the barrier first. Both gather after release. Rows with no eligible lanes skip the loop body. |
+| Budget exhaustion | 256 | A deliberate infinite loop stays runnable at the host instruction limit and reports `step_limit`. |
+
+The parser rejected five malformed loop sequences. The five earlier
+checkpoint variants retained identical compiler graphs and snapshot
+layouts. The merged checkpoint adds 17 layers, uses width 6,144, and
+contains 39,609,437,056 bytes of weights. CUDA emitted an allocator
+warning about insufficient free VRAM during the longest case. The case
+completed with an exact trace. Reports are `results/looping_mps.json`
+and `results/looping_9b_cuda_fla.json`.
