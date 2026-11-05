@@ -159,3 +159,31 @@ hidden size 5,120. A 100 GB ephemeral container disk held both the source
 snapshot and merged checkpoint. The build/evaluation used a 96 GB GPU.
 Set `OMP_NUM_THREADS=8 MKL_NUM_THREADS=8` to reproduce the recorded 9B process
 thread settings. The CUDA standalone run used the environment defaults.
+
+
+## Loops and divergent control
+
+Use the same pinned compiler, Qwen snapshot, and CUDA environment as above.
+The H100 runs use `OMP_NUM_THREADS=8 MKL_NUM_THREADS=8`.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_control \
+  --device mps --out "$QWENGPU_DIR/results/control_mps_full.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_control \
+  --device cuda --out "$QWENGPU_DIR/results/control_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --control --out /path/to/Qwen3.5-9B-qwengpu-control
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_control \
+  /path/to/Qwen3.5-9B-qwengpu-control --device cuda \
+  --out "$QWENGPU_DIR/results/control_9b_cuda_fla.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.textcheck_9b \
+  /path/to/Qwen3.5-9B /path/to/Qwen3.5-9B-qwengpu-control --device cuda \
+  --out "$QWENGPU_DIR/results/textcheck_control_9b_cuda.json"
+```
+
+Use `--kernel path/to/kernel.json` to evaluate one kernel. A user kernel that
+exhausts the budget fails the expected HALT outcome unless its JSON explicitly
+sets `expected_outcome` to `exhausted`. In either case, the report retains the
+trace and distinguishes correct execution from successful halting. The MPS
+reports recorded the first 13 cases together and the later combined-depth
+fixture separately; the default command now runs all 14.

@@ -1,5 +1,15 @@
 # QwenGPU scope and next gates
 
+## Latest control variant
+
+The new control builder supports two levels each of structured divergence
+and data-dependent WHILE loops, including loops inside branches and branches
+inside loops. It separates execution step from PC and carries machine state
+forward into a new depth stage on every executed instruction. There are 16
+ROM slots and a 16-step execution budget. Budget exhaustion is reported
+separately from HALT. All 14 frozen cases pass on MPS and optimized CUDA;
+see VALIDATION.md for the 9B result. CONTROL_DESIGN.md defines exact semantics.
+
 ## What exists now
 
 The current artifact is an eight-lane SIMT circuit compiled into stock

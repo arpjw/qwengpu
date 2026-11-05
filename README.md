@@ -96,7 +96,7 @@ including all 51 intermediate
 register/scratch
 snapshots. It uses 51 layers and 58 heads by unrolling 16 instruction stages
 in depth. This removes lane feedback for bounded straight-line programs;
-cyclic register reuse and loops remain open. The 9B checkpoint adds an exit
+This earlier variant has no loops; the control variant below adds bounded loops. The 9B checkpoint adds an exit
 layer and contains about 52.1 GB of weights. Its six-prompt text check kept
 6/6 next tokens and 5/6 four-token continuations. Run a supported kernel with:
 
@@ -105,13 +105,26 @@ python3 -m qwengpu.eval_writeback --device mps \
   --kernel eval/frozen/writeback_gate_v1/overwrite.json --out result.json
 ```
 
-The next gates are bounded divergent control flow, larger memory, and broader
-program suites. The reference interpreter checks model traces and is not used
-to compute model outputs. The original host-dispatched divergent circuit and
-the two straight-line ROM variants have separate protocols and evidence.
+The [control circuit](CONTROL_DESIGN.md) now supports nested IF/ELSE/ENDIF
+and data-dependent WHILE_LT/ENDWHILE loops. It carries a separate execution
+step and PC, so backward jumps use updated register state. Both branch and
+loop stacks support depth two, including simultaneously. Fourteen fixed cases
+pass on MPS and optimized CUDA: 13 halt and one deliberately exhausts the
+16-step budget. Every instruction's machine snapshot is checked. It uses
+69 circuit layers and zero lane feedback. Try a loop kernel with:
+
+```sh
+python3 -m qwengpu.eval_control --device mps \
+  --kernel eval/frozen/control_gate_v1/if_inside_loop.json --out control.json
+```
+
+The 16-step execution limit includes control operations and HALT. Exhaustion
+is an explicit outcome. Larger execution budgets, broader program checks,
+warp/memory scale, and text after machine execution remain future work.
+The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
-[CHECKPOINT.md](CHECKPOINT.md) records the sprint and continuation.
+[CHECKPOINT.md](CHECKPOINT.md) records the sprint and continuations.
 
 Model weights are not stored in this repository. The Python code is MIT
 licensed; Qwen3.5 weights remain under their own license.

@@ -1,0 +1,55 @@
+{
+  "initial": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "program": [
+    {
+      "op": "IF_LT",
+      "arg": 10
+    },
+    {
+      "op": "IF_LT",
+      "arg": 4
+    },
+    {
+      "op": "WHILE_LT",
+      "arg": 1
+    },
+    {
+      "op": "WHILE_LT",
+      "arg": 1
+    },
+    {
+      "op": "ADDI",
+      "arg": 2
+    },
+    {
+      "op": "ENDWHILE",
+      "arg": 0
+    },
+    {
+      "op": "ENDWHILE",
+      "arg": 0
+    },
+    {
+      "op": "ENDIF",
+      "arg": 0
+    },
+    {
+      "op": "ENDIF",
+      "arg": 0
+    },
+    {
+      "op": "HALT",
+      "arg": 0
+    }
+  ],
+  "expected_outcome": "halted"
+}

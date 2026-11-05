@@ -1,0 +1,1787 @@
+{
+  "device": "mps",
+  "torch": "2.14.1",
+  "transformers": "5.19.0",
+  "circuit": {
+    "layers": 69,
+    "dims": 19264,
+    "heads": 75,
+    "ffn_units": 26115,
+    "max_units": 809,
+    "max_heads": 9
+  },
+  "merge": null,
+  "cases": [
+    {
+      "initial": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "program": [
+        {
+          "op": "IF_LT",
+          "arg": 10
+        },
+        {
+          "op": "IF_LT",
+          "arg": 4
+        },
+        {
+          "op": "WHILE_LT",
+          "arg": 1
+        },
+        {
+          "op": "WHILE_LT",
+          "arg": 1
+        },
+        {
+          "op": "ADDI",
+          "arg": 2
+        },
+        {
+          "op": "ENDWHILE",
+          "arg": 0
+        },
+        {
+          "op": "ENDWHILE",
+          "arg": 0
+        },
+        {
+          "op": "ENDIF",
+          "arg": 0
+        },
+        {
+          "op": "ENDIF",
+          "arg": 0
+        },
+        {
+          "op": "HALT",
+          "arg": 0
+        }
+      ],
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_control": 17,
+          "observed_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "observed": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 1,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 1,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_control": 34,
+          "observed_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "observed": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 15,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 15,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_control": 51,
+          "observed_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "observed": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 1,
+            "loop_parents": [
+              15,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 1,
+            "loop_parents": [
+              15,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4164,
+          "expected_token": 4164,
+          "observed_control": 68,
+          "observed_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "observed": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 2,
+            "loop_parents": [
+              15,
+              1
+            ]
+          },
+          "expected": {
+            "lanes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 2,
+            "loop_parents": [
+              15,
+              1
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 4,
+          "generated": 4181,
+          "expected_token": 4181,
+          "observed_control": 85,
+          "observed_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 2,
+            "loop_parents": [
+              15,
+              1
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 2,
+            "loop_parents": [
+              15,
+              1
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 5,
+          "generated": 4195,
+          "expected_token": 4195,
+          "observed_control": 99,
+          "observed_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 1,
+            "loop_parents": [
+              15,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 1,
+            "loop_parents": [
+              15,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 3,
+          "generated": 4214,
+          "expected_token": 4214,
+          "observed_control": 118,
+          "observed_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 1,
+            "loop_parents": [
+              15,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 1,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 1,
+            "loop_parents": [
+              15,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 6,
+          "generated": 4226,
+          "expected_token": 4226,
+          "observed_control": 130,
+          "observed_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 15,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 15,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 2,
+          "generated": 4247,
+          "expected_token": 4247,
+          "observed_control": 151,
+          "observed_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 15,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 15,
+            "branch_depth": 2,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 255,
+                "then": 15
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 7,
+          "generated": 4264,
+          "expected_token": 4264,
+          "observed_control": 168,
+          "observed_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 1,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 1,
+            "branch_frames": [
+              {
+                "parent": 255,
+                "then": 255
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 8,
+          "generated": 4281,
+          "expected_token": 4281,
+          "observed_control": 185,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 0,
+            "branch_frames": [
+              {
+                "parent": 0,
+                "then": 0
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 0,
+            "branch_frames": [
+              {
+                "parent": 0,
+                "then": 0
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        },
+        {
+          "stage": 11,
+          "executed_pc": 9,
+          "generated": 4537,
+          "expected_token": 4537,
+          "observed_control": 441,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "observed": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 0,
+            "branch_frames": [
+              {
+                "parent": 0,
+                "then": 0
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "expected": {
+            "lanes": [
+              2,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "scratch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "mask": 255,
+            "branch_depth": 0,
+            "branch_frames": [
+              {
+                "parent": 0,
+                "then": 0
+              },
+              {
+                "parent": 0,
+                "then": 0
+              }
+            ],
+            "loop_depth": 0,
+            "loop_parents": [
+              0,
+              0
+            ]
+          },
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "observed_rom": [
+        1290,
+        1284,
+        2049,
+        2049,
+        2,
+        2304,
+        2304,
+        1792,
+        1792,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024
+      ],
+      "expected_rom": [
+        1290,
+        1284,
+        2049,
+        2049,
+        2,
+        2304,
+        2304,
+        1792,
+        1792,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024,
+        1024
+      ],
+      "observed_links": [
+        0,
+        0,
+        7,
+        6,
+        0,
+        3,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected_links": [
+        0,
+        0,
+        7,
+        6,
+        0,
+        3,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "single_token_calls": 24,
+      "lane_feedback_tokens": 0,
+      "seconds": 3.55,
+      "fixture": "combined_depth.json",
+      "fixture_sha256": "1cd1e98e2117606156a03c8ef980a3aa025f35398e8e71c8a1eb0b87e60ff7f3",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    }
+  ],
+  "all_exact": true,
+  "all_expected_outcomes": true
+}

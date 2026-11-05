@@ -54,6 +54,25 @@ class ControlLoaderTests(unittest.TestCase):
     importlib.util.find_spec("chipformer"), "Qwenputer backend unavailable"
 )
 class CompiledControlTests(unittest.TestCase):
+    def test_unsigned_compare_all_byte_pairs(self):
+        import numpy as np
+        from chipformer.q35.ir import evaluate
+        from chipformer.q35.prims import Circ
+        from qwengpu.compiled_control import _less_byte
+
+        c = Circ()
+        a = [c.token_feature(f"a.{b}", lambda t, b=b: (t >> b) & 1) for b in range(8)]
+        b = [
+            c.token_feature(f"b.{j}", lambda t, j=j: (t >> (8 + j)) & 1)
+            for j in range(8)
+        ]
+        less = _less_byte(c, a, b, "less")
+        residual = evaluate(c, list(range(65536)), check=True, kernel=True)
+        tokens = np.arange(65536)
+        np.testing.assert_array_equal(
+            residual[:, next(iter(less.terms))], (tokens & 255) < (tokens >> 8)
+        )
+
     def test_frozen_traces(self):
         from chipformer.q35.ir import evaluate
         from qwengpu.compiled_control import build, program_tokens, state_token, TICK

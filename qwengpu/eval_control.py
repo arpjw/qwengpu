@@ -202,8 +202,8 @@ def main() -> None:
             p for p in args.cases_dir.glob("*.json") if not p.name.startswith("._")
         )
     )
-    if not args.kernel and len(paths) != 13:
-        raise ValueError("expected 13 frozen control kernels")
+    if not args.kernel and len(paths) != 14:
+        raise ValueError("expected 14 frozen control kernels")
     # Validate all inputs before constructing or calling a model.
     cases = []
     for path in paths:

@@ -133,6 +133,10 @@ class ControlSIMT(Circ):
         self.snapshots: list[list[Expr]] = []
 
 
+def _less_byte(c: Circ, left: list[Expr], right: list[Expr], name: str) -> Expr:
+    return c.node(c.t_lt(from_bits(left) - from_bits(right), 0, -255, 255), name)
+
+
 def _stack(c, depth, frames, push, pop, new_frame, name):
     """Two-entry stack; callers provide structurally validated instructions."""
     hot = c.onehot_of_bits(depth, f"{name}.depth", 3)
@@ -231,13 +235,7 @@ def build(target: Target | None = None) -> ControlSIMT:
         lanes = [previous[i * 8 : (i + 1) * 8] for i in range(8)]
         memory = [previous[64 + i * 64 : 64 + (i + 1) * 64] for i in range(4)]
         mask = previous[320:328]
-        less = [
-            c.node(
-                c.t_lt(from_bits(lanes[i]) - from_bits(arg), 0, -255, 255),
-                f"{prefix}.less.{i}",
-            )
-            for i in range(8)
-        ]
+        less = [_less_byte(c, lanes[i], arg, f"{prefix}.less.{i}") for i in range(8)]
         predicate = [c.and_([mask[i], less[i]], f"{prefix}.pred.{i}") for i in range(8)]
         any_lane = c.node(c.t_ge(sum(predicate, Expr()), 1, 0, 8), f"{prefix}.any")
         enter = c.and_([flags["WHILE_LT"], any_lane], f"{prefix}.enter")

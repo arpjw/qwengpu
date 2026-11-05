@@ -61,3 +61,9 @@ to the standalone runs. It uses 52 chip layers including the exit marker,
 hidden size 5,120, and 52,118,362,112 bytes of weights. Full result reports
 and the text comparison are in VALIDATION.md. Existing ROM and divergent builders
 remain available as separate variants with their own evidence.
+
+
+The later [control variant](CONTROL_DESIGN.md) implements the bounded
+control-flow construction above with separate step and PC fields. Its
+WHILE loops and two-level branch/loop stacks are separate from this original
+straight-line builder and have their own result reports.

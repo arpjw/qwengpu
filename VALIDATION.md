@@ -161,3 +161,23 @@ to expose a runtime/SSH within about five minutes. Both were terminated.
 The live pod list is empty. At $2.49/hour, the failed boot projects about
 $0.21 and the successful pod about $0.43 of GPU time. Neither had posted
 billing records at the final read. These are projections, not final charges.
+
+
+## Bounded loops and nested divergence
+
+`results/control_mps.json` contains the original 13 frozen cases;
+`results/control_combined_depth_mps.json` adds simultaneous branch and loop
+stack depth two. Across these 14 inputs, all 130 generated control tokens and
+380-bit intermediate machine snapshots are exact. Thirteen programs HALT;
+one intentional infinite loop returns exhausted at the 16-step bound. The
+snapshots include registers, scratch, active mask, both stack depths, both
+branch frames, and both loop-parent masks. Retained control state and final
+ROM/link rows also match. No lane values are fed back.
+
+`results/control_cuda_fla.json` runs all 14 on one standalone model object
+with fresh caches, using an H100 and optimized DeltaNet. All checks pass;
+causal convolution uses the reference implementation. All 21 local tests
+pass, including exhaustive byte-add and unsigned-comparison checks over
+65,536 pairs each. These are bounded fixtures, not exhaustive program-level
+correctness. The control circuit has 69 layers and 75 heads. Its 9B merge
+and text checks are pending. See CONTROL_DESIGN.md for semantics and limits.
