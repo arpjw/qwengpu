@@ -111,7 +111,7 @@ The Runpod check used one RTX PRO 6000 Blackwell Server Edition pod. The model
 outputs were copied into this repository; model weights stayed on the
 temporary pod. The pod was terminated and the pod list was empty. Its live
 quoted rate was $2.49/hour and it existed for about 53 minutes, implying
-roughly $2.20 of GPU time at that rate. A per-pod billing read at 08:05 UTC
-showed $0.8027 across two hourly records, including $0.7999 GPU and $0.0028
+roughly $2.20 of GPU time at that rate. A per-pod billing read at 08:14 UTC
+showed $1.2180 across two hourly records, including $1.2138 GPU and $0.0042
 disk. The difference between the rate projection and posted records is not
 explained by the available billing data; no final invoice was checked.

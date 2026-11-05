@@ -69,7 +69,7 @@ ROM-driven implementation.
 
 One Runpod pod created for this sprint was terminated. It was quoted at
 $2.49/hour and existed for about 53 minutes, giving an approximate $2.20 GPU
-time projection. The per-pod billing read at 08:05 UTC posted $0.8027 across
+time projection. The per-pod billing read at 08:14 UTC posted $1.2180 across
 two hourly records. The data available did not explain that difference, and
 no final invoice was checked. No pod remains running; both figures are below
 the $74 approved ceiling.
