@@ -80,7 +80,8 @@ to compute the model's outputs. The current one-level branch trace is driven by
 host-supplied raw instruction tokens, so this is a SIMT circuit prototype and
 not yet a self-contained programmable GPU. See [SCOPE.md](SCOPE.md) for the
 next gates, [ROM_DESIGN.md](ROM_DESIGN.md) for the isolated fetch experiment,
-and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands.
+and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands. The
+[two-hour checkpoint](CHECKPOINT.md) summarizes the sprint and next decision.
 
 Model weights are not stored in this repository. The Python code is MIT
 licensed; Qwen3.5 weights remain under their own license.

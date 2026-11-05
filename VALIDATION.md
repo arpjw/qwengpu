@@ -29,8 +29,8 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/program_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_stress_cuda_fla.json` | Pretrained Qwen3.5-9B merge, exploratory seeded mixed programs | 100 | 100 exact |
 | `results/program_stress_mps.json` | Standalone Qwen3.5, exploratory mixed programs on MPS | 100 | 100 exact |
-| `results/rom_spike_mps.json` | Separate 16-slot stock Qwen3.5 ROM circuit on MPS | 3 programs | 3 exact |
-| `results/rom_spike_stress_mps.json` | Same ROM circuit, exploratory contents on MPS | 100 programs | 100 exact |
+| `results/rom_spike_mps.json` | Separate 16-slot stock Qwen3.5 ROM circuit on MPS | 3 payload sequences | 3 exact |
+| `results/rom_spike_stress_mps.json` | Same ROM circuit, exploratory contents on MPS | 100 payload sequences | 100 exact |
 | `results/example_kernel_mps.json` | JSON kernel runner on standalone Qwen3.5, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/no_else_kernel_mps.json` | JSON kernel runner with IF/ENDIF and no ELSE, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/masked_overwrite_mps.json` | JSON kernel runner with masked overwrite of one scratch slot, MPS | 1 program | Exact tokens, scratch, and final lane probe |

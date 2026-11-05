@@ -4,7 +4,7 @@ This is the proposed integration design. The current SIMT checkpoint uses
 host-supplied instruction tokens. A separate [16-slot ROM spike](qwengpu/rom_spike.py)
 already demonstrated uploaded instruction payloads, a model-held PC, and
 model-generated instruction and next-PC tokens on stock Qwen3.5 with MPS.
-Its three programs and recurrent ROM snapshots passed in
+Its three payload sequences and recurrent ROM snapshots passed in
 [`results/rom_spike_mps.json`](results/rom_spike_mps.json). It does not yet
 drive the SIMT ALU or run on CUDA. The integration below would let one set
 of model weights execute different uploaded programs in separate caches.
