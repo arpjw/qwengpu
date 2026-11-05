@@ -4,10 +4,10 @@
   "transformers": "5.19.0",
   "circuit": {
     "layers": 12,
-    "dims": 1030,
+    "dims": 1223,
     "heads": 27,
-    "ffn_units": 899,
-    "max_units": 184,
+    "ffn_units": 1155,
+    "max_units": 248,
     "max_heads": 16
   },
   "hidden": 1280,
@@ -56,7 +56,7 @@
         6417
       ],
       "exact": true,
-      "seconds": 0.54
+      "seconds": 0.533
     },
     {
       "a": [
@@ -101,7 +101,7 @@
         6406
       ],
       "exact": true,
-      "seconds": 0.107
+      "seconds": 0.111
     },
     {
       "a": [
@@ -146,7 +146,7 @@
         6500
       ],
       "exact": true,
-      "seconds": 0.106
+      "seconds": 0.104
     },
     {
       "a": [
@@ -191,7 +191,7 @@
         6577
       ],
       "exact": true,
-      "seconds": 0.106
+      "seconds": 0.104
     },
     {
       "a": [
@@ -236,7 +236,7 @@
         6626
       ],
       "exact": true,
-      "seconds": 0.107
+      "seconds": 0.104
     },
     {
       "a": [
@@ -281,7 +281,7 @@
         6458
       ],
       "exact": true,
-      "seconds": 0.106
+      "seconds": 0.104
     },
     {
       "a": [
@@ -326,7 +326,7 @@
         6543
       ],
       "exact": true,
-      "seconds": 0.107
+      "seconds": 0.106
     },
     {
       "a": [
@@ -371,7 +371,7 @@
         6567
       ],
       "exact": true,
-      "seconds": 0.105
+      "seconds": 0.104
     }
   ],
   "all_exact": true

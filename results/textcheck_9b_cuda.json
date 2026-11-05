@@ -8,7 +8,7 @@
     {
       "prompt": "Hello! Tell me one interesting fact about the Moon.",
       "next_top1_same": true,
-      "next_max_abs_logit_difference": 0.140625,
+      "next_max_abs_logit_difference": 0.1875,
       "greedy_four_identical": false,
       "base_greedy_ids": [
         8160,
@@ -26,7 +26,7 @@
     {
       "prompt": "Write a Python function that reverses a list without changing the original.",
       "next_top1_same": true,
-      "next_max_abs_logit_difference": 0.2734375,
+      "next_max_abs_logit_difference": 0.25,
       "greedy_four_identical": true,
       "base_greedy_ids": [
         71093,
@@ -44,7 +44,7 @@
     {
       "prompt": "What is the difference between a mutex and a semaphore?",
       "next_top1_same": true,
-      "next_max_abs_logit_difference": 0.25,
+      "next_max_abs_logit_difference": 0.1875,
       "greedy_four_identical": true,
       "base_greedy_ids": [
         20003,
@@ -80,7 +80,7 @@
     {
       "prompt": "Continue this JSON object with one field: {\"status\": \"ok\"",
       "next_top1_same": true,
-      "next_max_abs_logit_difference": 0.25,
+      "next_max_abs_logit_difference": 0.21875,
       "greedy_four_identical": true,
       "base_greedy_ids": [
         4754,

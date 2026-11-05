@@ -12,8 +12,8 @@ stream and active mask. Structured `IF_LT`/`ELSE`/`ENDIF` executes divergent
 paths under disjoint masks and then reconverges. Lane-indexed scratch memory,
 addition, XOR, and reduction are specified and tested.
 
-The compiled circuit performs eight masked byte additions in one Qwen3.5
-forward pass. Its inputs, lane mask, results, and lane-banked scratch memory
+The compiled circuit performs eight masked byte additions or XORs in one
+Qwen3.5 forward pass. Its inputs, lane mask, results, and lane-banked scratch memory
 live in Gated DeltaNet state. Scratch has four byte slots per lane.
 The model generates both per-lane result tokens and masks from `IF_LT`, `ELSE`,
 and `ENDIF` operations. Result tokens write each lane back to recurrent state,
@@ -23,14 +23,14 @@ raw instructions and read requests; it does not calculate the model's results.
 
 | Check | Observed result |
 | --- | --- |
-| Standalone stock Qwen3.5 on Apple MPS | 8/8 direct-mask adds, 8/8 generated-mask adds, 4/4 sequences, 4/4 divergent programs, and 4/4 scratch programs exact |
-| Standalone stock Qwen3.5 on CUDA with optimized DeltaNet | The same five suites exact; causal convolution used the reference kernel |
-| Pretrained Qwen3.5-9B merge on CUDA | 12/12 divergent programs and 12/12 scratch programs exact, including generated tokens and scratch-state inspection |
+| Standalone stock Qwen3.5 on Apple MPS | 8/8 adds, 8/8 generated-mask adds, 4/4 sequences, 4/4 divergent programs, 4/4 scratch programs, 4/4 ADD/XOR programs, and 4/4 mixed programs exact |
+| Standalone stock Qwen3.5 on CUDA with optimized DeltaNet | The same seven suites exact; causal convolution used the reference kernel |
+| Pretrained Qwen3.5-9B merge on CUDA | 12/12 divergent, 12/12 scratch, 12/12 ADD/XOR, and 12/12 mixed programs exact, including generated tokens and scratch-state inspection |
 | Fixed text check on merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
 
 These are small, fixed execution and integration checks. The circuit uses 27
 Gated DeltaNet heads and 12 circuit layers. The 9B merge adds an exit layer,
-preserves the source model's untied text output head, and was built with 4,608
+preserves the source model's untied text output head, and was built with 4,864
 hidden dimensions. [Validation details](VALIDATION.md) record the evidence and
 the one text continuation that changed.
 
@@ -48,15 +48,17 @@ python3 -m qwengpu.eval_predicate --device mps --out results/predicate_mps.json
 python3 -m qwengpu.eval_sequence --device mps --out results/sequence_mps.json
 python3 -m qwengpu.eval_branch --device mps --out results/branch_mps.json
 python3 -m qwengpu.eval_memory --device mps --out results/memory_mps.json
+python3 -m qwengpu.eval_alu --device mps --out results/alu_mps.json
+python3 -m qwengpu.eval_program --device mps --out results/program_mps.json
 ```
 
-The next gates are more than one compiled ALU operation, program memory and
-instruction fetch, nested divergence, larger memory, and larger held-out
+The next gates are program memory and instruction fetch, internal register
+writeback, nested divergence, larger memory, and larger held-out
 program suites. The reference interpreter checks model traces and is not used
 to compute the model's outputs. The current one-level branch trace is driven by
 host-supplied raw instruction tokens, so this is a SIMT circuit prototype and
-not yet a self-contained programmable GPU. See [REPRODUCE.md](REPRODUCE.md)
-for pinned inputs and commands.
+not yet a self-contained programmable GPU. See [SCOPE.md](SCOPE.md) for the
+next gates and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands.
 
 Model weights are not stored in this repository. The Python code is MIT
 licensed; Qwen3.5 weights remain under their own license.

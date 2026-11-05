@@ -1,4 +1,4 @@
-"""The compiled graph must calculate eight masked byte sums exactly."""
+"""The compiled graph must calculate masked lane operations exactly."""
 
 import importlib.util
 import unittest
@@ -6,6 +6,41 @@ import unittest
 
 @unittest.skipUnless(importlib.util.find_spec("chipformer"), "Qwenputer backend unavailable")
 class CompiledAddTests(unittest.TestCase):
+    def test_masked_xor_then_add_with_writeback(self) -> None:
+        from chipformer.q35.ir import evaluate
+
+        from qwengpu.compiled_add import (EXEC_ADD, EXEC_XOR, KAPPA, build,
+                                          load_a, load_b, mask_token, out_token,
+                                          read_lane)
+
+        circuit = build()
+        initial = (255, 0, 128, 127, 42, 213, 5, 250)
+        operand = (1, 255, 128, 127, 85, 85, 17, 11)
+        mask = 0b10110101
+        tokens = [token for lane in range(8)
+                  for token in (load_a(lane, initial[lane]), load_b(lane, operand[lane]))]
+        tokens.extend((mask_token(mask), EXEC_XOR))
+        positions = []
+        xored = tuple(initial[lane] ^ operand[lane] if mask >> lane & 1
+                      else initial[lane] for lane in range(8))
+        for lane, value in enumerate(xored):
+            positions.append((len(tokens), out_token(lane, value)))
+            tokens.extend((read_lane(lane), out_token(lane, value)))
+        tokens.append(EXEC_ADD)
+        added = tuple((xored[lane] + operand[lane]) & 255 if mask >> lane & 1
+                      else xored[lane] for lane in range(8))
+        for lane, value in enumerate(added):
+            positions.append((len(tokens), out_token(lane, value)))
+            tokens.extend((read_lane(lane), out_token(lane, value)))
+        residual = evaluate(circuit, tokens, check=True)
+        for position, expected in positions:
+            predicted = 0
+            for bit, expr in enumerate(circuit.code):
+                value = residual[position, next(iter(expr.terms))]
+                self.assertEqual(abs(value), KAPPA)
+                predicted |= int(value > 0) << bit
+            self.assertEqual(predicted, expected)
+
     def test_masked_add_multiple_inputs_one_graph(self) -> None:
         from chipformer.q35.ir import evaluate
 

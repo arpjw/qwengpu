@@ -5,13 +5,11 @@
   "merge": {
     "layout": "qwengpu9b-v1",
     "chip_token_offset": 248320,
-    "chip_vocab": 6922,
+    "chip_vocab": 6923,
     "chip_layers": 13,
-    "hidden": 4608,
-    "slots": 431,
+    "hidden": 4864,
+    "slots": 496,
     "code_dims": [
-      4179,
-      4180,
       4181,
       4182,
       4183,
@@ -22,17 +20,19 @@
       4188,
       4189,
       4190,
-      4191
+      4191,
+      4192,
+      4193
     ],
-    "tau_dim": 4114,
-    "mute_dim": 4192,
+    "tau_dim": 4115,
+    "mute_dim": 4194,
     "fit_anti_sink": true,
     "circuit": {
       "layers": 13,
-      "dims": 1031,
+      "dims": 1224,
       "heads": 27,
-      "ffn_units": 900,
-      "max_units": 184,
+      "ffn_units": 1156,
+      "max_units": 248,
       "max_heads": 16
     },
     "output_head_tied": false
@@ -122,7 +122,7 @@
         27,
         28
       ],
-      "seconds": 2.269
+      "seconds": 2.327
     },
     {
       "a": [
@@ -208,7 +208,7 @@
         201,
         200
       ],
-      "seconds": 1.701
+      "seconds": 1.768
     },
     {
       "a": [
@@ -294,7 +294,7 @@
         118,
         118
       ],
-      "seconds": 1.699
+      "seconds": 1.766
     },
     {
       "a": [
@@ -380,7 +380,7 @@
         114,
         114
       ],
-      "seconds": 1.702
+      "seconds": 1.762
     },
     {
       "a": [
@@ -466,7 +466,7 @@
         81,
         240
       ],
-      "seconds": 1.695
+      "seconds": 1.768
     },
     {
       "a": [
@@ -552,7 +552,7 @@
         196,
         248
       ],
-      "seconds": 1.692
+      "seconds": 1.766
     },
     {
       "a": [
@@ -638,7 +638,7 @@
         41,
         224
       ],
-      "seconds": 1.698
+      "seconds": 1.764
     },
     {
       "a": [
@@ -724,7 +724,7 @@
         232,
         17
       ],
-      "seconds": 1.69
+      "seconds": 1.76
     },
     {
       "a": [
@@ -810,7 +810,7 @@
         6,
         83
       ],
-      "seconds": 1.694
+      "seconds": 1.759
     },
     {
       "a": [
@@ -896,7 +896,7 @@
         32,
         99
       ],
-      "seconds": 1.681
+      "seconds": 1.749
     },
     {
       "a": [
@@ -982,7 +982,7 @@
         198,
         56
       ],
-      "seconds": 1.686
+      "seconds": 1.749
     },
     {
       "a": [
@@ -1068,7 +1068,7 @@
         16,
         211
       ],
-      "seconds": 1.682
+      "seconds": 1.75
     }
   ],
   "all_exact": true

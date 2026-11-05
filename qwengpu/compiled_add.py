@@ -1,4 +1,4 @@
-"""Eight-lane masked addition compiled into Qwen3.5 circuit IR.
+"""Eight-lane masked SIMT arithmetic compiled into Qwen3.5 circuit IR.
 
 Inputs and outputs move through raw trace tokens. Gated DeltaNet heads hold
 eight lane registers, eight B operands, masks, results, and four scratch slots
@@ -32,7 +32,8 @@ ENDIF_TOKEN = ELSE_TOKEN + 1
 STORE_BASE = ENDIF_TOKEN + 1
 SCRATCH_SLOTS = 4
 LOAD_BASE = STORE_BASE + SCRATCH_SLOTS
-VOCAB = LOAD_BASE + SCRATCH_SLOTS
+EXEC_XOR = LOAD_BASE + SCRATCH_SLOTS
+VOCAB = EXEC_XOR + 1
 CODE_BITS = (VOCAB - 1).bit_length()
 CODE_AMP = 128
 KAPPA = 2.0**-20
@@ -115,13 +116,14 @@ class AddCore(Circ):
         super().__init__(target or Target())
         f = self.token_feature
         self.is_exec = f("is_exec", lambda t: int(t == EXEC_ADD), full=True)
+        self.is_xor = f("is_xor", lambda t: int(t == EXEC_XOR), full=True)
         self.is_compare = f("is_compare",
                             lambda t: int(COMPARE_BASE <= t < ELSE_TOKEN), full=True)
         self.is_else = f("is_else", lambda t: int(t == ELSE_TOKEN), full=True)
         self.is_endif = f("is_endif", lambda t: int(t == ENDIF_TOKEN), full=True)
         self.is_store = f("is_store", lambda t: int(STORE_BASE <= t < LOAD_BASE),
                           full=True)
-        self.is_load = f("is_load", lambda t: int(LOAD_BASE <= t < VOCAB),
+        self.is_load = f("is_load", lambda t: int(LOAD_BASE <= t < EXEC_XOR),
                          full=True)
         self.is_store_slot = [f(f"is_store.{slot}",
                                 lambda t, slot=slot: int(t == STORE_BASE + slot), full=True)
@@ -169,14 +171,16 @@ def build(target: Target | None = None) -> AddCore:
     for lane in range(LANES):
         a_write = c.is_a[lane] + c.is_out_lane[lane]
         a_lanes.append(c.slot_head(f"a.{lane}", {0: a_write},
-                                   {0: c.is_exec + c.is_compare + c.is_store + c.is_load},
+                                   {0: c.is_exec + c.is_xor + c.is_compare
+                                       + c.is_store + c.is_load},
                                    {2 + bit: val for bit, val in enumerate(c.raw_byte)},
                                    a_write))
-        b_lanes.append(c.slot_head(f"b.{lane}", {0: c.is_b[lane]}, {0: c.is_exec},
+        b_lanes.append(c.slot_head(f"b.{lane}", {0: c.is_b[lane]},
+                                   {0: c.is_exec + c.is_xor},
                                    {2 + bit: val for bit, val in enumerate(c.raw_byte)},
                                    c.is_b[lane]))
     mask = c.slot_head("active_mask", {0: c.is_mask},
-                       {0: c.is_exec + c.is_compare + c.is_else
+                       {0: c.is_exec + c.is_xor + c.is_compare + c.is_else
                            + c.is_store + c.is_load},
                        {2 + bit: val for bit, val in enumerate(c.raw_mask)}, c.is_mask)
     parent = c.slot_head("parent_mask", {0: c.is_compare},
@@ -203,17 +207,24 @@ def build(target: Target | None = None) -> AddCore:
     result = []
     for lane in range(LANES):
         summed = _add8(c, a_lanes[lane], b_lanes[lane], f"sum.{lane}")
+        xored = [a_lanes[lane][bit] + b_lanes[lane][bit]
+                 - 2 * c.and_([a_lanes[lane][bit], b_lanes[lane][bit]],
+                              f"xor.{lane}.{bit}") for bit in range(8)]
         added = c.select_bits([([mask[lane]], summed),
                                ([one - mask[lane]], a_lanes[lane])],
                               8, f"added.{lane}")
+        xored = c.select_bits([([mask[lane]], xored),
+                               ([one - mask[lane]], a_lanes[lane])],
+                              8, f"xored.{lane}")
         loaded = c.select_bits([([mask[lane]], scratch_lanes[lane]),
                                 ([one - mask[lane]], a_lanes[lane])],
                                8, f"loaded.{lane}")
         result.extend(c.and_([c.is_exec, added[bit]], f"result.add.{lane}.{bit}")
+                      + c.and_([c.is_xor, xored[bit]], f"result.xor.{lane}.{bit}")
                       + c.and_([c.is_load, loaded[bit]], f"result.load.{lane}.{bit}")
                       for bit in range(8))
 
-    save_result = c.is_exec + c.is_load
+    save_result = c.is_exec + c.is_xor + c.is_load
     saved = c.slot_head("result", {0: save_result}, {0: c.is_read},
                         {2 + bit: value for bit, value in enumerate(result)}, save_result)
     selected = [sum((c.and_([c.is_read_lane[lane], saved[8 * lane + bit]],

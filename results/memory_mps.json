@@ -4,10 +4,10 @@
   "transformers": "5.19.0",
   "circuit": {
     "layers": 12,
-    "dims": 1030,
+    "dims": 1223,
     "heads": 27,
-    "ffn_units": 899,
-    "max_units": 184,
+    "ffn_units": 1155,
+    "max_units": 248,
     "max_heads": 16
   },
   "hidden": 1280,
@@ -111,7 +111,7 @@
         12,
         14
       ],
-      "seconds": 1.125
+      "seconds": 1.071
     },
     {
       "a": [
@@ -211,7 +211,7 @@
         1,
         200
       ],
-      "seconds": 1.008
+      "seconds": 0.975
     },
     {
       "a": [
@@ -311,7 +311,7 @@
         1,
         1
       ],
-      "seconds": 1.003
+      "seconds": 0.979
     },
     {
       "a": [
@@ -411,7 +411,7 @@
         252,
         252
       ],
-      "seconds": 1.011
+      "seconds": 1.03
     }
   ],
   "all_exact": true
