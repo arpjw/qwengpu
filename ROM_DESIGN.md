@@ -53,6 +53,22 @@ scratch heads can remain the starting point. The circuit must emit both lane
 results and the next state token without code collisions. Only one active
 mask is needed for straight-line Gate 1; divergent control comes later.
 
+The integration should use this order of dependencies within a `TICK`:
+PC head read, 16-way address selection, ROM head read, opcode decode, vector
+ALU or scratch operation, result-head write, and next-PC/halt output. The
+generated state token is fed back before any lane `READ` tokens. These reads
+then use the existing result head and output-token writeback. A `STORE` needs
+no lane reads; a `LOAD` does. The raw-token ranges for ROM upload, state,
+`TICK`, lane reads, and lane outputs must be disjoint, and the output code
+must still represent old mask and lane tokens exactly.
+
+Implement the integrated circuit as a separate builder first. Keep the
+current validated checkpoint and its evidence intact until the integrated
+builder passes. Compare a single loaded program in the circuit IR, then
+multiple programs with one stock model object and fresh caches, then the
+pretrained 9B merge. Inspect actual ROM, PC, lane, and scratch recurrent
+rows rather than relying only on generated tokens.
+
 QwenCPU's [dynamic ROM implementation](https://github.com/arpjw/qwencpu/blob/main/gdn_cpu/qwen8_dynamic.py)
 is a useful construction reference. The GPU circuit will need its own 11-bit
 instruction value, vector ALU routing, and output protocol. Copying the CPU
