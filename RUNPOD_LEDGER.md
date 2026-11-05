@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 3:02 p.m. Pacific.
+was November 5, 2026 at approximately 3:17 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -19,9 +19,10 @@ was November 5, 2026 at approximately 3:02 p.m. Pacific.
 | `dq1b7ch0c20s5w` | 8×8 tile engine | Pending | $0.27 |
 | `0an76y516vonqw` | Resident and indexed memory validation | Pending | $0.45 |
 | `4423pqr6lhu0mz` | Resident lane mask validation | Pending | $0.23 |
+| `cdlyro9kdlgyjp` | Resident nested divergence validation | Pending | $0.23 |
 
 Total posted is about $5.25. With pending estimates, tracked spend is
-about $6.20. All project pods are terminated and the live pod list was
+about $6.43. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -32,5 +33,10 @@ RunPod showed an empty pod list and no posted record for it.
 
 The lane mask A100 ran from about 2:54:15 p.m. to 3:02 p.m. Pacific at
 $1.79/hour. The merged Qwen3.5-9B suite passed. The pod was terminated
+after copying the report. RunPod showed an empty pod list and no posted
+record for this pod at teardown.
+
+The divergent A100 ran from about 3:09:23 p.m. to 3:17:08 p.m. Pacific
+at $1.79/hour. The merged Qwen3.5-9B suite passed. The pod was terminated
 after copying the report. RunPod showed an empty pod list and no posted
 record for this pod at teardown.

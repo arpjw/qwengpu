@@ -178,7 +178,8 @@ and merged Qwen3.5-9B. Run the suite with
 
 The divergent resident variant adds two levels of `IF_BIT`, optional
 `ELSE`, and `ENDIF` per warp. Saved predicates determine both paths,
-and reconvergence restores the saved parent mask. Run the suite with
+and reconvergence restores the saved parent mask. All eight fixtures
+match on MPS and merged Qwen3.5-9B. Run the suite with
 `python3 -m qwengpu.eval_tile8 --divergent --device mps --out divergent.json`.
 
 The independent interpreter checks traces; it does not compute model outputs.

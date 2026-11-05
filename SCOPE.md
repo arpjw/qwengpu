@@ -15,11 +15,17 @@ The masked variant adds per-warp lane masks. Inactive lanes preserve
 their registers and issue no writes. The lowest active lane wins
 scatter collisions, and a warp with an empty mask can reach a barrier.
 
-The next gate brings structured divergence into the resident engine.
-Save the parent and predicate masks so the model can execute both
-paths and restore the parent at reconvergence. Test nested branches
-and a predicate whose source accumulator changes in the first path.
-Then extend the model-selected PC with data-dependent loop control.
+The divergent variant supports two nested IF_BIT blocks per warp.
+ELSE uses the saved predicate, and ENDIF restores the parent mask.
+The fixtures exercise an empty branch, a partial parent mask, and
+accumulator changes between IF_BIT and ELSE.
+
+The next gate adds data-dependent loops to the resident engine.
+Have the model choose the loop back edge or exit from the active
+lane predicates. Verify different lane trip counts, an empty loop,
+and reconvergence when one warp exits before the other. Include a
+step-budget fixture and a kernel that combines a loop with indexed
+memory or a nested branch.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

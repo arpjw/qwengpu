@@ -385,3 +385,22 @@ their next row pair starts.
 The merge adds 16 layers, uses width 6,144, and contains 38,954,248,704
 bytes of weights. See `results/masked_mps.json` and
 `results/masked_9b_cuda_fla.json`.
+
+## Nested branches in the resident engine
+
+All eight frozen cases match across standalone MPS and merged Qwen3.5-9B
+on A100. The reports agree on 718 instruction snapshots and 726
+scheduler decisions. Each launch uses one inference cache. The earlier
+six cases retain their execution traces after accounting for the
+additional branch state. All 25 local tests passed.
+
+| Fixture | Instructions | Verified behavior |
+| --- | ---: | --- |
+| Nested branch | 128 | Two warps carry independent two-level stacks. `ELSE` uses the saved predicate after the first path changes the source accumulator. Reconvergence restores the partial parent mask. |
+| Empty nested branch | 112 | The empty inner mask suppresses indexed writes. `ENDIF` restores the outer mask without an `ELSE`, and both warps reach a barrier before gathering. |
+
+The parser rejected seven malformed control sequences, and the
+four earlier variants retained their compiler graphs and snapshot
+layouts. The merge adds 17 layers, uses width 6,400, and contains
+41,259,716,992 bytes of weights. See `results/divergent_mps.json`
+and `results/divergent_9b_cuda_fla.json`.
