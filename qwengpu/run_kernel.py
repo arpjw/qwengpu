@@ -73,13 +73,15 @@ def main() -> None:
 
     from chipformer.q35.ir import Target
 
-    from qwengpu.compiled_add import build, build_standalone
+    from qwengpu.compiled_add import VOCAB, build, build_standalone
     from qwengpu.eval_program import evaluate_case
 
     device = args.device or ("cuda" if torch.cuda.is_available() else
                              "mps" if torch.backends.mps.is_available() else "cpu")
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text(encoding="utf-8"))
+        if int(meta["chip_vocab"]) != VOCAB:
+            raise ValueError("merged checkpoint uses a different SIMT token vocabulary")
         offset = int(meta["chip_token_offset"])
         model = transformers.AutoModelForCausalLM.from_pretrained(
             args.model, dtype=torch.bfloat16).to(device).eval()
