@@ -179,6 +179,18 @@ def _parse_case(
                 links[warp] = _control_links(ops)
             programs.append(tuple(ops))
         matrix = None
+    if "expected_matrix" in data:
+        expected_matrix = data["expected_matrix"]
+        if not isinstance(expected_matrix, list) or len(expected_matrix) != 8:
+            raise ValueError("expected_matrix must contain eight rows")
+        supplied = [
+            _unsigned(row, 8, 65535, "expected_matrix row") for row in expected_matrix
+        ]
+        if matrix is not None and supplied != matrix:
+            raise ValueError(
+                "expected_matrix disagrees with the default matrix product"
+            )
+        matrix = supplied
     return {
         "a": a,
         "b": b,

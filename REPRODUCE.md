@@ -483,3 +483,32 @@ reaches the default 256-instruction budget.
   /path/to/Qwen3.5-9B-qwengpu-looping --device cuda \
   --out "$QWENGPU_DIR/results/looping_9b_cuda_fla.json"
 ```
+
+## Cooperative matrix multiply and gather
+
+The cooperative fixture runs on the looping checkpoint. Warp 0
+accumulates eight byte products into each 16-bit word of an even row
+and publishes the row with a tiled store. Warp 1 prepares indexed
+addresses from the adjacent odd row and waits at the barrier. It
+gathers the published words in a permuted column order, applies a
+divergent loop, and stores its own row.
+
+The fixture freezes the result of a separate scalar calculation.
+For even row `r` and column `j`, the result is
+`(initial_c[r, j] + sum(a[r, k] * b[k, j] for k in range(8))) % 65536`.
+For odd row `r + 1`, the initial word selects a producer address
+`64 + 8*r + j`. Starting from the published value at that address, the
+consumer adds 1 to an odd value or 2 to an even value while bit 2 is set.
+The evaluator checks this expected matrix in addition to the full
+instruction and scheduling trace.
+
+```sh
+QWENGPU_COOPERATIVE_KERNEL="$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 --looping \
+  --kernel "$QWENGPU_COOPERATIVE_KERNEL" --device mps \
+  --out "$QWENGPU_DIR/results/cooperative_matmul_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-looping \
+  --kernel "$QWENGPU_COOPERATIVE_KERNEL" --device cuda \
+  --out "$QWENGPU_DIR/results/cooperative_matmul_9b_cuda_fla.json"
+```
