@@ -25,12 +25,13 @@ the model. One checkpoint supports 16-bit arithmetic, 128 indexed
 shared words, barriers, and two levels each of branches and loops.
 Its host relays state packets and enforces a launch instruction budget.
 
-The next gate demonstrates one cooperative kernel on that checkpoint.
-Have one warp produce a tiled multiply row, publish it at a barrier,
-and have its peer gather the result and apply a data-dependent loop
-before storing a final row. Check both outputs with a scalar reference.
-Then expose the unified checkpoint through a user-facing kernel
-runner with an explicit launch and result format.
+The cooperative fixture runs a tiled multiply, barrier, indexed gather,
+and divergent loop in one launch. The producer and consumer share one
+inference cache. Their final rows agree with a separate scalar result
+on MPS and merged Qwen3.5-9B.
+
+The next gate exposes the unified checkpoint through a kernel runner
+with an explicit JSON launch and result format.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

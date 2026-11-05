@@ -426,3 +426,22 @@ contains 39,609,437,056 bytes of weights. CUDA emitted an allocator
 warning about insufficient free VRAM during the longest case. The case
 completed with an exact trace. Reports are `results/looping_mps.json`
 and `results/looping_9b_cuda_fla.json`.
+
+## Cooperative tiled multiply and gather
+
+The looping checkpoint ran one cooperative kernel on standalone MPS
+and merged Qwen3.5-9B on A100. The platforms produced identical traces
+for 132 instructions and 133 scheduler decisions. Both matched the
+separate scalar calculation for all 64 output words, including 30
+producer sums that wrap at 16 bits.
+
+Warp 0 published 32 tiled multiply words across four row pairs. The
+scheduler released four barriers. Every one of warp 1's 32 gathers
+read the updated peer word at its selected address. Its lanes took
+zero, one, or two loop iterations according to the gathered values.
+The launch used one cache, 512 initial memory tokens, and 256 tagged
+writes. All 25 local tests passed.
+
+Reports are `results/cooperative_matmul_mps.json` and
+`results/cooperative_matmul_9b_cuda_fla.json`. The merge metadata
+matches the checkpoint used for the data-dependent loop gate.
