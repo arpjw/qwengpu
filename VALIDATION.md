@@ -224,3 +224,25 @@ matched the standalone MPS run in `results/resume_mps_49.json`. All 21 existing
 local tests passed. The H100 pod was terminated after about 8 minutes 20
 seconds at $3.99/hour, an estimated $0.55 for this experiment. No charge had
 posted for that pod at the teardown check.
+
+## Extended integer ISA
+
+The frozen gather-and-multiply kernel passed on standalone MPS and merged
+Qwen3.5-9B on H100 with optimized DeltaNet. Their 25 control tokens,
+444-bit snapshots, and single handoff match each other and the independent
+interpreter. R1 crosses the fresh-cache boundary before it is used for
+indexed loads and multiplication. Six active lanes gather across all four
+scratch banks, and the other two keep their prior R0 values. Lane 7 uses
+R1 = 255 to address byte 31 and multiply by 255 modulo 256. Final R0 values
+are `[0, 249, 136, 240, 208, 175, 176, 93]`.
+
+The compiler verified all 65,536 unsigned byte products modulo 256, and all
+22 local tests passed. The merged checkpoint uses hidden width 5,632 and
+adds 86 layers, including its exit marker. It contains 77,749,919,488 bytes
+of weights. The fixture uses banked stores to populate scratch. The new
+indexed instruction is a load.
+
+Reports are `results/isa_mps.json` and `results/isa_9b_cuda_fla.json`.
+The H100 pod was terminated after about 6 minutes 19 seconds at $3.99/hour,
+an estimated $0.42 for this run. Its billing read had no posted records
+at teardown, and the live pod list was empty.
