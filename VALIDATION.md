@@ -145,4 +145,19 @@ All 17 local tests pass. The parallel carry adder was checked on all 65,536
 byte pairs in the compiler's exact evaluator.
 `results/writeback_cuda_fla.json` repeats the same seven inputs on optimized
 CUDA DeltaNet with reference causal convolution. All generated tokens,
-intermediate snapshots, PC state, and ROM rows match. The 9B check is pending.
+intermediate snapshots, PC state, and ROM rows match.
+`results/writeback_9b_cuda_fla.json` repeats all seven inside the pretrained
+9B merge, also exactly. All three runs have identical fixture hashes and
+complete machine traces. The merged checkpoint adds 52 chip layers, has
+hidden size 5,120, and stores 52,118,362,112 bytes of BF16 weights.
+`results/textcheck_writeback_9b_cuda.json` compares the same six fixed text
+prompts. All six keep the same next top token; five keep the same first four
+greedy tokens. The Moon continuation changes, and maximum absolute next-logit
+difference is 0.25. This is a small fresh-cache integration check, not broad
+language fidelity or text-after-execution validation.
+
+The writeback validation used a replacement pod after the first pod failed
+to expose a runtime/SSH within about five minutes. Both were terminated.
+The live pod list is empty. At $2.49/hour, the failed boot projects about
+$0.21 and the successful pod about $0.43 of GPU time. Neither had posted
+billing records at the final read. These are projections, not final charges.

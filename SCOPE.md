@@ -47,7 +47,7 @@ See [VALIDATION.md](VALIDATION.md) for exact evidence and limits.
 Gate 1 passed on standalone MPS, optimized CUDA, and the pinned 9B merge. The bounded
 writeback variant now passes seven frozen programs on MPS, using 16
 instruction stages in model depth. It also passed the same seven programs
-on optimized CUDA. This removes lane feedback but does not
+on optimized CUDA and inside the 9B merge. This removes lane feedback but does not
 provide cyclic state reuse. See WRITEBACK_DESIGN.md for the architecture and
 the next bounded-control-flow design constraint. QwenCPU's dynamic ROM shows a possible
 Gated DeltaNet encoding, but the GPU circuit needs its own instruction format

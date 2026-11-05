@@ -91,11 +91,14 @@ TICK. See [ROM_DESIGN.md](ROM_DESIGN.md).
 
 A separate [bounded writeback circuit](WRITEBACK_DESIGN.md) now runs with
 only TICK and generated-state feedback after upload. Its seven frozen
-programs pass on stock MPS and optimized CUDA, including all 51 intermediate
+programs pass on stock MPS, optimized CUDA, and the pretrained 9B merge,
+including all 51 intermediate
 register/scratch
 snapshots. It uses 51 layers and 58 heads by unrolling 16 instruction stages
 in depth. This removes lane feedback for bounded straight-line programs;
-cyclic register reuse and loops remain open. Run a supported kernel with:
+cyclic register reuse and loops remain open. The 9B checkpoint adds an exit
+layer and contains about 52.1 GB of weights. Its six-prompt text check kept
+6/6 next tokens and 5/6 four-token continuations. Run a supported kernel with:
 
 ```sh
 python3 -m qwengpu.eval_writeback --device mps \

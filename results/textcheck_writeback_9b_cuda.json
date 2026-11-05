@@ -1,0 +1,119 @@
+{
+  "device": "cuda",
+  "torch": "2.14.1+cu130",
+  "transformers": "5.19.0",
+  "prompts_sha256": "b42644e4f9da377da578cadbfe6d0da35b9bf6702d8f2493e29714ad0283e0ab",
+  "prompt_count": 6,
+  "records": [
+    {
+      "prompt": "Hello! Tell me one interesting fact about the Moon.",
+      "next_top1_same": true,
+      "next_max_abs_logit_difference": 0.1875,
+      "greedy_four_identical": false,
+      "base_greedy_ids": [
+        8160,
+        369,
+        449,
+        6821
+      ],
+      "merged_greedy_ids": [
+        8160,
+        369,
+        264,
+        25450
+      ]
+    },
+    {
+      "prompt": "Write a Python function that reverses a list without changing the original.",
+      "next_top1_same": true,
+      "next_max_abs_logit_difference": 0.25,
+      "greedy_four_identical": true,
+      "base_greedy_ids": [
+        71093,
+        12305,
+        198,
+        727
+      ],
+      "merged_greedy_ids": [
+        71093,
+        12305,
+        198,
+        727
+      ]
+    },
+    {
+      "prompt": "What is the difference between a mutex and a semaphore?",
+      "next_top1_same": true,
+      "next_max_abs_logit_difference": 0.1875,
+      "greedy_four_identical": true,
+      "base_greedy_ids": [
+        20003,
+        2972,
+        21670,
+        287
+      ],
+      "merged_greedy_ids": [
+        20003,
+        2972,
+        21670,
+        287
+      ]
+    },
+    {
+      "prompt": "Explain why ice floats on liquid water.",
+      "next_top1_same": true,
+      "next_max_abs_logit_difference": 0.1875,
+      "greedy_four_identical": true,
+      "base_greedy_ids": [
+        760,
+        2781,
+        9561,
+        46303
+      ],
+      "merged_greedy_ids": [
+        760,
+        2781,
+        9561,
+        46303
+      ]
+    },
+    {
+      "prompt": "Continue this JSON object with one field: {\"status\": \"ok\"",
+      "next_top1_same": true,
+      "next_max_abs_logit_difference": 0.25,
+      "greedy_four_identical": true,
+      "base_greedy_ids": [
+        4754,
+        2738,
+        763,
+        328
+      ],
+      "merged_greedy_ids": [
+        4754,
+        2738,
+        763,
+        328
+      ]
+    },
+    {
+      "prompt": "The caf\u00e9 opened in \u6771\u4eac. Describe the scene in English.",
+      "next_top1_same": true,
+      "next_max_abs_logit_difference": 0.25,
+      "greedy_four_identical": true,
+      "base_greedy_ids": [
+        45,
+        467,
+        806,
+        303
+      ],
+      "merged_greedy_ids": [
+        45,
+        467,
+        806,
+        303
+      ]
+    }
+  ],
+  "next_top1_same": 6,
+  "greedy_four_identical": 5
+}

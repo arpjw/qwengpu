@@ -61,8 +61,11 @@ design to 51 and passed all 65,536 byte pairs in the exact compiler evaluator.
 All 17 local tests pass. The seven frozen writeback programs passed on MPS:
 51 generated state tokens, 51 intermediate 40-byte register/scratch snapshots,
 retained PC state, and final ROM rows all match the independent interpreter.
-Execution uses two token calls per instruction after upload. CUDA and 9B
-status is recorded in VALIDATION.md. Source and MPS evidence are pushed.
+Execution uses two token calls per instruction after upload. All seven also
+passed on optimized CUDA and inside the pretrained 9B merge, with identical
+complete traces across the three runs. The merge adds 52 chip layers, uses
+hidden size 5,120, and has 52,118,362,112 bytes of weights. This removes token
+feedback by increasing model depth; it does not establish acceleration.
 
 ## Current boundary
 
@@ -92,11 +95,25 @@ first four greedy tokens on 5/6. The Moon continuation changed. Maximum
 absolute next-logit difference was 0.2734375. This is a small integration
 check; text fidelity and text after an execution trace remain open.
 
-Both task-created Runpod pods are terminated, and the live pod list is empty.
-The first pod has posted billing of $2.2022584788501263, including GPU and disk.
-The ROM continuation pod existed from November 5, 10:50:42 to about 11:02:15
-Pacific at the quoted $2.49/hour, approximately $0.48 of GPU time. Its billing
-query had no records immediately after termination, so $0.48 is an estimate,
-not a posted charge. Combined posted first-pod billing plus that estimate is
-about $2.68, below the approved $74 ceiling. Model weights were temporary;
-source, pinned revisions, and result reports are saved in the private repo.
+## Writeback text and final compute state
+
+The writeback merge kept the next top token on 6/6 fixed prompts and the
+first four greedy tokens on 5/6. The Moon continuation changed. Maximum
+absolute next-logit difference was 0.25. Text used fresh caches; language
+after machine execution and broad language fidelity remain open.
+
+All four task-created Runpod pods are terminated. The final live pod list was
+empty. First-pod posted billing is $2.2022584788501263. Later-pod GPU-time
+projections at the quoted $2.49/hour are:
+
+| Stage | Pacific time on November 5 | GPU-time projection |
+| --- | --- | ---: |
+| ROM integration | 10:50:42 to about 11:02:15 | $0.48 |
+| Failed writeback pod boot | 11:09:55 to about 11:15:00 | $0.21 |
+| Successful writeback validation | 11:15:10 to about 11:25:27 | $0.43 |
+
+The later pods had no posted billing records at their latest reads. Adding
+these rate projections to first-pod posted billing gives about $3.32 before
+any later disk billing, below the approved $74 ceiling. This is not a final
+invoice. Weights were temporary; source, pinned revisions, fixture hashes,
+and result reports are saved in the private repository.

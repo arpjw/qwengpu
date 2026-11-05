@@ -127,7 +127,8 @@ is larger than the earlier host-dispatched variant.
 ## Bounded internal writeback variant
 
 Use a separate checkpoint directory for each circuit variant. The writeback
-builder unrolls 16 instruction stages, increasing layer depth while removing
+builder unrolls 16 instruction stages (51 circuit layers; 52 in the merge),
+increasing layer depth while removing
 all lane READ/result-feedback tokens. See [WRITEBACK_DESIGN.md](WRITEBACK_DESIGN.md).
 
 ```sh
@@ -151,3 +152,10 @@ The default executes the seven frozen gate inputs using one model object.
 For an ephemeral CUDA pod, `scripts/bootstrap_runpod.sh` installs the pinned
 compiler/environment and downloads the pinned source model. Transfer the
 project source separately. This script does not provision compute.
+
+
+The measured writeback checkpoint has 52,118,362,112 bytes of weights and
+hidden size 5,120. A 100 GB ephemeral container disk held both the source
+snapshot and merged checkpoint. The build/evaluation used a 96 GB GPU.
+Set `OMP_NUM_THREADS=8 MKL_NUM_THREADS=8` to reproduce the recorded 9B process
+thread settings. The CUDA standalone run used the environment defaults.

@@ -56,5 +56,8 @@ retained PC state, and final ROM rows. All programs reuse one model object
 with fresh caches. Fixture SHA-256 hashes are included in result reports.
 
 The compiler, stock MPS model, and optimized CUDA model passed all seven.
-The pretrained 9B status is recorded in VALIDATION.md. Existing ROM and divergent builders
+The pretrained 9B merge also passed all seven on CUDA, with identical traces
+to the standalone runs. It uses 52 chip layers including the exit marker,
+hidden size 5,120, and 52,118,362,112 bytes of weights. Full result reports
+and the text comparison are in VALIDATION.md. Existing ROM and divergent builders
 remain available as separate variants with their own evidence.
