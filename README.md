@@ -27,6 +27,8 @@ raw instructions and read requests; it does not calculate the model's results.
 | Standalone stock Qwen3.5 on CUDA with optimized DeltaNet | The same seven suites exact; causal convolution used the reference kernel |
 | Pretrained Qwen3.5-9B merge on CUDA | 12/12 divergent, 12/12 scratch, 12/12 ADD/XOR, and 12/12 mixed programs exact, including generated tokens and scratch-state inspection |
 | Exploratory 9B mixed-program stress check | 100/100 seeded programs exact, including generated tokens and scratch-state inspection |
+| Separate 16-slot ROM feasibility spike on MPS | One stock model fetched three different uploaded instruction sequences, generated PC updates, and retained exact ROM state |
+| Example JSON kernel on MPS | A host-dispatched mixed program and final lane probe matched the independent interpreter |
 | Fixed text check on merged 9B | 6/6 prompts kept the same next token; 5/6 kept the same first four greedy tokens |
 
 These are small, fixed execution and integration checks. The circuit uses 27
@@ -51,7 +53,16 @@ python3 -m qwengpu.eval_branch --device mps --out results/branch_mps.json
 python3 -m qwengpu.eval_memory --device mps --out results/memory_mps.json
 python3 -m qwengpu.eval_alu --device mps --out results/alu_mps.json
 python3 -m qwengpu.eval_program --device mps --out results/program_mps.json
+python3 -m qwengpu.eval_rom_spike --device mps --out results/rom_spike_mps.json
+python3 -m qwengpu.run_kernel examples/mixed_kernel.json --device mps \
+  --out results/example_kernel_mps.json
 ```
+
+`run_kernel` accepts an initial eight-byte lane vector and up to 64
+instructions in JSON. It validates the supported one-level branch and
+four-slot scratch subset. The example ends with lane values
+`[1, 2, 3, 4, 5, 6, 7, 8]`. Pass `--model` with a rebuilt 9B checkpoint to
+use the pretrained merge.
 
 The next gates are program memory and instruction fetch, internal register
 writeback, nested divergence, larger memory, and larger held-out
@@ -59,7 +70,8 @@ program suites. The reference interpreter checks model traces and is not used
 to compute the model's outputs. The current one-level branch trace is driven by
 host-supplied raw instruction tokens, so this is a SIMT circuit prototype and
 not yet a self-contained programmable GPU. See [SCOPE.md](SCOPE.md) for the
-next gates and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands.
+next gates, [ROM_DESIGN.md](ROM_DESIGN.md) for the isolated fetch experiment,
+and [REPRODUCE.md](REPRODUCE.md) for pinned inputs and commands.
 
 Model weights are not stored in this repository. The Python code is MIT
 licensed; Qwen3.5 weights remain under their own license.

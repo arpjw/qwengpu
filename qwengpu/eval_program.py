@@ -33,7 +33,8 @@ def program_for(threshold: int, then_add: int, else_xor: int,
 
 @torch.no_grad()
 def evaluate_case(model, circuit, initial: tuple[int, ...],
-                  program: tuple[Instruction, ...], device: str, offset: int = 0) -> dict:
+                  program: tuple[Instruction, ...], device: str, offset: int = 0,
+                  probe_final: bool = False) -> dict:
     start = time.monotonic()
     prefix = [load_a(lane, value) for lane, value in enumerate(initial)]
     prefix.append(mask_token(255))
@@ -86,6 +87,20 @@ def evaluate_case(model, circuit, initial: tuple[int, ...],
                 expect_output(read_lane(lane), out_token(lane, value))
         state = next_state
 
+    final_probe = None
+    if probe_final:
+        feed(mask_token(255))
+        for lane in range(LANES):
+            feed(load_b(lane, 0))
+        feed(EXEC_XOR)
+        final_probe = []
+        for lane, value in enumerate(state.lanes):
+            observed = feed(read_lane(lane))
+            final_probe.append(observed)
+            generated.append(observed)
+            expected.append(out_token(lane, value))
+            feed(observed)
+
     observed_scratch = [scratch_snapshot(cache, circuit, slot)
                         for slot in range(SCRATCH_SLOTS)]
     expected_scratch = [
@@ -99,6 +114,7 @@ def evaluate_case(model, circuit, initial: tuple[int, ...],
             "tokens_exact": generated == expected,
             "scratch_exact": observed_scratch == expected_scratch,
             "exact": generated == expected and observed_scratch == expected_scratch,
+            "final_probe": final_probe,
             "final_lanes": state.lanes,
             "seconds": round(time.monotonic() - start, 3)}
 

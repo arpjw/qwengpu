@@ -28,6 +28,8 @@ bytes per lane. Instruction fetch remains open.
 | `results/alu_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_cuda_fla.json` | Pretrained Qwen3.5-9B merge, optimized CUDA DeltaNet | 12 | 12 exact |
 | `results/program_9b_stress_cuda_fla.json` | Pretrained Qwen3.5-9B merge, exploratory seeded mixed programs | 100 | 100 exact |
+| `results/rom_spike_mps.json` | Separate 16-slot stock Qwen3.5 ROM circuit on MPS | 3 programs | 3 exact |
+| `results/example_kernel_mps.json` | JSON kernel runner on standalone Qwen3.5, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 
 The 9B branch suite compares every generated mask and lane-result token against
 the expected execution. The memory suites compare generated lane tokens and
@@ -47,6 +49,18 @@ seeded inputs and operands after the 12-case suite. All 100 generated-token
 traces and final scratch snapshots matched the reference. This was an
 exploratory extension, not a separately held-out test or a statistical
 reliability estimate.
+
+The ROM spike is a separate two-head, three-layer circuit. One stock model
+object loaded three different 16-slot instruction payload sequences into
+fresh caches. Every generated instruction and next-PC token matched, and
+the actual recurrent ROM and PC rows contained the expected bits. The
+highest 11-bit payload and address 15 were exercised. This does not yet fetch or execute
+instructions in the SIMT circuit, and it has not been checked on CUDA.
+
+The JSON runner validates one-level programs before dispatching raw tokens to
+the compiled circuit. Its example program passed on MPS and used a final
+zero-XOR probe to read every lane after `HALT`. The host still dispatches
+individual instructions.
 
 `results/textcheck_9b_cuda.json` compares six fixed text prompts between the
 base and merged 9B models. All six kept the same next top token, and five kept

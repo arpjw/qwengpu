@@ -1,9 +1,13 @@
 # First reusable kernel ROM design
 
-This is the next proposed circuit, not implemented in the current checkpoint.
-The existing circuit uses host-supplied instruction tokens. The ROM design
-would let a single set of model weights execute different uploaded programs
-in separate inference caches.
+This is the proposed integration design. The current SIMT checkpoint uses
+host-supplied instruction tokens. A separate [16-slot ROM spike](qwengpu/rom_spike.py)
+already demonstrated uploaded instruction payloads, a model-held PC, and
+model-generated instruction and next-PC tokens on stock Qwen3.5 with MPS.
+Its three programs and recurrent ROM snapshots passed in
+[`results/rom_spike_mps.json`](results/rom_spike_mps.json). It does not yet
+drive the SIMT ALU or run on CUDA. The integration below would let one set
+of model weights execute different uploaded programs in separate caches.
 
 ## Bounded instruction format
 

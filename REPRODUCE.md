@@ -27,6 +27,11 @@ export PYTHONPATH="$QWENPUTER_DIR:$QWENGPU_DIR"
   --device mps --out "$QWENGPU_DIR/results/alu_mps.json"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_program \
   --device mps --out "$QWENGPU_DIR/results/program_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_rom_spike \
+  --device mps --out "$QWENGPU_DIR/results/rom_spike_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
+  "$QWENGPU_DIR/examples/mixed_kernel.json" --device mps \
+  --out "$QWENGPU_DIR/results/example_kernel_mps.json"
 ```
 
 Use `--device cuda` on a CUDA host. For the optimized DeltaNet path, install
