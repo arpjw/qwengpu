@@ -35,7 +35,8 @@ decisive experiment. Exact evidence and reproduction commands are in
   model object and fresh caches. It generated 3,100 exact instruction/PC
   tokens and retained 1,600 exact ROM rows.
 - Six fixed text prompts kept the same next top token after the 9B merge;
-  five kept the same first four greedy tokens. One continuation changed.
+  five kept the same first four greedy tokens. One continuation changed, and
+  the maximum absolute next-logit difference across prompts was 0.25.
 
 ## Current boundary
 

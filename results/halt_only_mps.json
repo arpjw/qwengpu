@@ -1,0 +1,156 @@
+{
+  "device": "mps",
+  "model": "standalone",
+  "circuit": {
+    "layers": 12,
+    "dims": 1223,
+    "heads": 27,
+    "ffn_units": 1155,
+    "max_units": 248,
+    "max_heads": 16
+  },
+  "initial": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "program": [
+    {
+      "op": "HALT",
+      "arg": 0
+    }
+  ],
+  "generated": [
+    4608,
+    4865,
+    5122,
+    5379,
+    5636,
+    5893,
+    6150,
+    6407
+  ],
+  "expected": [
+    4608,
+    4865,
+    5122,
+    5379,
+    5636,
+    5893,
+    6150,
+    6407
+  ],
+  "observed_scratch": [
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "expected_scratch": [
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  ],
+  "tokens_exact": true,
+  "scratch_exact": true,
+  "exact": true,
+  "final_probe": [
+    4608,
+    4865,
+    5122,
+    5379,
+    5636,
+    5893,
+    6150,
+    6407
+  ],
+  "final_lanes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "seconds": 0.654
+}

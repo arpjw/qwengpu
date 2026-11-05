@@ -36,6 +36,7 @@ bytes per lane. Integrated instruction fetch remains open.
 | `results/example_kernel_mps.json` | JSON kernel runner on standalone Qwen3.5, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/no_else_kernel_mps.json` | JSON kernel runner with IF/ENDIF and no ELSE, MPS | 1 program | Exact tokens, scratch, and final lane probe |
 | `results/masked_overwrite_mps.json` | JSON kernel runner with masked overwrite of one scratch slot, MPS | 1 program | Exact tokens, scratch, and final lane probe |
+| `results/halt_only_mps.json` | JSON kernel runner with immediate HALT, MPS | 1 program | Initial lanes and empty scratch probed exactly |
 
 `results/standalone_cuda.json` and `results/predicate_cuda.json` are retained
 from the earlier 18-head arithmetic circuit. The current-circuit CUDA reports
@@ -91,11 +92,14 @@ zero-XOR probe to read every lane after `HALT`. The host still dispatches
 individual instructions. Two more exploratory examples passed: an `IF_LT` and
 `ENDIF` branch without `ELSE`, and a masked overwrite of one scratch slot
 followed by a full-mask LOAD.
+An immediate-HALT input also passed the final zero-XOR lane probe with no
+earlier arithmetic and empty scratch.
 
 `results/textcheck_9b_cuda.json` compares six fixed text prompts between the
 base and merged 9B models. All six kept the same next top token, and five kept
 the same first four greedy tokens. On the Moon prompt, the third generated
-token changed. This does not establish broad language fidelity. Text after a
+token changed. The maximum absolute next-logit difference across prompts was
+0.25. This does not establish broad language fidelity. Text after a
 SIMT trace was not tested; QwenCPU previously needed separate caches for text
 handoff, so that remains the starting design for QwenGPU's future text bridge.
 

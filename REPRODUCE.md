@@ -48,6 +48,9 @@ export PYTHONPATH="$QWENPUTER_DIR:$QWENGPU_DIR"
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
   "$QWENGPU_DIR/examples/masked_overwrite_kernel.json" --device mps \
   --out "$QWENGPU_DIR/results/masked_overwrite_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_kernel \
+  "$QWENGPU_DIR/examples/halt_only_kernel.json" --device mps \
+  --out "$QWENGPU_DIR/results/halt_only_mps.json"
 ```
 
 Use `--device cuda` on a CUDA host. For the optimized DeltaNet path, install

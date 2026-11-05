@@ -73,6 +73,8 @@ checks above used the evaluator directly.
 that reconverges without an `ELSE`.
 [`examples/masked_overwrite_kernel.json`](examples/masked_overwrite_kernel.json)
 shows masked writes preserving inactive lanes in the same scratch slot.
+[`examples/halt_only_kernel.json`](examples/halt_only_kernel.json) checks the
+zero-work boundary.
 
 The next gates are program memory and instruction fetch, internal register
 writeback, nested divergence, larger memory, and larger held-out
