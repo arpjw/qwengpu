@@ -179,5 +179,25 @@ with fresh caches, using an H100 and optimized DeltaNet. All checks pass;
 causal convolution uses the reference implementation. All 21 local tests
 pass, including exhaustive byte-add and unsigned-comparison checks over
 65,536 pairs each. These are bounded fixtures, not exhaustive program-level
-correctness. The control circuit has 69 layers and 75 heads. Its 9B merge
-and text checks are pending. See CONTROL_DESIGN.md for semantics and limits.
+correctness. The control circuit has 69 layers and 75 heads. `results/control_9b_cuda_fla.json` repeats all 14 inside the pinned pretrained
+Qwen3.5-9B merge. All 130 generated tokens and intermediate snapshots match,
+and all fixture hashes and complete traces are identical across MPS,
+standalone CUDA, and 9B CUDA. Execution uses 260 single-token calls and no
+lane feedback. Thirteen programs halt; one expected exhaustion verifies the
+bound. The checkpoint adds 70 chip layers, uses hidden size 5,120, and has
+61,946,385,152 bytes of weights. The text check is recorded below. See CONTROL_DESIGN.md for semantics and limits.
+
+
+`results/textcheck_control_9b_cuda.json` compares the same six fixed text
+prompts against the source 9B model on H100. All six next top tokens match;
+five first-four-token continuations match. The Moon continuation changes.
+Maximum absolute next-logit difference is 0.3203125. This is a small fresh-cache
+text integration check; broad language fidelity and text after execution
+remain untested.
+
+The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
+8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
+records immediately after termination. The source/results were copied first,
+and the final live pod list was empty. Combining first-pod posted billing
+with later-pod GPU-time projections gives about $4.06 total before any later
+disk billing, below the approved $74 ceiling. This is not a final invoice.

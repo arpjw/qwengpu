@@ -89,5 +89,13 @@ depths, and exhaustion. The first 13 and the supplemental combined-depth case
 passed on MPS in separate runs. Together they contain 130 executed
 instructions. The unsigned byte comparison and byte adder each passed all
 65,536 input pairs in the compiler evaluator. All 21 local tests pass.
-CUDA and 9B evidence is recorded in VALIDATION.md. These bounded checks do not
+The same 14 cases passed on standalone optimized CUDA and inside the 9B
+merge, with identical complete traces across platforms. The merge adds 70
+chip layers, uses hidden size 5,120, and contains 61,946,385,152 bytes of
+weights. Full evidence and text checks are recorded in VALIDATION.md. These bounded checks do not
 establish correctness for every valid program or an acceleration result.
+
+
+The six-prompt fresh-cache text check kept 6/6 next top tokens and 5/6
+four-token continuations. One continuation changed; maximum next-logit
+difference was 0.3203125. Text after machine execution remains untested.

@@ -187,3 +187,10 @@ sets `expected_outcome` to `exhausted`. In either case, the report retains the
 trace and distinguishes correct execution from successful halting. The MPS
 reports recorded the first 13 cases together and the later combined-depth
 fixture separately; the default command now runs all 14.
+
+
+The control merge was built and checked on an H100 with 80 GB VRAM and
+251 GB host RAM. A 120 GB temporary container disk held source and merged
+checkpoints. The merged weights total 61,946,385,152 bytes. The quoted secure
+pod rate was $3.99/hour. GPU and disk were terminated after reports were
+copied; weights are rebuilt from source and are not in this repository.

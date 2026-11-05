@@ -67,26 +67,41 @@ complete traces across the three runs. The merge adds 52 chip layers, uses
 hidden size 5,120, and has 52,118,362,112 bytes of weights. This removes token
 feedback by increasing model depth; it does not establish acceleration.
 
+## Loops and divergent control continuation
+
+The separate `compiled_control` variant adds data-dependent WHILE loops and
+two levels each of IF and loop stacks. A model-generated token carries PC
+and execution step separately. A backward PC jump therefore reads updated
+state from the previous execution stage. Registers, scratch, masks, and both
+stacks use internal writeback; no lane tokens are fed back. The control
+circuit has 69 layers and 75 heads. Fourteen frozen cases pass on MPS and
+optimized H100 CUDA, covering 130 executed instructions. Thirteen HALT and
+one intentionally exhausts the 16-step budget. All intermediate machine
+snapshots, generated control tokens, and retained ROM/link rows match.
+All 21 local tests pass, including exhaustive byte-add and comparison checks.
+The same 14 cases also passed inside the pinned pretrained 9B merge, with
+identical complete traces across all three platforms. The merge adds 70
+chip layers, uses hidden size 5,120, and has 61,946,385,152 bytes of weights.
+Current text and compute evidence is recorded below.
+
 ## Current boundary
 
-The original divergent circuit still receives raw instructions from the host.
-The ROM circuits fetch straight-line instructions from recurrent model state.
-The newest variant writes results internally, using a separate snapshot for
-each instruction position. It supports up to 16 instructions; it cannot
-revisit an earlier stage with updated registers. There is one warp, byte
-arithmetic, and 32 scratch bytes. No acceleration has been established.
-Text after an execution trace and broad language fidelity remain open.
+The latest variant supports a 16-slot ROM, at most 16 executed instructions,
+eight byte lanes, 32 scratch bytes, and two frames in each control stack.
+Branches and data-dependent loops can nest and combine. Exhaustion is a
+separate outcome, not successful HALT. The state pipeline remains bounded in
+model depth; increasing the step limit adds depth and requires more step
+bits. There are no arbitrary jumps, reductions, or multiple warps. No
+acceleration or broad language fidelity has been established. Text after
+an execution trace remains untested.
 
 ## Next decisive gate
 
-Separate execution-stage identity from program address, then add bounded
-control flow. Each stage must carry registers, scratch, active mask, and
-branch-stack state forward even when a branch changes the PC. Freeze nested
-empty/full/mixed-mask cases and inspect every intermediate state. Compare
-standalone MPS, optimized CUDA, and the pinned 9B merge. Measure the depth,
-weight, cache, token, and latency costs before increasing the execution budget.
-Simply making the current PC jump backwards would read stale state.
-See WRITEBACK_DESIGN.md for the construction and its limit.
+Increase the execution budget only after measuring weight/cache/latency
+costs. Add larger frozen and exploratory program suites with independently
+specified outcomes, including longer divergent loops. Then pursue warp and
+memory scaling and a measured text-cache handoff. The current bounded loop
+and nested-control construction is specified in CONTROL_DESIGN.md.
 
 ## Text and compute after ROM integration
 
@@ -102,7 +117,7 @@ first four greedy tokens on 5/6. The Moon continuation changed. Maximum
 absolute next-logit difference was 0.25. Text used fresh caches; language
 after machine execution and broad language fidelity remain open.
 
-All four task-created Runpod pods are terminated. The final live pod list was
+All five task-created Runpod pods are terminated. The final live pod list was
 empty. First-pod posted billing is $2.2022584788501263. Later-pod GPU-time
 projections at the quoted $2.49/hour are:
 
@@ -111,9 +126,20 @@ projections at the quoted $2.49/hour are:
 | ROM integration | 10:50:42 to about 11:02:15 | $0.48 |
 | Failed writeback pod boot | 11:09:55 to about 11:15:00 | $0.21 |
 | Successful writeback validation | 11:15:10 to about 11:25:27 | $0.43 |
+| Control H100 validation ($3.99/hour) | 11:37:27 to about 11:48:36 | $0.74 |
 
 The later pods had no posted billing records at their latest reads. Adding
-these rate projections to first-pod posted billing gives about $3.32 before
+these rate projections to first-pod posted billing gives about $4.06 before
 any later disk billing, below the approved $74 ceiling. This is not a final
 invoice. Weights were temporary; source, pinned revisions, fixture hashes,
 and result reports are saved in the private repository.
+
+
+## Control text check
+
+The control merge kept the next top token on 6/6 fixed prompts and the first
+four greedy tokens on 5/6. The Moon continuation changed. Maximum absolute
+next-logit difference was 0.3203125. These use fresh text caches. Complete
+control traces and fixture hashes match across MPS, standalone H100 CUDA,
+and merged Qwen3.5-9B H100 CUDA. GPU resources are terminated and all source
+and evidence are saved in the private repository.

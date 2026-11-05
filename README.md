@@ -109,9 +109,11 @@ The [control circuit](CONTROL_DESIGN.md) now supports nested IF/ELSE/ENDIF
 and data-dependent WHILE_LT/ENDWHILE loops. It carries a separate execution
 step and PC, so backward jumps use updated register state. Both branch and
 loop stacks support depth two, including simultaneously. Fourteen fixed cases
-pass on MPS and optimized CUDA: 13 halt and one deliberately exhausts the
+pass on MPS, optimized CUDA, and inside pretrained Qwen3.5-9B: 13 halt and one deliberately exhausts the
 16-step budget. Every instruction's machine snapshot is checked. It uses
-69 circuit layers and zero lane feedback. Try a loop kernel with:
+69 circuit layers and zero lane feedback. Its 9B merge adds an exit layer,
+contains about 61.95 GB of weights, and kept 6/6 next tokens and 5/6 short
+continuations in the fixed text check. Try a loop kernel with:
 
 ```sh
 python3 -m qwengpu.eval_control --device mps \
