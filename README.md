@@ -120,9 +120,12 @@ python3 -m qwengpu.eval_control --device mps \
   --kernel eval/frozen/control_gate_v1/if_inside_loop.json --out control.json
 ```
 
-The 16-step execution limit includes control operations and HALT. Exhaustion
-is an explicit outcome. Larger execution budgets, broader program checks,
-warp/memory scale, and text after machine execution remain future work.
+The resume variant repeats 16-step windows on one fixed checkpoint. It
+exports live warp state as tokens and reloads them into a fresh cache with
+the original ROM. The host relays the tokens unchanged. Merged Qwen3.5-9B
+ran a divergent scratch loop for 1,082 instructions across 68 windows and
+matched the interpreter at every step. Larger kernels and multiple warps
+remain future work.
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

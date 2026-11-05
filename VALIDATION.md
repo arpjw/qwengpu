@@ -201,3 +201,26 @@ records immediately after termination. The source/results were copied first,
 and the final live pod list was empty. Combining first-pod posted billing
 with later-pod GPU-time projections gives about $4.06 total before any later
 disk billing, below the approved $74 ceiling. This is not a final invoice.
+
+## Long execution with model-generated handoffs
+
+`results/resume_9b_cuda_fla.json` records the frozen divergent scratch loop
+on one fixed Qwen3.5-9B checkpoint with 70 added layers, including the exit
+marker. It halted after 1,082 instructions across 68 windows. All 1,082
+generated control tokens and cached 380-bit snapshots matched an uninterrupted
+interpreter. All 67 handoffs also matched, including their 48 snapshot tokens
+and the model-generated restart PC. Twenty-nine handoffs carried two live
+branch frames, 63 carried a live loop frame, and 14 resumed at a scratch load.
+Final lane values were `[72, 72, 72, 72, 72, 72, 72, 255]`.
+
+The host replays the same ROM and link uploads plus the generated checkpoint
+tokens into a fresh cache. The interpreter and cache reads only verify the
+result. The run therefore demonstrates reuse through token handoff. Keeping
+live state entirely inside one model cache across windows remains open.
+
+The H100 run took 180.457 seconds for 1,149 forward calls, including trace
+inspection and kernel warm-up. The first 49 steps and three handoffs also
+matched the standalone MPS run in `results/resume_mps_49.json`. All 21 existing
+local tests passed. The H100 pod was terminated after about 8 minutes 20
+seconds at $3.99/hour, an estimated $0.55 for this experiment. No charge had
+posted for that pod at the teardown check.

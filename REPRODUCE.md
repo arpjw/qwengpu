@@ -194,3 +194,30 @@ The control merge was built and checked on an H100 with 80 GB VRAM and
 checkpoints. The merged weights total 61,946,385,152 bytes. The quoted secure
 pod rate was $3.99/hour. GPU and disk were terminated after reports were
 copied; weights are rebuilt from source and are not in this repository.
+
+## Resuming execution windows
+
+The resume variant emits 48 position-tagged tokens carrying the 380-bit warp
+snapshot, plus a token containing the next PC with the local step reset. The
+driver relays those tokens unchanged into a fresh cache alongside the original
+ROM and link uploads. All execution windows use one model object.
+
+The default fixture uses two levels of branches inside a data-dependent loop
+and carries scratch values across window boundaries. It reaches HALT after
+1,082 instructions. Use the pinned model and compiler environment above.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_resume \
+  --device mps --max-steps 49 --allow-step-limit \
+  --out "$QWENGPU_DIR/results/resume_mps_49.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resume --out /path/to/Qwen3.5-9B-qwengpu-resume
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_resume \
+  /path/to/Qwen3.5-9B-qwengpu-resume --device cuda \
+  --out "$QWENGPU_DIR/results/resume_9b_cuda_fla.json"
+```
+
+The local smoke command stops deliberately after 49 instructions. The full
+command requires HALT within its 1,200-instruction guard and compares every
+control token, cached snapshot, and exported handoff with an uninterrupted
+interpreter.
