@@ -47,7 +47,7 @@ def nibbles(base: int, data: list[int]) -> list[int]:
     return [base + address * 16 + value for address, value in enumerate(data)]
 
 
-def build(target: Target | None = None) -> Circ:
+def build(target: Target | None = None, *, resident: bool = False) -> Circ:
     c = Circ(target or Target())
     one = c.one
 
@@ -128,12 +128,14 @@ def build(target: Target | None = None) -> Circ:
         advance,
     ]
 
-    warp_bit = controls[1][6]
+    # Resident calls retain both control rows. The emitted ticket selects the active one.
+    warp_bit = last if resident else controls[1][6]
     row_bits = [warp_bit, tile0, tile1]
     rows = c.onehot_of_bits(row_bits, "tile.row", 8)
     pc = [
         c.node(
-            c.t_and([tick, controls[0][bit]]) + c.t_and([tick, controls[1][bit]]),
+            c.t_and([tick, controls[0][bit], *([one - warp_bit] if resident else [])])
+            + c.t_and([tick, controls[1][bit], *([warp_bit] if resident else [])]),
             f"pc.{bit}",
         )
         for bit in range(4)
@@ -316,10 +318,10 @@ def build(target: Target | None = None) -> Circ:
     return c
 
 
-def build_standalone():
+def build_standalone(*, resident: bool = False):
     from chipformer.q35.tiny import build as build_qwen
 
-    circuit = build()
+    circuit = build(resident=resident)
     return build_qwen(
         circuit,
         list(range(VOCAB)),

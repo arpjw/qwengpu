@@ -354,3 +354,26 @@ each row, so it can accumulate into an existing matrix.
 Pass `--kernel` for a custom manifest. The evaluator checks each scheduling
 decision, register snapshot, tagged write, and final matrix against the
 interpreter and a direct scalar matrix calculation.
+
+## Resident 8×8 tile memory
+
+The resident variant uploads A, B, and initial C once. It passes one
+inference cache through all scheduling and execution calls and feeds back
+tagged C writes before the next scheduling call. The scheduler's emitted
+ticket selects the active control row. Register packets and ROM uploads
+still travel between calls.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident --device mps --out "$QWENGPU_DIR/results/resident_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident --out /path/to/Qwen3.5-9B-qwengpu-resident
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident --device cuda \
+  --out "$QWENGPU_DIR/results/resident_9b_cuda_fla.json"
+```
+
+The default resident suite includes the 8×8 seeded multiply, deadlock,
+and a case that overwrites an accumulator after a store and then reloads
+from C. The reports count input tokens and check the final A, B, and C
+rows directly in the model cache.

@@ -35,10 +35,12 @@ from qwengpu.compiled_tile8 import (
     nibbles,
     program_tokens,
 )
+from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_control import hex_bits, snapshot
 from qwengpu.eval_tile import _check_control, _unsigned
 
 FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
+RESIDENT_FIXTURES = FIXTURES.with_name("resident_gate_v1")
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -125,7 +127,14 @@ def _matrix(tokens: list[int]) -> list[list[int]]:
 
 @torch.no_grad()
 def execute(
-    model, circuit, case: dict, device: str, max_steps: int, offset: int = 0
+    model,
+    circuit,
+    case: dict,
+    device: str,
+    max_steps: int,
+    offset: int = 0,
+    *,
+    resident: bool = False,
 ) -> dict:
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 1
@@ -136,22 +145,38 @@ def execute(
     reads = [*range(READ_REG, READ_REG + 32), *range(READ_STORE, READ_STORE + 32)]
     schedules = []
     trace = []
+    cache = None
+    pending = [*controls, previous, *operands, *memory] if resident else []
+    transport = {
+        "input_tokens": 0,
+        "fresh_caches": 0,
+        "matrix_initial_tokens": 0,
+        "matrix_patch_tokens": 0,
+    }
 
     def feed(tokens: list[int], count: int):
+        nonlocal cache
+        if not resident:
+            cache = None
+        transport["input_tokens"] += len(tokens)
+        transport["fresh_caches"] += int(cache is None)
         out = model(
             input_ids=torch.tensor(
                 [[token + offset for token in tokens]], device=device
             ),
+            past_key_values=cache,
             use_cache=True,
             logits_to_keep=count,
         )
-        return [
-            token - offset for token in out.logits[0].argmax(dim=-1).tolist()
-        ], out.past_key_values
+        cache = out.past_key_values
+        return [token - offset for token in out.logits[0].argmax(dim=-1).tolist()]
 
+    if resident:
+        transport["matrix_initial_tokens"] = len(operands) + len(memory)
     outcome = "step_limit"
     for index in range(max_steps + 1):
-        emitted, _ = feed([*controls, previous, SCHEDULE, READY0, READY1], 3)
+        prefix = pending if resident else [*controls, previous]
+        emitted = feed([*prefix, SCHEDULE, READY0, READY1], 3)
         ticket, *controls = emitted
         for warp, control in enumerate(controls):
             _check_control(control, warp)
@@ -166,18 +191,13 @@ def execute(
             break
         warp = ticket & 1
         previous = ticket
-        emitted, cache = feed(
-            [
-                *rom[warp],
-                *operands,
-                *memory,
-                *registers[warp],
-                controls[warp],
-                ticket,
-                TICK,
-                *reads,
-            ],
-            65,
+        if resident:
+            prefix = controls
+        else:
+            prefix = [*operands, *memory, controls[warp]]
+            transport["matrix_initial_tokens"] += len(operands) + len(memory)
+        emitted = feed(
+            [*rom[warp], *prefix, *registers[warp], ticket, TICK, *reads], 65
         )
         control, *packet = emitted
         _check_control(control, warp)
@@ -193,6 +213,10 @@ def execute(
                 raise ValueError("repeated C write address")
             for address, token in zip(addresses, patch, strict=True):
                 memory[address] = token
+        if resident:
+            updates = [] if patch[0] == NO_WRITE else patch
+            pending = [control, *updates]
+            transport["matrix_patch_tokens"] += len(updates)
         controls = controls[:]
         controls[warp] = control
         registers[warp] = next_registers
@@ -205,12 +229,36 @@ def execute(
                 "snapshot": hex_bits(snapshot(cache, circuit, 0)),
             }
         )
+    if resident:
+        transport["resident_memory_exact"] = _check_resident_memory(
+            cache, circuit, operands, memory
+        )
     return {
+        "transport": transport,
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
         "matrix": _matrix(memory),
     }
+
+
+def _check_resident_memory(
+    cache, circuit, operands: list[int], memory: list[int]
+) -> bool:
+    for address, token in enumerate(operands):
+        byte, nibble = divmod(address, 2)
+        if byte < 64:
+            head, slot = f"A.{nibble}", byte
+        else:
+            row, col = divmod(byte - 64, 8)
+            head, slot = f"B.{col}.{nibble}", row
+        if head_row(cache, circuit, head, slot, 4) != token & 15:
+            return False
+    for address, token in enumerate(memory):
+        row, nibble = divmod(address, 32)
+        if head_row(cache, circuit, f"C.{nibble}", row, 4) != token & 15:
+            return False
+    return True
 
 
 def oracle(case: dict, max_steps: int) -> dict:
@@ -294,6 +342,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
     parser.add_argument("--kernel", type=Path)
+    parser.add_argument("--resident", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -302,7 +351,19 @@ def main() -> None:
     args = parser.parse_args()
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
+    meta = None
+    offset = 0
+    resident = args.resident
+    if args.model:
+        meta = json.loads((args.model / "qwengpu9b.json").read_text())
+        if meta["layout"] not in ("qwengpu-tile8-9b-v1", "qwengpu-resident9b-v1"):
+            raise ValueError("not an 8x8 tile checkpoint")
+        resident = meta["layout"] == "qwengpu-resident9b-v1"
+        if args.resident and not resident:
+            raise ValueError("--resident requires a resident checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
+    if resident and not args.kernel:
+        paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -316,12 +377,7 @@ def main() -> None:
     if not cases:
         raise ValueError("no tile manifests found")
 
-    meta = None
-    offset = 0
     if args.model:
-        meta = json.loads((args.model / "qwengpu9b.json").read_text())
-        if meta["layout"] != "qwengpu-tile8-9b-v1":
-            raise ValueError("not an 8x8 tile checkpoint")
         offset = meta["chip_token_offset"]
         model = transformers.AutoModelForCausalLM.from_pretrained(
             args.model, dtype=torch.bfloat16
@@ -332,10 +388,11 @@ def main() -> None:
                 cfg.linear_num_key_heads,
                 cfg.linear_num_value_heads,
                 cfg.intermediate_size,
-            )
+            ),
+            resident=resident,
         )
     else:
-        model, circuit = build_standalone()
+        model, circuit = build_standalone(resident=resident)
     model.to(args.device).eval()
     report = {
         "device": args.device,
@@ -347,9 +404,19 @@ def main() -> None:
     }
     for name, digest, case in cases:
         expected = oracle(case, args.max_steps)
-        observed = execute(model, circuit, case, args.device, args.max_steps, offset)
+        observed = execute(
+            model, circuit, case, args.device, args.max_steps, offset, resident=resident
+        )
+        transport = observed.pop("transport")
         exact = (
             observed == expected
+            and (
+                not resident
+                or (
+                    transport["fresh_caches"] == 1
+                    and transport["resident_memory_exact"]
+                )
+            )
             and observed["outcome"] == case["expected_outcome"]
             and (
                 case["expected_matrix"] is None
@@ -361,6 +428,7 @@ def main() -> None:
             "fixture_sha256": digest,
             "exact": exact,
             "instructions": len(observed["trace"]),
+            "transport": transport,
             **observed,
         }
         if not exact:
