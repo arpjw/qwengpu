@@ -325,3 +325,32 @@ row-major arrays of 16 unsigned bytes each. It can optionally supply 16
 initial accumulator words or two explicit programs with up to 16
 instructions each. The report includes the resulting matrix, the model's
 scheduling decisions, and complete register and memory snapshots.
+
+## 8×8 tiles and model-owned row-pair advancement
+
+The 8×8 variant reuses two eight-lane warps over four row pairs. The
+scheduler emits a new row-pair ticket and resets both PCs after both
+warps halt within a pair. Each warp reads its C row, accumulates eight
+products in four K panels, and publishes the row as address-tagged writes.
+The host copies those writes to their indicated slots and relays state.
+
+Shared memory contains 64 unsigned A bytes, 64 unsigned B bytes, and
+128 bytes for the 64 little-endian C words. The manifest supplies
+row-major `a` and `b` arrays of 64 bytes each. Optional `c` supplies
+64 initial unsigned 16-bit words. The default kernel computes
+`C = (C + A @ B) mod 65536`. The model loads C before the first MAC for
+each row, so it can accumulate into an existing matrix.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --device mps --out "$QWENGPU_DIR/results/tile8_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --tile8 --out /path/to/Qwen3.5-9B-qwengpu-tile8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-tile8 --device cuda \
+  --out "$QWENGPU_DIR/results/tile8_9b_cuda_fla.json"
+```
+
+Pass `--kernel` for a custom manifest. The evaluator checks each scheduling
+decision, register snapshot, tagged write, and final matrix against the
+interpreter and a direct scalar matrix calculation.
