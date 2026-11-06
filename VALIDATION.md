@@ -1086,4 +1086,7 @@ five invalid mask values were rejected.
 On MPS the 25-case run matches the interpreter, with 1,927
 instructions and 1,952 scheduler decisions. All 24 inherited
 records match the shared32 baseline. All 25 local tests passed.
-Merged 9B and retained 16×16 replay results are pending.
+The pinned merged Qwen3.5-9B on A100 reproduced all 25 MPS
+records exactly. The checkpoint has 28 chip layers at hidden
+width 6,656, compared with 22 layers at the same width for
+shared32. Retained 16×16 replay results are pending.

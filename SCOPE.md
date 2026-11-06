@@ -148,9 +148,9 @@ retention and GPU-to-text-to-GPU traces.
 The addmem32 layout adds two arbitrary 32-bit operands from
 indexed shared memory. Its low instruction adds with carry into
 the upper half, and its high instruction completes the sum. The
-MPS handoff matches the independent scalar result and all 24
-inherited case records match the previous checkpoint. Merged 9B
-and retained 16×16 replays are in progress.
+MPS and merged 9B match the independent scalar result and all 24
+inherited case records match the previous checkpoint. Retained
+16×16 replays are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
