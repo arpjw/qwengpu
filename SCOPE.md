@@ -159,11 +159,16 @@ greedy continuations. Four cache resets preserve all inspected GPU
 rows. A dependent kernel runs after text with zero initial shared
 memory uploads and reproduces the inherited trace.
 
-The next integration gate is to use the new two-operand arithmetic
-kernel as the producer before text. After the reset, launch a
-separate consumer that reads both limbs and copies them into other
-shared pairs. Check the producer, the text reset, and the final
-128-word shared image against independent references.
+The addmem32 sum now serves as the producer in a GPU-to-text-to-GPU
+round trip. A separate two-warp consumer copies eight full-width
+values to disjoint shared pairs after text. MPS and merged 9B
+match all GPU traces and all 128 shared words. Merged 9B matches
+fresh-cache text exactly and skips the initial shared-memory upload.
+
+The next control-flow gate is to branch on the high half of a
+32-bit sum. Use identical low halves and different high sign bits
+to separate the paths. Check masking, reconvergence, a dependent
+warp, and the inherited arithmetic and tiled traces.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

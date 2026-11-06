@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 6, 2026 at approximately 12:43 p.m. Pacific.
+was November 6, 2026 at approximately 12:55 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -43,12 +43,13 @@ was November 6, 2026 at approximately 12:43 p.m. Pacific.
 | `spczei5clluhi2` | GPU-to-text-to-GPU cache relaunch | $0.202233 | |
 | `e7dircqgmin263` | Two K slices with resident C | $0.214874 | |
 | `ulujgufwzoo34a` | Full 16×16 multiply with resident C | $0.276951 | |
-| `q07e1z7zdcgywv` | Shared32 qualification and retained launch replays | $0.122228 | $0.61 remaining |
+| `q07e1z7zdcgywv` | Shared32 qualification and retained launch replays | $0.422487 | $0.31 remaining |
 | `7ag8r4iy5e2exr` | Addmem32 qualification and retained multiply | Pending | $0.70 |
 | `30mh7vnuymrpdk` | Addmem32 text, cache handoff, and same-device control | Pending | $0.89 |
+| `bkgbc6rveup6to` | Full-width arithmetic through a text handoff | Pending | $0.25 |
 
-Total posted is about $13.50. With pending estimates, tracked spend is
-about $15.70. All project pods are terminated and the live pod list was
+Total posted is about $13.80. With pending estimates, tracked spend is
+about $15.95. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -223,3 +224,10 @@ matched all measured text fields, and the cache checks passed.
 Elapsed compute was about $0.86, with $0.89 reserved including
 disk. The pod was terminated after copying all reports. RunPod
 showed an empty pod list and no posted record for this pod.
+
+The arithmetic relaunch A100 ran from about 12:47:01 p.m. to
+12:54:41 p.m. Pacific at $1.79/hour. The new and legacy relaunches
+passed on the pinned addmem32 merge. Elapsed compute was about
+$0.23, with $0.25 reserved including disk. The pod was terminated
+after copying results. RunPod showed an empty pod list and no
+posted record for this pod.

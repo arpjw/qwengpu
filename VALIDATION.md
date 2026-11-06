@@ -1120,3 +1120,25 @@ See `results/resident_addmem32_text_*`,
 `results/resident_addmem32_handoff_reset_*`,
 `results/resident_addmem32_cache_relaunch_*`, and
 `results/resident_add32_text_9b_cuda_h100_control.json`.
+
+## Full-width arithmetic through a text handoff
+
+The same addmem32 checkpoint runs the 15-instruction arithmetic
+producer and a separate 20-instruction consumer. The consumer's
+two warps copy eight full-width values to disjoint shared pairs.
+Seven values are producer sums. The eighth is the original pair
+from the masked producer lane. A scalar check validates the
+producer and all 128 final shared words, including sources and
+destination pairs.
+
+Standalone MPS runs the two GPU launches. Merged Qwen3.5-9B on
+A100 generates text between them and matches its fresh-cache
+logits and greedy continuation exactly. The GPU records match
+MPS and the cold control. The retained consumer uses 1,003 input
+tokens against 1,515 for the cold control. The forward audit
+counts zero initial shared-memory tokens and 64 store tokens.
+The legacy relaunch also matches its prior GPU records.
+All 25 local tests passed.
+
+See `results/resident_addmem32_arithmetic_relaunch_*` and
+`results/resident_addmem32_cache_relaunch_legacy_replay_9b_cuda_fla.json`.

@@ -1352,6 +1352,8 @@ export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
 model=/path/to/Qwen3.5-9B-qwengpu-resident-addmem32
 "$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch "$model" --addmem32 --device cuda \
   --out results/resident_addmem32_arithmetic_relaunch_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch "$model" --device cuda \
+  --out results/resident_addmem32_cache_relaunch_legacy_replay_9b_cuda_fla.json
 python3 scripts/check_addmem32_relaunch.py
 ```
 

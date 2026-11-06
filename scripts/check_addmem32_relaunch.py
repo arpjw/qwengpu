@@ -98,6 +98,17 @@ def main() -> None:
                 assert report[key] == previous[key]
         previous = report
         print(f"{path.name}: exact paired copy and zero initial shared-memory uploads")
+    if not args.reports:
+        legacy = load_report(
+            "resident_addmem32_cache_relaunch_legacy_replay_9b_cuda_fla"
+        )
+        old = load_report("resident_addmem32_cache_relaunch_9b_cuda_fla")
+        assert legacy["merge"] == old["merge"]
+        check_reset(legacy["text"]["comparison"])
+        assert {key: value for key, value in legacy.items() if key != "text"} == {
+            key: value for key, value in old.items() if key != "text"
+        }
+        print("Legacy relaunch: exact inherited GPU trace and fresh-cache text check")
 
 
 if __name__ == "__main__":
