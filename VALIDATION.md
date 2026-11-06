@@ -1239,4 +1239,9 @@ instruction record's register and snapshot fields relative to
 a separate launch. All actual records match the continuous
 interpreter reference.
 
-Merged and inherited replays are in progress.
+Merged Qwen3.5-9B on A100 reproduces the raw trace, transition,
+physical cache checks, and every audit entry. The one-launch
+path uses 15,233 input tokens against 15,462 for two launches
+with the same two preloaded banks. The shared memory upload
+count is the same. The one-launch path uploads the grid, ROM,
+and warp setup once. Inherited replays are in progress.

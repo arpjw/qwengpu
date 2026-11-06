@@ -190,8 +190,9 @@ loop32 cases.
 The tilepipe layout adds a model-selected K-slice transition
 within one scheduled launch. MPS emits one transition after the
 first slice, resets both PCs, selects bank one, and starts again
-at row zero with the retained C and ROM. Both scalar matrices
-match. Merged and inherited replays are in progress.
+at row zero with the retained C and ROM. MPS and merged 9B
+match both scalar matrices and all raw execution records. The
+inherited replays are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
