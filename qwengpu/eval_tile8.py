@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 import transformers
 from chipformer.q35.ir import Target
+from transformers.cache_utils import Cache
 
 from qwengpu.compiled_tile import (
     READY0,
@@ -340,7 +341,11 @@ def execute(
     resident_grid: bool = False,
     resident_wide: bool = False,
     resident_add32: bool = False,
+    resident_cache: Cache | None = None,
 ) -> dict:
+    """Run a kernel. With a retained cache, the case supplies the expected memory image."""
+    if resident_cache is not None and not resident_add32:
+        raise ValueError("retained shared memory requires the resident ADD32 layout")
     resident_wide = resident_wide or resident_add32
     resident_grid = resident_grid or resident_wide
     warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
@@ -412,8 +417,10 @@ def execute(
     reads = state_reads + store_reads
     schedules = []
     trace = []
-    cache = None
-    pending = [*controls, previous, *operands, *memory] if resident else []
+    cache = resident_cache
+    pending = [*controls, previous] if resident else []
+    if resident and resident_cache is None:
+        pending.extend([*operands, *memory])
     transport = {
         "input_tokens": 0,
         "fresh_caches": 0,
@@ -469,7 +476,7 @@ def execute(
         cache = out.past_key_values
         return [token - offset for token in out.logits[0].argmax(dim=-1).tolist()]
 
-    if resident:
+    if resident and resident_cache is None:
         transport["matrix_initial_tokens"] = len(operands) + len(memory)
     outcome = "step_limit"
     for index in range(max_steps + 1):

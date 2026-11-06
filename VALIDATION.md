@@ -953,3 +953,18 @@ records the hashes before and after for each bank.
 The measured boundary starts a new text context while preserving
 the tested GPU rows. See `results/resident_add32_handoff_reset*`
 for the A100 report and host details.
+
+## Relaunch a consumer on retained GPU memory
+
+The round-trip harness runs the cooperative ADD32I producer, starts
+a new text context on the same cache, and runs a consumer kernel
+after text generation. The consumer uploads control, ROM, and warp
+state. It reads the first two produced rows through indexed memory
+and stores them into the final row pair. A forward hook checks the
+cache identity and counts the memory tokens actually sent.
+
+A standalone MPS smoke check passed the two GPU launches without
+text between them. Its ten consumer instructions matched the
+interpreter, with zero initial memory tokens and zero new caches
+on the second launch. All 25 existing tests passed. The merged
+round-trip run is the remaining validation.

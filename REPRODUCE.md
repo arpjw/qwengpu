@@ -1149,3 +1149,26 @@ export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
 The report compares native next-token logits and greedy continuations
 with a fresh cache. It records hashes of the GPU rows before and after
 the text and whether every nibble matches exactly.
+
+## Run a second kernel after text without uploading shared memory
+
+The round trip runs the cooperative ADD32I producer, resets the
+pretrained cache entries, and generates the frozen Moon prompt's
+continuation. It checks that text matches a fresh cache and that the
+GPU register and memory rows are exact. It then resets the pretrained
+entries again and launches a consumer in the retained GPU cache.
+
+```sh
+cd "$QWENGPU_DIR"
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_cache_relaunch \
+  /path/to/Qwen3.5-9B-qwengpu-resident-add32 --device cuda \
+  --out results/resident_add32_cache_relaunch_9b_cuda_fla.json
+```
+
+The consumer uploads its own control, program, and register state.
+It uses indexed reads to copy the first two produced rows into rows
+six and seven. The host checks the result against the interpreter
+and a fresh-cache consumer. A model forward hook audits cache identity
+and shared-memory tokens for every consumer call, including the
+tags returned for its own stores.
