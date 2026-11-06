@@ -1215,4 +1215,5 @@ fresh-cache control. Preloading moves 256 operand tokens from the
 second launch to the first, so the pair uses the same total
 number of tokens as the earlier retained-C experiment. See
 `results/resident_tilebanks_cached_tile_*` for the audited calls.
-The inherited replays are in progress.
+All 27 inherited MPS case records match loop32 exactly.
+All 25 local tests passed. The merged replay is in progress.

@@ -184,7 +184,8 @@ The tilebanks layout preloads both K slices of one output tile in
 the same cache. The host selects the second bank for the second
 launch. MPS and merged 9B match both scalar pass matrices and
 both prior traces, with zero initial memory uploads on the
-second launch. The inherited replays are in progress.
+second launch. The full MPS replay matches all 27 loop32 cases.
+The merged replay is in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
