@@ -52,10 +52,15 @@ positions. The launcher requests those positions and all 32
 shared-store positions in a follow-up call. This saves tokens
 and adds one forward call per instruction.
 
-The next gate extends that bitmap with the lanes issuing shared
-stores. Request only the selected state and store positions, and
-skip the follow-up call when both sets are empty. Compare exact
-traces, token counts, and forward calls with the state-only plan.
+The resident I/O checkpoint adds a store-lane bitmap to the
+state read plan and skips empty follow-up calls. The launcher
+still relays the resulting tagged values.
+
+The next gate measures the transport tradeoff on the same merged
+checkpoint. Run fixed requests, state-only plans, and state plus
+store plans with warmed, interleaved trials. Compare exact outputs,
+elapsed time, forward calls, and peak device allocation. Use the
+results to decide which transport should be the default.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

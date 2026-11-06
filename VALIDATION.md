@@ -564,3 +564,31 @@ also matches on both platforms. All 25 local tests passed. Reports are
 `results/resident_plan_mps.json`, `results/resident_plan_9b_cuda_fla.json`,
 `results/resident_plan_launch_mps.json`, and
 `results/resident_plan_launch_9b_cuda_fla.json`.
+
+## Model-generated state and store read plans
+
+The resident I/O plan adds one store-lane bitmap byte per instruction.
+It requests four nibbles for each selected lane and skips the
+follow-up when both the state and store masks are empty. Independent
+counts from the prior traces agree with every skipped call. Every
+requested store nibble corresponds to an emitted write.
+
+| Fixture | State-only plan input tokens | State and store plan input tokens | State-only forward calls | State and store forward calls |
+| --- | ---: | ---: | ---: | ---: |
+| Seeded dense multiply | 10,608 | 7,268 | 349 | 313 |
+| Cooperative multiply and gather | 10,296 | 6,460 | 397 | 373 |
+| 256-instruction budget exhaustion | 14,660 | 6,724 | 769 | 683 |
+
+These counts measure transport and model invocations. Wall-clock
+throughput remains unmeasured. The merge adds 18 layers, uses width
+6,400, and contains 41,942,202,112 bytes of weights. Short, single-token
+follow-ups exercise the recurrent kernel. On MPS this uses the
+PyTorch fallback.
+
+All twelve fixtures match on MPS and merged Qwen3.5-9B, covering 1,229
+instructions and 1,241 scheduler decisions. The cooperative launcher
+also matches on both platforms. All 25 local tests passed, and the ten
+earlier compiler graphs were unchanged. Reports are
+`results/resident_io_mps.json`, `results/resident_io_9b_cuda_fla.json`,
+`results/resident_io_launch_mps.json`, and
+`results/resident_io_launch_9b_cuda_fla.json`.
