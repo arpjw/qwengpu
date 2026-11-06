@@ -981,3 +981,17 @@ for mode in fixed state-plan; do
 done
 python3 scripts/check_resident_add32.py
 ```
+
+To check every immediate against the ROM codec:
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" - <<'PY'
+from qwengpu.compiled_tile8 import ROM_PAYLOAD_BITS, program_tokens, rom_payload
+
+flags = dict(indexed=True, masked=True, divergent=True, looping=True, resident_add32=True)
+tokens = [program_tokens((("ADD32I", n), ("HALT", 0)))[0] for n in range(256)]
+assert len(set(tokens)) == 256
+for n, token in enumerate(tokens):
+    assert rom_payload(token, **flags) == (1 << ROM_PAYLOAD_BITS) + n
+PY
+```

@@ -826,3 +826,14 @@ result. Both inherited tile cases matched their earlier canonical
 traces and emitted zero high-register updates. All 25 unit tests
 passed. The prior wide layout's generated circuit nodes are
 identical to the earlier build.
+
+Merged Qwen3.5-9B on one A100 SXM 80 GB matched all four MPS case
+records, including every snapshot and high-register update count.
+Fixed requests, the state-only plan, and the state and store plan
+all matched on the masked carry kernel. The verifier counted 18
+changed high nibbles from its snapshots, and the model emitted
+exactly 18 high-register update tokens in each transport. The
+earlier wide layout rejects ADD32I before model load. The new merge
+uses 22 chip layers, hidden size 6,656, and 46,458,906,368 tensor bytes.
+Run `python3 scripts/check_resident_add32.py` to compare the saved
+evidence.
