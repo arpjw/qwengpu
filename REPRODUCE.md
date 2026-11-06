@@ -1250,3 +1250,21 @@ with different results. The lowest active lane wins both stores.
 The consumer reads after a barrier. The checker compares the final
 registers, all 128 shared words, both store grants, and all 23
 inherited ADD32 case records.
+
+To replay the retained-memory launchers on the same shared32 checkpoint:
+
+```sh
+matmul=eval/frozen/matmul16_gate_v1/dense_seeded.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$matmul" \
+  --resident-shared32 --retain-c --device mps \
+  --out results/resident_shared32_matmul16_retained_mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$matmul" \
+  --model "$model" --retain-c --device cuda \
+  --out results/resident_shared32_matmul16_retained_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_cached_tile --model "$model" --device cuda \
+  --out results/resident_shared32_cached_tile_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch "$model" --device cuda \
+  --out results/resident_shared32_cache_relaunch_9b_cuda_fla.json
+python3 scripts/check_matmul16.py results/resident_shared32_matmul16_retained_*.json
+python3 scripts/check_resident_shared32.py --cache-replays
+```

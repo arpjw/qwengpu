@@ -49,9 +49,38 @@ def check_handoff(case: dict) -> None:
     assert case["transport"]["matrix_patch_tokens"] == 48
 
 
+def check_cache_replays() -> None:
+    for name, fields in (
+        ("cached_tile", ("input_sha256", "passes", "cold_second_slice")),
+        (
+            "cache_relaunch",
+            (
+                "producer_sha256",
+                "consumer_sha256",
+                "producer",
+                "gpu_rows_preserved_after_text",
+                "retained_transport",
+                "cold_transport",
+                "shared_tokens_by_call",
+                "consumer",
+            ),
+        ),
+    ):
+        old = load_report(f"resident_add32_{name}_9b_cuda_fla")
+        replay = load_report(f"resident_shared32_{name}_9b_cuda_fla")
+        assert replay["merge"]["layout"] == LAYOUT
+        assert all(replay[key] == old[key] for key in fields), name
+        if name == "cache_relaunch":
+            text = replay["text"]["comparison"]
+            assert text["next_max_abs_logit_difference"] == 0
+            assert text["greedy_identical"]
+        print(f"{name}: exact inherited GPU traces and cache audit")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", nargs="*", type=Path)
+    parser.add_argument("--cache-replays", action="store_true")
     args = parser.parse_args()
     reports = args.reports or [
         RESULTS / f"resident_shared32_full_{backend}.json"
@@ -70,6 +99,8 @@ def main() -> None:
             assert report["cases"] == previous["cases"]
         previous = report
         print(f"{path.name}: exact 32-bit handoff and all 23 inherited cases")
+    if args.cache_replays:
+        check_cache_replays()
 
 
 if __name__ == "__main__":

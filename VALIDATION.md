@@ -1028,3 +1028,24 @@ The fixed-transport report comes from an earlier run. See
 `results/resident_add32_matmul16_retained_9b_cuda_fla.json` and
 `results/resident_add32_matmul16_retained_host_a100.txt` for the
 CUDA records and `REPRODUCE.md` for commands.
+
+## 32-bit indexed exchange between warps
+
+The shared32 layout pairs the existing low indexed operation at
+`index` with a high-half operation at `index XOR 1`. Each limb is
+one 16-bit memory operation. The producer executes both stores
+before the shared barrier, then the consumer reads both halves.
+The layout still addresses 128 shared words.
+
+The frozen case runs 20 instructions and 21 scheduler decisions.
+It exercises carry, 32-bit wrap, both shared-memory regions, the
+odd address 127, and one inactive producer lane. Two active lanes
+compute different values for the same pair. The lower-numbered
+lane wins both stores, and both consumer lanes read its result.
+The checker independently verifies both final register banks,
+all 128 words, and the two six-lane scatter grants.
+
+On MPS, all 24 cases match the interpreter. The 23 inherited
+case records match the original ADD32 MPS suite in full. All 25
+local tests passed. See `results/resident_shared32_full_mps.json`
+and `REPRODUCE.md`. Merged 9B validation remains in progress.
