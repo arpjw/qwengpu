@@ -106,10 +106,16 @@ The unified resident ADD32 layout passes all 23 frozen cases on
 MPS and merged 9B. The case records match each other, the interpreter,
 and the saved baselines, including row windows and terminal outcomes.
 
-The next integration gate compares ordinary text on the unified
-merge and base Qwen3.5-9B. Start with fresh caches and a frozen prompt
-corpus. Record next-token logit differences and greedy continuations
-before testing a GPU-to-text cache handoff.
+The fresh-cache text comparison on the unified merge matched base
+Qwen3.5-9B on all 24 next tokens and 23 of 24 greedy continuations
+of up to 16 tokens. The report records the logit differences and the
+diverging continuation.
+
+The next integration gate measures text after a GPU launch using the
+same inference cache. Compare the reused cache with a fresh cache on
+the same merged weights. Replay the cooperative kernel and record
+cache length, next-token logits, and greedy continuations so the
+handoff effect can be measured separately from the merge itself.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

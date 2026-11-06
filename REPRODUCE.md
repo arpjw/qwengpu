@@ -1094,3 +1094,11 @@ The report measures next-token logit differences over the original
 vocabulary. It records both greedy continuations, their shared prefix
 length, and any emitted chip tokens. Generation uses the full logits
 of each model.
+
+The tokenizer file checks use the same two model directories:
+
+```sh
+for file in tokenizer.json tokenizer_config.json chat_template.jinja; do
+  cmp "$QWENGPU_BASE/$file" "$QWENGPU_UNIFIED/$file"
+done
+```

@@ -886,3 +886,24 @@ metadata matches the pinned resident ADD32 build. The CUDA report
 and host record are under `results/resident_add32_full*`. Run
 `python3 scripts/check_resident_add32_full.py` to verify the
 cross-device and inherited comparisons.
+
+## Fresh-cache text on the unified ADD32 merge
+
+Base Qwen3.5-9B and the qualified ADD32 merge used the same greedy
+generation settings on one A100 SXM 80 GB. The frozen corpus has
+24 prompts from 21 to 691 input tokens. Both tokenizers returned
+identical input IDs. The tokenizer data, configuration, and chat
+template files were byte-identical. Transformers emitted a tokenizer
+regex warning when loading the merged directory.
+
+The next token matched on all 24 prompts. The greedy continuation
+matched on 23 of 24 prompts at a limit of 16 new tokens. The Moon
+prompt matched for its first two generated tokens and diverged at
+token three. The merge emitted zero chip tokens. Over the original
+vocabulary, the median per-prompt maximum absolute next-token logit
+difference was 0.2265625 and the largest was 0.421875.
+
+These results cover the frozen corpus with fresh caches. See
+`results/resident_add32_text_9b_cuda_fla.json` for both token sequences,
+per-prompt logit differences, and the generation configuration.
+The GPU-to-text cache comparison is the next gate.
