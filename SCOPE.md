@@ -62,10 +62,15 @@ token count and peak allocation. The benchmark uses the same
 merged checkpoint for all modes. The launcher keeps its existing
 layout-based defaults pending evidence from more workloads.
 
-The next gate exposes explicit transport selection on one merged
-checkpoint, with exact launcher checks for each mode. Extend the
-timing comparison to a workload with a different write pattern
-before changing the general launcher default.
+The launcher exposes explicit transport selection on one merged
+checkpoint. Fixed requests had the lowest latency on both measured
+A100 fixtures. The state and store plan had the lowest token count
+and peak allocation. Existing layout-based defaults remain available.
+
+The next gate makes the launch extent programmable from one through
+four row pairs. Have the model terminate at the requested extent.
+Verify that partial launches leave later C rows intact and that
+the four-pair default preserves existing traces.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

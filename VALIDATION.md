@@ -622,3 +622,36 @@ software stack. Use fixed requests as the latency baseline for that
 configuration. The launcher retains its layout-based defaults.
 Reports are `results/resident_transport_benchmark_a100.json` and
 `results/resident_transport_benchmark_host.txt`.
+
+## Explicit transport selection and store-and-reload benchmark
+
+All three explicit launcher choices matched the 48-instruction
+store-and-reload trace on MPS and merged 9B. The implicit MPS I/O
+launch produced the same result as the explicit state and store plan
+after removing the mode label. An override on an earlier layout was
+rejected. All 25 local tests passed. The selector evidence is
+`results/resident_transport_launcher_store_reload.json`.
+
+Fixed requests also gave the lowest latency on this write-heavier
+fixture. It emits the same 256 store nibbles as the cooperative
+fixture in 48 instructions rather than 132. All 18 timed launches
+and three warmups matched exactly on the same loaded checkpoint.
+
+| Transport | Median launch time | Range | Input tokens | Forward calls | Peak allocated GiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fixed requests | 10.958 s | 10.941–11.001 s | 6,451 | 97 | 39.468 |
+| State-only plan | 15.479 s | 15.443–15.521 s | 4,286 | 145 | 39.363 |
+| State and store plan | 14.743 s | 14.721–14.766 s | 3,054 | 137 | 39.304 |
+
+Peak allocation was constant per mode. Profiled warmups spent
+70–77% of their wall time inside CUDA model-forward intervals.
+Timing trials were interleaved on one A100 with FLA and reference
+causal convolution. The host reported a 12.39 one-minute load
+average with eight available cores at launch. The benchmark
+process was the only visible CPU-intensive process during sampling.
+
+Use fixed requests as the latency baseline for both measured A100
+fixtures. The state and store plan has the lowest token count and
+peak allocation on both. Existing layout-based defaults are
+preserved. Reports are `results/store_reload_transport_benchmark_a100.json`
+and `results/store_reload_transport_benchmark_host.txt`.
