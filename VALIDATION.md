@@ -459,3 +459,31 @@ snapshots and 133 scheduling decisions. See
 The MPS launcher returned exit code 3 with a deadlock result and
 exit code 4 with a budget-exhaustion result at three instructions.
 An invalid zero budget returned exit code 2. All 25 local tests passed.
+
+## Resident warp programs
+
+All twelve fixtures match across standalone MPS and merged Qwen3.5-9B
+on A100, covering 1,229 instructions and 1,241 scheduler decisions.
+Each fixture preserves its full execution trace relative to the
+looping checkpoint. The evaluator checks both 16-slot ROMs and the
+shared memory directly in the single launch cache. The JSON launcher
+reproduced the cooperative fixture on both platforms. All 25 local
+tests passed, and the six earlier compiler graphs were unchanged.
+
+| Fixture | Prior input tokens | Resident-ROM input tokens |
+| --- | ---: | ---: |
+| Seeded dense multiply | 22,118 | 20,296 |
+| Cooperative multiply and gather | 25,062 | 22,984 |
+| 256-instruction budget exhaustion | 47,622 | 43,560 |
+| Two-instruction deadlock | 886 | 888 |
+
+Each launch sends 32 padded program tokens and two bank-select
+tokens, replacing 16 program tokens per instruction. The merge adds
+17 layers and uses width 6,144, with the same 39,609,437,056-byte
+weight size as the looping merge. The longest A100 case completed
+without the allocator warning observed in the prior run.
+
+Reports are `results/resident_rom_mps.json`,
+`results/resident_rom_9b_cuda_fla.json`,
+`results/resident_rom_launch_mps.json`, and
+`results/resident_rom_launch_9b_cuda_fla.json`.

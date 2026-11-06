@@ -34,11 +34,16 @@ The resident launcher exposes the unified checkpoint through a JSON
 launch and result format. It runs the cooperative fixture on MPS and
 merged Qwen3.5-9B and exposes halt, deadlock, and step-limit outcomes.
 
-The next gate keeps both warp programs resident. Upload each ROM once
-at launch, have the model's ticket and PC select the correct program,
-and verify exact traces with two different programs in one cache.
-Report input token counts before and after. Keep the validated
-looping checkpoint available.
+The resident-ROM checkpoint uploads both warp programs once. Its
+scheduler ticket and PC select a row in the recurrent ROM table.
+Each program has sixteen slots. The looping checkpoint remains
+available for comparisons.
+
+The next gate moves each warp's accumulator, index, mask, and stack
+packets into separate banks of the launch cache. Have the model
+select the active bank and emit tagged updates. Verify that both
+warps retain distinct state through barriers, row-pair advances,
+and nested control while the host relays the update tokens.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
