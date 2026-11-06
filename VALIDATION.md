@@ -512,3 +512,28 @@ Reports are `results/resident_state_mps.json`,
 `results/resident_state_9b_cuda_fla.json`,
 `results/resident_state_launch_mps.json`, and
 `results/resident_state_launch_9b_cuda_fla.json`.
+
+## Changed-only warp state updates
+
+All twelve fixtures match across standalone MPS and merged Qwen3.5-9B
+on A100, covering 1,229 instructions and 1,241 scheduler decisions.
+The canonical traces match the full-packet checkpoint. The verifier
+checked each emitted delta against the model snapshot and checked the
+final warp banks, ROMs, and shared memory. Independent counts from
+the full-packet traces agree with the emitted update counts, including
+1,238 changes to zero. The JSON launcher reproduced the cooperative
+fixture on both platforms. All 25 local tests passed.
+
+| Fixture | Prior state updates | Changed-only state updates | Prior input tokens | Changed-only input tokens |
+| --- | ---: | ---: | ---: | ---: |
+| Seeded dense multiply | 7,424 | 2,052 | 20,424 | 15,052 |
+| Cooperative multiply and gather | 8,448 | 1,512 | 23,112 | 16,176 |
+| 256-instruction budget exhaustion | 16,384 | 846 | 43,688 | 28,150 |
+
+Each instruction still makes the fixed set of state read requests.
+The merge adds 18 layers, uses width 6,400, and contains
+41,942,202,112 bytes of weights. The eight earlier compiler graphs were
+unchanged. Reports are `results/resident_delta_mps.json`,
+`results/resident_delta_9b_cuda_fla.json`,
+`results/resident_delta_launch_mps.json`, and
+`results/resident_delta_launch_9b_cuda_fla.json`.

@@ -43,10 +43,14 @@ The resident-state checkpoint banks each warp's accumulator, index,
 mask, and stacks in the launch cache. The model selects the active
 bank and emits a tagged packet, which the host forwards unchanged.
 
-The next gate suppresses unchanged state nibbles in the model.
-Keep the canonical instruction traces and direct cache checks, and
-verify that the host can relay just the model's nonempty update tags.
-Compare the token count with the full-packet resident-state checkpoint.
+The resident-delta checkpoint emits a tagged state update only when
+a nibble changes. The host relays those tags. All state read request
+positions still run, including the ones that emit a zero sentinel.
+
+The next gate has the model emit a read plan so the launcher can
+request only changed state positions. Check exact traces and final
+banks against the fixed-request delta checkpoint. Count the resulting
+tokens and forward calls separately.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 4:19 p.m. Pacific.
+was November 5, 2026 at approximately 4:34 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -20,13 +20,14 @@ was November 5, 2026 at approximately 4:19 p.m. Pacific.
 | `0an76y516vonqw` | Resident and indexed memory validation | $0.331857 | |
 | `4423pqr6lhu0mz` | Resident lane mask validation | $0.188049 | |
 | `cdlyro9kdlgyjp` | Resident nested divergence validation | $0.183926 | |
-| `3f8xz3lqh43ja8` | Resident data-dependent loop validation | Pending | $0.28 |
+| `3f8xz3lqh43ja8` | Resident data-dependent loop validation | $0.198139 | |
 | `96stm71qzgxsm2` | Cooperative kernel and launcher validation | Pending | $0.27 |
 | `4vqekx2tdst3uz` | Resident warp programs and launcher validation | Pending | $0.31 |
 | `mimr8xs3ebeqeb` | Resident warp banks and launcher validation | Pending | $0.34 |
+| `8ntzzjatpnm2q4` | Resident changed-only state validation | Pending | $0.34 |
 
-Total posted is about $6.22. With pending estimates, tracked spend is
-about $7.42. All project pods are terminated and the live pod list was
+Total posted is about $6.42. With pending estimates, tracked spend is
+about $7.68. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -61,6 +62,11 @@ The pod was terminated after copying both reports. RunPod showed an
 empty pod list and no posted record for this pod at teardown.
 
 The resident-state A100 ran from about 4:08:08 p.m. to 4:19:25 p.m.
+Pacific at $1.79/hour. The merged suite and JSON launcher passed.
+The pod was terminated after copying both reports. RunPod showed an
+empty pod list and no posted record for this pod at teardown.
+
+The resident-delta A100 ran from about 4:22:53 p.m. to 4:34:20 p.m.
 Pacific at $1.79/hour. The merged suite and JSON launcher passed.
 The pod was terminated after copying both reports. RunPod showed an
 empty pod list and no posted record for this pod at teardown.
