@@ -149,8 +149,15 @@ The addmem32 layout adds two arbitrary 32-bit operands from
 indexed shared memory. Its low instruction adds with carry into
 the upper half, and its high instruction completes the sum. The
 MPS and merged 9B match the independent scalar result and all 24
-inherited case records match the previous checkpoint. Retained
-16×16 replays are in progress.
+inherited case records match the previous checkpoint. Both also
+reproduce the retained 16×16 multiply, including all eight traces
+and memory counts.
+
+The next integration gate is to measure native text on the deeper
+addmem32 merge. Reuse the frozen base comparison and run a
+GPU-to-text-to-GPU round trip on the same weights. Record any
+fresh-cache text differences and verify that the dependent kernel
+still reads the GPU state after the text reset.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

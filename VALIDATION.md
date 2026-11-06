@@ -1089,4 +1089,9 @@ records match the shared32 baseline. All 25 local tests passed.
 The pinned merged Qwen3.5-9B on A100 reproduced all 25 MPS
 records exactly. The checkpoint has 28 chip layers at hidden
 width 6,656, compared with 22 layers at the same width for
-shared32. Retained 16×16 replay results are pending.
+shared32. The public MPS launcher reproduced the cooperative
+arithmetic trace. On both backends, the retained 16×16 launcher
+reproduced all 928 instructions, 936 decisions, both scalar
+matrices, and all audited memory counts from the ADD32 baseline.
+It still uses four caches and omits 1,024 C upload tokens. See
+`results/resident_addmem32_*` and the A100 host record.
