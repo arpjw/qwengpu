@@ -1067,3 +1067,30 @@ The evaluator compares every instruction, scheduler decision, and
 cache check with the interpreter. The final checker compares the
 MPS and CUDA records, then projects inherited grid snapshots onto
 their original fields and checks the original terminal outcomes.
+
+## Compare fresh-cache text on the unified merge
+
+The frozen corpus contains the original six prompts plus 18 additional
+prompts covering multilingual text, copying, arithmetic, code, structured
+output, and a longer retrieval task. The evaluator first verifies the
+same prompt token IDs on both tokenizers. It then uses fresh caches and
+the same greedy decoding configuration, including the base model's
+end-of-sequence IDs.
+
+```sh
+cd "$QWENGPU_DIR"
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+QWENGPU_BASE=/path/to/Qwen3.5-9B
+QWENGPU_UNIFIED=/path/to/Qwen3.5-9B-qwengpu-resident-add32
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b "$QWENGPU_BASE" \
+  --resident-add32 --out "$QWENGPU_UNIFIED"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.textcheck_9b \
+  "$QWENGPU_BASE" "$QWENGPU_UNIFIED" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out results/resident_add32_text_9b_cuda_fla.json
+```
+
+The report measures next-token logit differences over the original
+vocabulary. It records both greedy continuations, their shared prefix
+length, and any emitted chip tokens. Generation uses the full logits
+of each model.
