@@ -13,7 +13,8 @@ RESULTS = ROOT / "results"
 def check_report(report: dict, inputs: dict, digest: str) -> None:
     assert report["format"] == "qwengpu-matmul16-v1"
     assert report["input_sha256"] == digest
-    assert report["transport_mode"] == "fixed"
+    retain_c = report.get("retain_c", False)
+    assert report["transport_mode"] == ("state_store_plan" if retain_c else "fixed")
     a, b, c = (inputs[key] for key in ("a", "b", "c"))
     assert [entry["k"] for entry in report["passes"]] == [0, 8]
     for step in report["passes"]:
@@ -37,7 +38,17 @@ def check_report(report: dict, inputs: dict, digest: str) -> None:
         for tile in launches:
             assert tile["instructions"] == 116 and tile["scheduler_decisions"] == 117
             transport = tile["transport"]
-            assert transport["fresh_caches"] == 1
+            new_cache = not retain_c or step["k"] == 0
+            assert transport["fresh_caches"] == int(new_cache)
+            if retain_c:
+                initial_c = 256 * int(new_cache)
+                audit = tile["memory_tokens_by_call"]
+                assert audit[0] == {"operands": 256, "c": initial_c}
+                assert sum(call["operands"] for call in audit) == 256
+                assert sum(call["c"] for call in audit) == (
+                    initial_c + transport["matrix_patch_tokens"]
+                )
+                assert transport["matrix_initial_tokens"] == 256 + initial_c
             assert all(
                 transport[f"resident_{bank}_exact"]
                 for bank in ("grid", "memory", "rom", "state")
@@ -67,6 +78,20 @@ def check_grid_parity(report: dict) -> None:
             }
 
 
+def check_retained_parity(report: dict) -> None:
+    backend = "9b_cuda_fla" if report["merge"] else "mps"
+    baseline = json.loads(
+        (RESULTS / f"resident_add32_matmul16_{backend}.json").read_text()
+    )
+    for key in ("input_sha256", "merge", "checkpoint"):
+        assert report[key] == baseline[key]
+    for step, old in zip(report["passes"], baseline["passes"], strict=True):
+        assert step["matrix"] == old["matrix"]
+        for tile, old_tile in zip(step["launches"], old["launches"], strict=True):
+            for key in ("trace_sha256", "grid_trace_sha256"):
+                assert tile[key] == old_tile[key]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="*")
@@ -82,6 +107,7 @@ def main() -> None:
     for path in paths:
         report = json.loads(path.read_text())
         check_report(report, inputs, digest)
+        retain_c = report.get("retain_c", False)
         add32 = "checkpoint" in report
         if report["merge"]:
             baseline = "resident_add32" if add32 else "resident_grid"
@@ -94,14 +120,22 @@ def main() -> None:
                 else "standalone-resident-add32"
             )
             assert report["checkpoint"] == expected_layout
-            check_grid_parity(report)
-        if add32 in previous:
-            assert report["passes"] == previous[add32]["passes"]
-        previous[add32] = report
+            if retain_c:
+                check_retained_parity(report)
+            else:
+                check_grid_parity(report)
+        else:
+            assert not retain_c
+        group = (add32, retain_c)
+        if group in previous:
+            assert report["passes"] == previous[group]["passes"]
+        previous[group] = report
         message = (
             f"{path.name}: both passes match the scalar reference, 928 instructions"
         )
-        if add32:
+        if retain_c:
+            message += ", four fresh caches, 1,024 C upload tokens omitted"
+        elif add32:
             message += ", all eight projected traces match the grid"
         print(message)
 

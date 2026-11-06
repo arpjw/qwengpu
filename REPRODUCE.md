@@ -1195,3 +1195,27 @@ The evaluator checks both scalar results and each instruction against
 the interpreter. A forward hook verifies the cache identity and counts
 the operand and C tokens actually sent to the model. The checker also
 compares the trace digests with the earlier composed multiply.
+
+## Retain partial outputs in the 16×16 launcher
+
+Run both K slices for one output tile before moving to the next tile.
+The ADD32 launcher starts four fresh caches and uses each for two
+launches. Each second launch refreshes A and B and retains C.
+
+```sh
+cd "$QWENGPU_DIR"
+fixture=eval/frozen/matmul16_gate_v1/dense_seeded.json
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_matmul16 "$fixture" \
+  --resident-add32 --retain-c --device mps \
+  --out results/resident_add32_matmul16_retained_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_matmul16 "$fixture" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-add32 --retain-c --device cuda \
+  --out results/resident_add32_matmul16_retained_9b_cuda_fla.json
+python3 scripts/check_matmul16.py results/resident_add32_matmul16_retained_*.json
+```
+
+The checker compares both pass matrices with the scalar reference
+and all eight traces with the fixed-transport launcher. The reports
+record the operand and C tokens sent to each model forward, including
+the C tokens relayed for stores.

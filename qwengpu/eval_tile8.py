@@ -733,6 +733,68 @@ def execute(
     }
 
 
+def launch_cached_tile(
+    model,
+    circuit,
+    case: dict,
+    device: str,
+    offset: int,
+    *,
+    cache: Cache | None = None,
+) -> tuple[Cache, dict, list[dict[str, int]]]:
+    """Run one ADD32 tile slice and audit actual cache and memory traffic."""
+    start = cache
+    audit: list[dict[str, int]] = []
+
+    def capture(_model, _args, kwargs, output) -> None:
+        nonlocal cache
+        if kwargs["past_key_values"] is not cache:
+            raise ValueError("tile call did not receive its previous cache")
+        if cache is not None and output.past_key_values is not cache:
+            raise ValueError("tile call replaced its previous cache")
+        cache = output.past_key_values
+        tokens = [token - offset for token in kwargs["input_ids"][0].tolist()]
+        audit.append(
+            {
+                "operands": sum(
+                    INDEX_OPERAND <= token < INDEX_OPERAND + 4096 for token in tokens
+                ),
+                "c": sum(C_MEMORY <= token < C_MEMORY + 4096 for token in tokens),
+            }
+        )
+
+    handle = model.register_forward_hook(capture, with_kwargs=True)
+    try:
+        result = execute(
+            model,
+            circuit,
+            case,
+            device,
+            256,
+            offset,
+            resident_add32=True,
+            resident_io=True,
+            resident_cache=start,
+            refresh_operands=start is not None,
+        )
+    finally:
+        handle.remove()
+    transport = result["transport"]
+    initial_c = 256 if start is None else 0
+    if (
+        cache is None
+        or not audit
+        or audit[0] != {"operands": 256, "c": initial_c}
+        or sum(call["operands"] for call in audit) != 256
+        or sum(call["c"] for call in audit)
+        != initial_c + transport["matrix_patch_tokens"]
+        or transport["matrix_initial_tokens"] != 256 + initial_c
+        or transport["fresh_caches"] != int(start is None)
+    ):
+        raise ValueError("tile slice memory transport audit failed")
+    return cache, result, audit
+
+
 def _state_snapshot_digits(bits: list[int] | None, dirty_offset: int) -> list[int]:
     if bits is None:
         raise ValueError("missing warp snapshot")

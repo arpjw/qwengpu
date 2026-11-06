@@ -10,10 +10,9 @@ from pathlib import Path
 import torch
 import transformers
 
-from qwengpu.compiled_tile8 import C_MEMORY, INDEX_OPERAND
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUT,
-    execute,
+    launch_cached_tile,
     load_tile_model,
     oracle,
     parse_launch,
@@ -27,42 +26,9 @@ FIXTURE = (
 
 
 def launch_slice(model, circuit, case, device, offset, *, cache=None) -> tuple:
-    start = cache
-    audit = []
-
-    def capture(_model, _args, kwargs, output) -> None:
-        nonlocal cache
-        if kwargs["past_key_values"] is not cache:
-            raise ValueError("tile call did not receive its previous cache")
-        if cache is not None and output.past_key_values is not cache:
-            raise ValueError("tile call replaced its previous cache")
-        cache = output.past_key_values
-        tokens = [token - offset for token in kwargs["input_ids"][0].tolist()]
-        audit.append(
-            {
-                "operands": sum(
-                    INDEX_OPERAND <= token < INDEX_OPERAND + 4096 for token in tokens
-                ),
-                "c": sum(C_MEMORY <= token < C_MEMORY + 4096 for token in tokens),
-            }
-        )
-
-    handle = model.register_forward_hook(capture, with_kwargs=True)
-    try:
-        result = execute(
-            model,
-            circuit,
-            case,
-            device,
-            256,
-            offset,
-            resident_add32=True,
-            resident_io=True,
-            resident_cache=start,
-            refresh_operands=start is not None,
-        )
-    finally:
-        handle.remove()
+    cache, result, audit = launch_cached_tile(
+        model, circuit, case, device, offset, cache=cache
+    )
     transport = result.pop("transport")
     if result != oracle(case, 256, looping=True) or result["outcome"] != "halted":
         raise ValueError("tile slice differs from the interpreter")
@@ -71,16 +37,6 @@ def launch_slice(model, circuit, case, device, offset, *, cache=None) -> tuple:
         for bank in ("grid", "memory", "rom", "state")
     ):
         raise ValueError("tile cache rows differ from the expected state")
-    initial_c = 256 if start is None else 0
-    if (
-        audit[0] != {"operands": 256, "c": initial_c}
-        or sum(call["operands"] for call in audit) != 256
-        or sum(call["c"] for call in audit)
-        != initial_c + transport["matrix_patch_tokens"]
-        or transport["matrix_initial_tokens"] != 256 + initial_c
-        or transport["fresh_caches"] != int(start is None)
-    ):
-        raise ValueError("tile slice memory transport audit failed")
     return cache, {
         "matrix": result["matrix"],
         "instructions": len(result["trace"]),

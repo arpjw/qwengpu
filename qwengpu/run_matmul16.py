@@ -16,6 +16,7 @@ from qwengpu.eval_tile8 import (
     RESIDENT_GRID_LAYOUT,
     RESIDENT_TRANSPORTS,
     execute,
+    launch_cached_tile,
     load_tile_model,
     parse_launch,
 )
@@ -66,70 +67,84 @@ def run_matmul(
     c: list[list[int]],
     *,
     resident_add32: bool = False,
+    retain_c: bool = False,
 ) -> dict:
-    matrix = [row[:] for row in c]
-    passes = []
-    for k in range(0, SIZE, TILE):
-        launches = []
-        for row in range(0, SIZE, TILE):
-            for col in range(0, SIZE, TILE):
-                launch = parse_launch(
-                    {
-                        "a": _tile(a, row, k),
-                        "b": _tile(b, k, col),
-                        "c": _tile(matrix, row, col),
-                    },
-                    resident_grid=True,
-                    resident_add32=resident_add32,
-                )
-                result = execute(
-                    model,
-                    circuit,
-                    launch,
-                    device,
-                    256,
-                    offset,
-                    resident_grid=True,
-                    resident_add32=resident_add32,
-                    **RESIDENT_TRANSPORTS["fixed"],
-                )
-                transport = result["transport"]
-                if (
-                    result["outcome"] != "halted"
-                    or transport["fresh_caches"] != 1
-                    or not all(
-                        transport[f"resident_{bank}_exact"]
-                        for bank in ("grid", "memory", "rom", "state")
-                    )
-                ):
-                    raise RuntimeError(
-                        f"tile ({row}, {col}), K={k} failed: {result['outcome']}, {transport}"
-                    )
-                for i, output_row in enumerate(result["matrix"]):
-                    matrix[row + i][col : col + TILE] = output_row
-                trace = {name: result[name] for name in ("trace", "schedules")}
-                record = {
-                    "row": row,
-                    "col": col,
-                    "instructions": len(trace["trace"]),
-                    "scheduler_decisions": len(trace["schedules"]),
-                    "trace_sha256": _trace_digest(trace),
-                    "transport": transport,
-                }
-                if resident_add32:
-                    grid_digits = WARP_DIRTY_OFFSET // 4
-                    grid_trace = [
-                        {**step, "snapshot": step["snapshot"][-grid_digits:]}
-                        for step in trace["trace"]
-                    ]
-                    record["grid_trace_sha256"] = _trace_digest(
-                        {**trace, "trace": grid_trace}
-                    )
-                launches.append(record)
-        passes.append(
-            {"k": k, "matrix": [row[:] for row in matrix], "launches": launches}
+    if retain_c and not resident_add32:
+        raise ValueError("retaining C requires a resident ADD32 checkpoint")
+    passes = {
+        k: {"k": k, "matrix": [row[:] for row in c], "launches": []}
+        for k in range(0, SIZE, TILE)
+    }
+    tiles = [(row, col) for row in range(0, SIZE, TILE) for col in range(0, SIZE, TILE)]
+    if retain_c:
+        order = [(k, row, col) for row, col in tiles for k in passes]
+    else:
+        order = [(k, row, col) for k in passes for row, col in tiles]
+    cache = None
+    for k, row, col in order:
+        if k == 0:
+            cache = None
+        previous = c if k == 0 else passes[k - TILE]["matrix"]
+        matrix = passes[k]["matrix"]
+        launch = parse_launch(
+            {
+                "a": _tile(a, row, k),
+                "b": _tile(b, k, col),
+                "c": _tile(previous, row, col),
+            },
+            resident_grid=True,
+            resident_add32=resident_add32,
         )
-    return {"matrix": matrix, "passes": passes}
+        if retain_c:
+            cache, result, audit = launch_cached_tile(
+                model, circuit, launch, device, offset, cache=cache
+            )
+        else:
+            result = execute(
+                model,
+                circuit,
+                launch,
+                device,
+                256,
+                offset,
+                resident_grid=True,
+                resident_add32=resident_add32,
+                **RESIDENT_TRANSPORTS["fixed"],
+            )
+        transport = result["transport"]
+        if (
+            result["outcome"] != "halted"
+            or transport["fresh_caches"] != int(not retain_c or k == 0)
+            or not all(
+                transport[f"resident_{bank}_exact"]
+                for bank in ("grid", "memory", "rom", "state")
+            )
+        ):
+            raise RuntimeError(
+                f"tile ({row}, {col}), K={k} failed: {result['outcome']}, {transport}"
+            )
+        for i, output_row in enumerate(result["matrix"]):
+            matrix[row + i][col : col + TILE] = output_row
+        trace = {name: result[name] for name in ("trace", "schedules")}
+        record = {
+            "row": row,
+            "col": col,
+            "instructions": len(trace["trace"]),
+            "scheduler_decisions": len(trace["schedules"]),
+            "trace_sha256": _trace_digest(trace),
+            "transport": transport,
+        }
+        if resident_add32:
+            grid_digits = WARP_DIRTY_OFFSET // 4
+            grid_trace = [
+                {**step, "snapshot": step["snapshot"][-grid_digits:]}
+                for step in trace["trace"]
+            ]
+            record["grid_trace_sha256"] = _trace_digest({**trace, "trace": grid_trace})
+        if retain_c:
+            record["memory_tokens_by_call"] = audit
+        passes[k]["launches"].append(record)
+    return {"matrix": passes[SIZE - TILE]["matrix"], "passes": list(passes.values())}
 
 
 def main() -> None:
@@ -142,6 +157,9 @@ def main() -> None:
         "--resident-add32",
         action="store_true",
         help="use the standalone checkpoint that also runs ADD32I",
+    )
+    parser.add_argument(
+        "--retain-c", action="store_true", help="keep each output tile in one cache"
     )
     parser.add_argument("--device", choices=("cpu", "mps", "cuda"))
     parser.add_argument(
@@ -172,6 +190,8 @@ def main() -> None:
                     "--resident-add32 requires a resident ADD32 checkpoint"
                 )
             offset = meta["chip_token_offset"]
+        if args.retain_c and not resident_add32:
+            raise ValueError("--retain-c requires a resident ADD32 checkpoint")
     except (OSError, TypeError, ValueError) as exc:
         parser.error(str(exc))
 
@@ -193,14 +213,23 @@ def main() -> None:
         "device": device,
         "torch": torch.__version__,
         "merge": meta,
-        "transport_mode": "fixed",
+        "transport_mode": "state_store_plan" if args.retain_c else "fixed",
+        **({"retain_c": True} if args.retain_c else {}),
         **(
             {"checkpoint": meta["layout"] if meta else "standalone-resident-add32"}
             if resident_add32
             else {}
         ),
         **run_matmul(
-            model, circuit, device, offset, a, b, c, resident_add32=resident_add32
+            model,
+            circuit,
+            device,
+            offset,
+            a,
+            b,
+            c,
+            resident_add32=resident_add32,
+            retain_c=args.retain_c,
         ),
     }
     output = json.dumps(result, indent=2) + "\n"

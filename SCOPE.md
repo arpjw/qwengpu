@@ -131,10 +131,11 @@ cache on MPS and merged Qwen3.5-9B. The second slice refreshes A and
 B and keeps C in the model. Both results match the scalar reference,
 the prior tile traces, and the second slice's fresh-cache control.
 
-The next gate is to retain C across both K slices for each of the four
-output tiles in the 16×16 launcher. Use one cache per output tile.
-Compare both pass matrices and all eight traces with the existing
-launcher and audit the four omitted C uploads.
+The 16×16 launcher's `--retain-c` mode keeps C across both K slices
+for each of the four output tiles, using one cache per output tile.
+On MPS, both pass matrices and all eight traces match the existing
+launcher, and the audit finds four omitted C uploads. Merged 9B
+validation is the remaining check.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

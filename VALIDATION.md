@@ -1002,3 +1002,20 @@ and trace digests. Both devices used a single cache for the retained
 pair. The control used a separate cache and reproduced the second
 slice's result and trace. See `results/resident_add32_cached_tile*`
 for the reports and host details, and `REPRODUCE.md` for the commands.
+
+## Retained C across the full 16×16 multiply
+
+On standalone MPS, the ADD32 launcher's `--retain-c` mode matched
+the independent scalar reference at both K slices. The eight
+launches reproduced the original 928 instructions, 936 scheduler
+decisions, and all eight trace digests. Each pair used one new
+cache for its first launch and reused it for its second launch.
+The forward audit counted zero C upload tokens in all four second
+launches, omitting 1,024 C upload tokens across the multiply.
+
+The retained mode used 61,340 input tokens and the previous
+fixed-transport mode used 150,626. The retained mode also uses
+model-generated read plans, so this total difference includes
+changes beyond the C uploads. See
+`results/resident_add32_matmul16_retained_mps.json` for the audited
+launches. Merged 9B validation remains open.
