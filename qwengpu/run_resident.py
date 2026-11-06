@@ -13,6 +13,7 @@ from qwengpu.compiled_tile8 import VOCAB
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
     RESIDENT_DELTA_LAYOUT,
+    RESIDENT_GRID_LAYOUT,
     RESIDENT_IO_LAYOUT,
     RESIDENT_PLAN_LAYOUT,
     RESIDENT_ROM_LAYOUT,
@@ -34,6 +35,11 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-grid",
+        action="store_true",
+        help="let the model stop after the requested number of row pairs",
+    )
     variants.add_argument(
         "--resident-io",
         action="store_true",
@@ -77,13 +83,16 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_io = args.resident_io
+    resident_grid = args.resident_grid
+    resident_io = args.resident_io or resident_grid
     resident_plan = args.resident_plan or resident_io
     resident_delta = args.resident_delta or resident_plan
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-io"
+        "standalone-resident-grid"
+        if resident_grid
+        else "standalone-resident-io"
         if resident_io
         else "standalone-resident-plan"
         if resident_plan
@@ -97,7 +106,6 @@ def main() -> int:
     )
     try:
         payload = args.kernel.read_bytes()
-        launch = parse_launch(json.loads(payload), looping=True)
         if args.model is not None:
             meta = json.loads(
                 (args.model / "qwengpu9b.json").read_text(encoding="utf-8")
@@ -112,6 +120,7 @@ def main() -> int:
                     RESIDENT_DELTA_LAYOUT,
                     RESIDENT_PLAN_LAYOUT,
                     RESIDENT_IO_LAYOUT,
+                    RESIDENT_GRID_LAYOUT,
                 )
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
@@ -119,7 +128,8 @@ def main() -> int:
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
-            resident_io = layout == RESIDENT_IO_LAYOUT
+            resident_grid = layout == RESIDENT_GRID_LAYOUT
+            resident_io = resident_grid or layout == RESIDENT_IO_LAYOUT
             resident_plan = resident_io or layout == RESIDENT_PLAN_LAYOUT
             resident_delta = resident_plan or layout == RESIDENT_DELTA_LAYOUT
             resident_state = resident_delta or layout == RESIDENT_STATE_LAYOUT
@@ -138,9 +148,14 @@ def main() -> int:
                 raise ValueError("--resident-plan requires a resident plan checkpoint")
             if args.resident_io and not resident_io:
                 raise ValueError("--resident-io requires a resident I/O checkpoint")
+            if args.resident_grid and not resident_grid:
+                raise ValueError("--resident-grid requires a resident grid checkpoint")
             offset = meta["chip_token_offset"]
         if args.transport and not resident_io:
             raise ValueError("--transport requires a resident I/O checkpoint")
+        launch = parse_launch(
+            json.loads(payload), looping=True, resident_grid=resident_grid
+        )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 
@@ -162,6 +177,7 @@ def main() -> int:
         resident_delta=resident_delta,
         resident_plan=resident_plan,
         resident_io=resident_io,
+        resident_grid=resident_grid,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]
@@ -176,7 +192,14 @@ def main() -> int:
         }
     )
     observed = execute(
-        model, circuit, launch, device, args.max_steps, offset, **execution
+        model,
+        circuit,
+        launch,
+        device,
+        args.max_steps,
+        offset,
+        resident_grid=resident_grid,
+        **execution,
     )
     trace = observed.pop("trace")
     schedules = observed.pop("schedules")
@@ -189,6 +212,8 @@ def main() -> int:
         "instructions": len(trace),
         **observed,
     }
+    if resident_grid:
+        result["row_pairs"] = launch["row_pairs"]
     if args.transport:
         result["transport_mode"] = args.transport
     if args.trace:
@@ -203,6 +228,7 @@ def main() -> int:
     if (
         transport["fresh_caches"] != 1
         or not transport["resident_memory_exact"]
+        or (resident_grid and not transport["resident_grid_exact"])
         or (resident_rom and not transport["resident_rom_exact"])
         or (resident_state and not transport["resident_state_exact"])
     ):

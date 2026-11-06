@@ -52,6 +52,8 @@ ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
 READ_PLAN = ROM_BANK + 2
 PLAN_TAG = 0xD000
+GRID = 0xDE00
+ROW_PAIRS = 4
 PLAN_BYTES = 8
 WARP_BANKS = (0xB000, 0xC000)
 WARP_TAGS = tuple(
@@ -160,7 +162,9 @@ def build(
     resident_delta: bool = False,
     resident_plan: bool = False,
     resident_io: bool = False,
+    resident_grid: bool = False,
 ) -> Circ:
+    resident_io = resident_io or resident_grid
     resident_plan = resident_plan or resident_io
     resident_delta = resident_delta or resident_plan
     resident_state = resident_state or resident_delta
@@ -256,7 +260,19 @@ def build(
         load_ticket,
     )
     both_halted = c.and_([controls[0][4], controls[1][4]], "schedule.both_halted")
-    last_tile = c.and_([tile0, tile1], "schedule.last_tile")
+    if resident_grid:
+        load_grid = between("grid.load", GRID, GRID + ROW_PAIRS)
+        limit = c.slot_head(
+            "grid",
+            {0: load_grid},
+            {0: schedule + sum(resets, Expr())},
+            {2: raw[0], 3: raw[1]},
+            load_grid,
+        )
+        difference = from_bits([tile0, tile1]) - from_bits(limit)
+        last_tile = c.node(c.t_eq(difference, 0, -3, 3), "schedule.last_tile")
+    else:
+        last_tile = c.and_([tile0, tile1], "schedule.last_tile")
     advance = c.and_([both_halted, one - last_tile], "schedule.advance")
     release = c.and_([controls[0][5], controls[1][5]], "schedule.release")
     ready = [one - ctrl[4] - ctrl[5] + advance + release for ctrl in controls]
@@ -883,6 +899,7 @@ def build_standalone(
     resident_delta: bool = False,
     resident_plan: bool = False,
     resident_io: bool = False,
+    resident_grid: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -897,6 +914,7 @@ def build_standalone(
         resident_delta=resident_delta,
         resident_plan=resident_plan,
         resident_io=resident_io,
+        resident_grid=resident_grid,
     )
     return build_qwen(
         circuit,

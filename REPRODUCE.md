@@ -745,3 +745,54 @@ modes with repeated warm launches.
   "$QWENGPU_RELOAD_KERNEL" --model /path/to/Qwen3.5-9B-qwengpu-resident-io \
   --out "$QWENGPU_DIR/results/store_reload_transport_benchmark_a100.json"
 ```
+
+## Launch a subset of the tile rows
+
+The resident grid checkpoint stores one launch token with the index of
+the last row pair. The scheduler and warp resets both read it. Omit
+`row_pairs` for a full tile or set it to 1, 2, or 3 to run the first
+2, 4, or 6 rows. The verifier compares the complete trace and the
+default kernel's matrix with the interpreter and checks the stored extent
+and shared memory directly in the model cache.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-grid --device mps --out "$QWENGPU_DIR/results/resident_grid_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-grid --out /path/to/Qwen3.5-9B-qwengpu-resident-grid
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-grid --device cuda \
+  --out "$QWENGPU_DIR/results/resident_grid_9b_cuda_fla.json"
+```
+
+```sh
+QWENGPU_PARTIAL_KERNEL="$QWENGPU_DIR/eval/frozen/grid_gate_v1/partial_1_pair.json"
+for mode in fixed state-plan state-store-plan; do
+  "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+    "$QWENGPU_PARTIAL_KERNEL" --model /path/to/Qwen3.5-9B-qwengpu-resident-grid \
+    --device cuda --transport "$mode" --trace \
+    --out "$QWENGPU_DIR/results/resident_grid_launch_${mode}_9b_cuda_fla.json"
+done
+```
+
+After saving both suite reports and the three launcher reports, compare
+the MPS and CUDA results with each other and the prior full-tile traces:
+
+```sh
+python3 "$QWENGPU_DIR/scripts/check_resident_grid.py"
+```
+
+The two-HALT diagnostic isolates the warp-reset dependency. With the grid
+head queried only by `SCHEDULE`, both reset tokens missed the extent and
+the scheduler skipped a warp turn at the first advance. The saved
+`resident_grid_schedule_only_mps.json` records the failing trace. Replacing
+the grid head's query selector with `schedule` reproduces that failure;
+the current selector also includes both reset tokens.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-grid --device mps \
+  --kernel "$QWENGPU_DIR/eval/diagnostics/resident_grid_halt.json" \
+  --out "$QWENGPU_DIR/results/resident_grid_halt_mps.json"
+```

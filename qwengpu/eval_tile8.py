@@ -28,6 +28,7 @@ from qwengpu.compiled_tile8 import (
     C_MEMORY,
     DEADLOCK,
     DONE,
+    GRID,
     INDEX_OPERAND,
     INDEX_OPS,
     INDEX_REGISTER,
@@ -54,6 +55,7 @@ from qwengpu.compiled_tile8 import (
     REGISTER,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
+    ROW_PAIRS,
     SNAPSHOT_BITS,
     WARP_BANKS,
     WARP_DIRTY_OFFSET,
@@ -74,12 +76,14 @@ INDEXED_FIXTURES = FIXTURES.with_name("indexed_gate_v1")
 MASKED_FIXTURES = FIXTURES.with_name("masked_gate_v1")
 DIVERGENT_FIXTURES = FIXTURES.with_name("divergent_gate_v1")
 LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
+GRID_FIXTURES = FIXTURES.with_name("grid_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
 RESIDENT_DELTA_LAYOUT = "qwengpu-resident-delta9b-v1"
 RESIDENT_PLAN_LAYOUT = "qwengpu-resident-plan9b-v1"
 RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
+RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_TRANSPORTS = {
     "fixed": {"resident_delta": True},
     "state_plan": {"resident_plan": True},
@@ -136,6 +140,7 @@ def parse_launch(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    resident_grid: bool = False,
 ) -> dict:
     divergent = divergent or looping
     masked = masked or divergent
@@ -144,6 +149,11 @@ def parse_launch(
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
     b = _unsigned(data.get("b", [0] * 64), 64, 255, "b")
     initial = _unsigned(data.get("c", [0] * 64), 64, 65535, "c")
+    row_pairs = data.get("row_pairs", ROW_PAIRS)
+    if type(row_pairs) is not int or not 1 <= row_pairs <= ROW_PAIRS:
+        raise ValueError(f"row_pairs must be an integer from 1 through {ROW_PAIRS}")
+    if row_pairs != ROW_PAIRS and not resident_grid:
+        raise ValueError("partial row_pairs requires a resident grid checkpoint")
     raw = data.get("programs")
     links = [{}, {}]
     if raw is None:
@@ -184,7 +194,14 @@ def parse_launch(
             if divergent:
                 links[warp] = _control_links(ops)
             programs.append(tuple(ops))
-    return {"a": a, "b": b, "c": initial, "programs": programs, "links": links}
+    return {
+        "a": a,
+        "b": b,
+        "c": initial,
+        "programs": programs,
+        "links": links,
+        "row_pairs": row_pairs,
+    }
 
 
 def _parse_case(
@@ -194,9 +211,15 @@ def _parse_case(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    resident_grid: bool = False,
 ) -> dict:
     case = parse_launch(
-        data, indexed=indexed, masked=masked, divergent=divergent, looping=looping
+        data,
+        indexed=indexed,
+        masked=masked,
+        divergent=divergent,
+        looping=looping,
+        resident_grid=resident_grid,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -208,7 +231,11 @@ def _parse_case(
             [
                 (
                     initial[row * 8 + col]
-                    + sum(a[row * 8 + k] * b[k * 8 + col] for k in range(8))
+                    + (
+                        sum(a[row * 8 + k] * b[k * 8 + col] for k in range(8))
+                        if row < 2 * case["row_pairs"]
+                        else 0
+                    )
                 )
                 & 65535
                 for col in range(8)
@@ -265,9 +292,10 @@ def execute(
     resident_delta: bool = False,
     resident_plan: bool = False,
     resident_io: bool = False,
+    resident_grid: bool = False,
 ) -> dict:
     resident_plan = resident_plan or resident_io
-    resident_delta = resident_delta or resident_plan
+    resident_delta = resident_delta or resident_plan or resident_grid
     resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
@@ -275,6 +303,9 @@ def execute(
     masked = masked or divergent
     indexed = indexed or masked
     resident = resident or indexed
+    row_pairs = case.get("row_pairs", ROW_PAIRS)
+    if row_pairs != ROW_PAIRS and not resident_grid:
+        raise ValueError("partial row_pairs requires a resident grid checkpoint")
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 1
@@ -322,6 +353,10 @@ def execute(
         "matrix_initial_tokens": 0,
         "matrix_patch_tokens": 0,
     }
+
+    if resident_grid:
+        pending.append(GRID + row_pairs - 1)
+        transport["grid_initial_tokens"] = 1
 
     if resident_rom:
         for warp, tokens in enumerate(rom):
@@ -540,6 +575,10 @@ def execute(
                 "snapshot": hex_bits(observed_bits),
             }
         )
+    if resident_grid:
+        transport["resident_grid_exact"] = (
+            head_row(cache, circuit, "grid", 0, 2) == row_pairs - 1
+        )
     if resident:
         transport["resident_memory_exact"] = _check_resident_memory(
             cache, circuit, operands, memory, indexed=indexed
@@ -634,6 +673,7 @@ def oracle(
     pcs = [0, 0]
     states = [0, 0]
     tile = 0
+    last_tile = case.get("row_pairs", ROW_PAIRS) - 1
     last = 1
     acc = [[0] * 8 for _ in range(2)]
     indices = [[0] * 8 for _ in range(2)]
@@ -647,7 +687,7 @@ def oracle(
     outcome = "step_limit"
     for index in range(max_steps + 1):
         released = states == [2, 2]
-        advance = states == [1, 1] and tile < 3
+        advance = states == [1, 1] and tile < last_tile
         if advance:
             tile += 1
             pcs = [0, 0]
@@ -844,6 +884,7 @@ def load_tile_model(
     resident_delta: bool = False,
     resident_plan: bool = False,
     resident_io: bool = False,
+    resident_grid: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -857,6 +898,7 @@ def load_tile_model(
             resident_delta=resident_delta,
             resident_plan=resident_plan,
             resident_io=resident_io,
+            resident_grid=resident_grid,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -879,6 +921,7 @@ def load_tile_model(
             resident_delta=resident_delta,
             resident_plan=resident_plan,
             resident_io=resident_io,
+            resident_grid=resident_grid,
         )
     return model.to(device).eval(), circuit
 
@@ -898,6 +941,7 @@ def main() -> None:
     variants.add_argument("--resident-delta", action="store_true")
     variants.add_argument("--resident-plan", action="store_true")
     variants.add_argument("--resident-io", action="store_true")
+    variants.add_argument("--resident-grid", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -907,7 +951,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_io = args.resident_io
+    resident_grid = args.resident_grid
+    resident_io = args.resident_io or resident_grid
     resident_plan = args.resident_plan or resident_io
     resident_delta = args.resident_delta or resident_plan
     resident_state = args.resident_state or resident_delta
@@ -932,9 +977,11 @@ def main() -> None:
             RESIDENT_DELTA_LAYOUT,
             RESIDENT_PLAN_LAYOUT,
             RESIDENT_IO_LAYOUT,
+            RESIDENT_GRID_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_io = layout == RESIDENT_IO_LAYOUT
+        resident_grid = layout == RESIDENT_GRID_LAYOUT
+        resident_io = resident_grid or layout == RESIDENT_IO_LAYOUT
         resident_plan = resident_io or layout == RESIDENT_PLAN_LAYOUT
         resident_delta = resident_plan or layout == RESIDENT_DELTA_LAYOUT
         resident_state = resident_delta or layout == RESIDENT_STATE_LAYOUT
@@ -964,6 +1011,8 @@ def main() -> None:
             raise ValueError("--resident-plan requires a resident plan checkpoint")
         if args.resident_io and not resident_io:
             raise ValueError("--resident-io requires a resident I/O checkpoint")
+        if args.resident_grid and not resident_grid:
+            raise ValueError("--resident-grid requires a resident grid checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -975,6 +1024,8 @@ def main() -> None:
         paths.extend(sorted(DIVERGENT_FIXTURES.glob("*.json")))
     if looping and not args.kernel:
         paths.extend(sorted(LOOP_FIXTURES.glob("*.json")))
+    if resident_grid and not args.kernel:
+        paths.extend(sorted(GRID_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -988,6 +1039,7 @@ def main() -> None:
                     masked=masked,
                     divergent=divergent,
                     looping=looping,
+                    resident_grid=resident_grid,
                 ),
             )
         )
@@ -1008,6 +1060,7 @@ def main() -> None:
         resident_delta=resident_delta,
         resident_plan=resident_plan,
         resident_io=resident_io,
+        resident_grid=resident_grid,
     )
     report = {
         "device": args.device,
@@ -1043,6 +1096,7 @@ def main() -> None:
             resident_delta=resident_delta,
             resident_plan=resident_plan,
             resident_io=resident_io,
+            resident_grid=resident_grid,
         )
         transport = observed.pop("transport")
         exact = (
@@ -1054,6 +1108,7 @@ def main() -> None:
                     and transport["resident_memory_exact"]
                 )
             )
+            and (not resident_grid or transport["resident_grid_exact"])
             and (not resident_rom or transport["resident_rom_exact"])
             and (not resident_state or transport["resident_state_exact"])
             and observed["outcome"] == case["expected_outcome"]

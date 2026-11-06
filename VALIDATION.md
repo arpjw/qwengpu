@@ -655,3 +655,32 @@ fixtures. The state and store plan has the lowest token count and
 peak allocation on both. Existing layout-based defaults are
 preserved. Reports are `results/store_reload_transport_benchmark_a100.json`
 and `results/store_reload_transport_benchmark_host.txt`.
+
+## Programmable resident row-pair extent
+
+The standalone resident grid checkpoint passed all 15 fixtures on
+MPS: 1,403 instructions and 1,418 scheduler decisions matched the
+independent interpreter. The 12 full-size fixture reports matched the
+prior resident I/O reports exactly apart from the one launch token and
+two grid transport fields. In every launch the verifier read the grid,
+shared memory, program ROM, and warp registers directly from the same
+inference cache.
+
+| Row pairs | Rows scheduled | Instructions | Scheduler decisions |
+| ---: | ---: | ---: | ---: |
+| 1 | 2 | 29 | 30 |
+| 2 | 4 | 58 | 59 |
+| 3 | 6 | 87 | 88 |
+
+The three partial fixtures also matched the scalar modular matrix
+product for the scheduled rows and preserved all seeded values in
+the later rows. The MPS graph uses 17 layers, 155 total heads, and
+3,888 dimensions, compared with 17, 154, and 3,885 for resident I/O.
+
+The initial schedule-only grid read failed the two-HALT diagnostic:
+it ran seven instructions where the interpreter expected eight.
+Both reset tokens also needed to read the grid. With that change,
+all eight instructions and nine scheduler decisions matched.
+Both reports and the diagnostic manifest are saved. All 25 unit
+tests passed. The launcher rejected an extent below four on the
+previous layout before loading a model.

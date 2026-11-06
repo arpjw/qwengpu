@@ -67,10 +67,11 @@ checkpoint. Fixed requests had the lowest latency on both measured
 A100 fixtures. The state and store plan had the lowest token count
 and peak allocation. Existing layout-based defaults remain available.
 
-The next gate makes the launch extent programmable from one through
-four row pairs. Have the model terminate at the requested extent.
-Verify that partial launches leave later C rows intact and that
-the four-pair default preserves existing traces.
+The resident grid checkpoint takes a launch extent of one through four
+row pairs. The scheduler reads the final pair from the cache and
+decides when to finish. MPS passes all 15 fixtures, including three
+partial launches with untouched later C rows and 12 unchanged full
+launches. Merged 9B validation is the remaining gate for this layout.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
