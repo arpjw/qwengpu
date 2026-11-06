@@ -1247,3 +1247,16 @@ count is the same. The one-launch path uploads the grid, ROM,
 and warp setup once. Both backends reproduce all 27 inherited
 case records from tilebanks. All 25 local tests passed.
 See `results/resident_tilepipe_*` for the reports and host record.
+
+## Four model-scheduled launches for the full 16×16 multiply
+
+The public `--schedule-k` mode uses one launch and cache for each
+8×8 output tile. The model transitions between preloaded banks
+inside each launch. Both 16×16 scalar matrices match MPS. The
+checker verifies all four transition tickets and the grid, ROM,
+warp and memory upload counts for each tile. The four launches
+execute 928 instructions and 932 scheduler decisions.
+
+The MPS run uses 60,408 input tokens, compared with 61,340 in
+the earlier eight-launch retained-C mode. Merged CUDA, native
+text and cache handoff checks are in progress.
