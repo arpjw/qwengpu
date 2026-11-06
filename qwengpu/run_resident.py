@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.compiled_tile8 import RESIDENT_LOOP32_LAYOUT, VOCAB
+from qwengpu.compiled_tile8 import VOCAB
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
     RESIDENT_ADD32_LAYOUTS,
@@ -18,6 +18,7 @@ from qwengpu.eval_tile8 import (
     RESIDENT_DELTA_LAYOUT,
     RESIDENT_GRID_LAYOUT,
     RESIDENT_IO_LAYOUT,
+    RESIDENT_LOOP32_LAYOUTS,
     RESIDENT_PLAN_LAYOUT,
     RESIDENT_ROM_LAYOUT,
     RESIDENT_SHARED32_LAYOUTS,
@@ -183,7 +184,7 @@ def main() -> int:
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
-            resident_loop32 = layout == RESIDENT_LOOP32_LAYOUT
+            resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
             resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
             resident_shared32 = layout in RESIDENT_SHARED32_LAYOUTS

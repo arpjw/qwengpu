@@ -1421,3 +1421,30 @@ bash scripts/qualify_resident_add32.sh --resident-loop32 "$model" --device cuda 
 python3 scripts/check_resident_loop32.py
 python3 scripts/check_matmul16.py results/resident_loop32_matmul16_retained_*.json
 ```
+
+## Preload two K-slice operand banks
+
+The tilebanks layout adds a read-only operand bank for tile MACs.
+The evaluator uploads both A/B pairs and initial C before the
+first launch. The second launch uses the same cache, selects the
+second bank, and uploads zero initial memory tokens. Indexed
+loads and stores continue to use the original shared memory.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.eval_cached_tile --preload-operands --device mps \
+  --out results/resident_tilebanks_cached_tile_mps.json
+bash scripts/qualify_resident_add32.sh --resident-tilebanks --device mps \
+  --out results/resident_tilebanks_full_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+model=/path/to/Qwen3.5-9B-qwengpu-resident-tilebanks
+"$QWENGPU_PYTHON" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-tilebanks --out "$model"
+"$QWENGPU_PYTHON" -m qwengpu.eval_cached_tile --model "$model" \
+  --preload-operands --device cuda \
+  --out results/resident_tilebanks_cached_tile_9b_cuda_fla.json
+bash scripts/qualify_resident_add32.sh --resident-tilebanks "$model" --device cuda \
+  --out results/resident_tilebanks_full_9b_cuda_fla.json
+python3 scripts/check_tilebanks.py --full
+```

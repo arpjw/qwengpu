@@ -35,6 +35,7 @@ READ_STORE = 2144
 READ_INDEX = 2176
 INDEX_REGISTER = 0x9000
 INDEX_OPERAND = 0xA000
+ALT_OPERAND = 0xE000
 INDEX_WORDS = 128
 READ_MASK = READ_INDEX + 16
 MASK_REGISTER = 0x9100
@@ -63,6 +64,7 @@ PAIR_MASK_COUNT = 64
 RESIDENT_ADDMEM32_LAYOUT = "qwengpu-resident-addmem32-9b-v1"
 RESIDENT_BRANCH32_LAYOUT = "qwengpu-resident-branch32-9b-v1"
 RESIDENT_LOOP32_LAYOUT = "qwengpu-resident-loop32-9b-v1"
+RESIDENT_TILEBANKS_LAYOUT = "qwengpu-resident-tilebanks-9b-v1"
 WHILE_HI_OP = "WHILE_HI_BIT"
 WHILE_HI_WIRE_OFFSET = 9
 RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
@@ -258,7 +260,9 @@ def build(
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
     resident_loop32: bool = False,
+    resident_tilebanks: bool = False,
 ) -> Circ:
+    resident_loop32 = resident_loop32 or resident_tilebanks
     resident_branch32 = resident_branch32 or resident_loop32
     resident_addmem32 = resident_addmem32 or resident_branch32
     resident_shared32 = resident_shared32 or resident_addmem32
@@ -284,6 +288,7 @@ def build(
     c.resident_addmem32 = resident_addmem32
     c.resident_branch32 = resident_branch32
     c.resident_loop32 = resident_loop32
+    c.resident_tilebanks = resident_tilebanks
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -374,15 +379,18 @@ def build(
     )
     both_halted = c.and_([controls[0][4], controls[1][4]], "schedule.both_halted")
     if resident_grid:
-        load_grid = between("grid.load", GRID, GRID + ROW_PAIRS)
-        limit = c.slot_head(
-            "grid",
-            {0: load_grid},
-            {0: schedule + sum(resets, Expr())},
-            {2: raw[0], 3: raw[1]},
-            load_grid,
+        load_grid = between(
+            "grid.load", GRID, GRID + ROW_PAIRS * (1 + int(resident_tilebanks))
         )
-        difference = from_bits([tile0, tile1]) - from_bits(limit)
+        grid_queries = schedule + sum(resets, Expr())
+        grid_value = {2: raw[0], 3: raw[1]}
+        if resident_tilebanks:
+            grid_queries += tick
+            grid_value[4] = raw[2]
+        grid = c.slot_head(
+            "grid", {0: load_grid}, {0: grid_queries}, grid_value, load_grid
+        )
+        difference = from_bits([tile0, tile1]) - from_bits(grid[:2])
         last_tile = c.node(c.t_eq(difference, 0, -3, 3), "schedule.last_tile")
     else:
         last_tile = c.and_([tile0, tile1], "schedule.last_tile")
@@ -547,14 +555,37 @@ def build(
             )
         return lookup(name, base, [nib], state_queries)
 
-    # Two A heads select the two nibbles of one row element. Each B column
-    # has its own pair of heads, all addressed by the same K index.
-    a_queries = [
-        c.and_([tick, rows[row], k_hot[k]], f"A.query.{row}.{k}")
-        for row in range(8)
-        for k in range(8)
-    ]
-    b_queries = [c.and_([tick, k_hot[k]], f"B.query.{k}") for k in range(8)]
+    # Two A heads select the nibbles of one row element. Each B column
+    # has its own pair of heads, addressed by the same K index.
+    bank_gates = [one]
+    if resident_tilebanks:
+        bank_gates = [one - grid[2], grid[2]]
+    a_queries = (
+        [
+            c.and_([tick, gate, rows[row], k_hot[k]], f"A.query.{bank}.{row}.{k}")
+            for bank, gate in enumerate(bank_gates)
+            for row in range(8)
+            for k in range(8)
+        ]
+        if resident_tilebanks
+        else [
+            c.and_([tick, rows[row], k_hot[k]], f"A.query.{row}.{k}")
+            for row in range(8)
+            for k in range(8)
+        ]
+    )
+    b_queries = (
+        [
+            c.and_([tick, gate, k_hot[k]], f"B.query.{bank}.{k}")
+            for bank, gate in enumerate(bank_gates)
+            for k in range(8)
+        ]
+        if resident_tilebanks
+        else [c.and_([tick, k_hot[k]], f"B.query.{k}") for k in range(8)]
+    )
+    bank_offsets = (
+        [0, (ALT_OPERAND - operand_base) // 16] if resident_tilebanks else [0]
+    )
     row_queries = [
         c.and_([tick, hot], f"C.query.{row}") for row, hot in enumerate(rows)
     ]
@@ -562,7 +593,10 @@ def build(
         bit
         for nib in range(2)
         for bit in lookup(
-            f"A.{nib}", operand_base, [2 * i + nib for i in range(64)], a_queries
+            f"A.{nib}",
+            operand_base,
+            [offset + 2 * i + nib for offset in bank_offsets for i in range(64)],
+            a_queries,
         )
     ]
     b = [
@@ -572,7 +606,11 @@ def build(
             for bit in lookup(
                 f"B.{col}.{nib}",
                 operand_base,
-                [128 + 2 * (8 * k + col) + nib for k in range(8)],
+                [
+                    offset + 128 + 2 * (8 * k + col) + nib
+                    for offset in bank_offsets
+                    for k in range(8)
+                ],
                 b_queries,
             )
         ]
@@ -1170,6 +1208,7 @@ def build_standalone(
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
     resident_loop32: bool = False,
+    resident_tilebanks: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1191,6 +1230,7 @@ def build_standalone(
         resident_addmem32=resident_addmem32,
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
+        resident_tilebanks=resident_tilebanks,
     )
     return build_qwen(
         circuit,

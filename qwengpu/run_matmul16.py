@@ -16,7 +16,7 @@ from qwengpu.eval_tile8 import (
     RESIDENT_ADDMEM32_LAYOUTS,
     RESIDENT_BRANCH32_LAYOUTS,
     RESIDENT_GRID_LAYOUT,
-    RESIDENT_LOOP32_LAYOUT,
+    RESIDENT_LOOP32_LAYOUTS,
     RESIDENT_SHARED32_LAYOUTS,
     RESIDENT_TRANSPORTS,
     execute,
@@ -214,7 +214,7 @@ def main() -> None:
             ):
                 raise ValueError("expected a merged resident grid or ADD32 checkpoint")
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
-            resident_loop32 = meta["layout"] == RESIDENT_LOOP32_LAYOUT
+            resident_loop32 = meta["layout"] in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = meta["layout"] in RESIDENT_BRANCH32_LAYOUTS
             resident_addmem32 = meta["layout"] in RESIDENT_ADDMEM32_LAYOUTS
             resident_shared32 = meta["layout"] in RESIDENT_SHARED32_LAYOUTS

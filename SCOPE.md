@@ -180,11 +180,11 @@ dependent warp match the scalar check. MPS matches the complete
 reproduces all 27 MPS case records. Both backends reproduce
 the eight retained 16×16 tile traces.
 
-The next tile gate is to preload both K slices of one output
-tile in the same inference cache. First verify that both
-operand banks are addressable and that switching banks keeps
-the partial C intact. This prepares a model-selected transition
-between slices within a single scheduled launch.
+The tilebanks layout preloads both K slices of one output tile in
+the same cache. The host selects the second bank for the second
+launch. MPS matches both scalar pass matrices and both prior
+traces, with zero memory uploads on the second launch. The
+merged check and inherited replays are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

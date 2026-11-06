@@ -26,6 +26,7 @@ from qwengpu.compiled_tile8 import (
     ADD_INDEX_LO,
     ADDMEM32_OPS,
     ADVANCE,
+    ALT_OPERAND,
     BRANCH_NIBBLES,
     BRANCH_OFFSET,
     BRANCH_OPS,
@@ -65,6 +66,7 @@ from qwengpu.compiled_tile8 import (
     RESIDENT_BRANCH32_LAYOUT,
     RESIDENT_LOOP32_LAYOUT,
     RESIDENT_SHARED32_LAYOUT,
+    RESIDENT_TILEBANKS_LAYOUT,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
     ROW_PAIRS,
@@ -108,7 +110,8 @@ RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
-RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, RESIDENT_LOOP32_LAYOUT)
+RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, RESIDENT_TILEBANKS_LAYOUT)
+RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, *RESIDENT_LOOP32_LAYOUTS)
 RESIDENT_ADDMEM32_LAYOUTS = (RESIDENT_ADDMEM32_LAYOUT, *RESIDENT_BRANCH32_LAYOUTS)
 RESIDENT_SHARED32_LAYOUTS = (RESIDENT_SHARED32_LAYOUT, *RESIDENT_ADDMEM32_LAYOUTS)
 RESIDENT_ADD32_LAYOUTS = (RESIDENT_ADD32_LAYOUT, *RESIDENT_SHARED32_LAYOUTS)
@@ -384,6 +387,8 @@ def execute(
     resident_add32: bool = False,
     resident_cache: Cache | None = None,
     refresh_operands: bool = False,
+    alternate_operands: list[int] | None = None,
+    operand_bank: int = 0,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
@@ -391,6 +396,14 @@ def execute(
     resident_branch32 = circuit.resident_branch32
     resident_loop32 = circuit.resident_loop32
     resident_add32 = resident_add32 or resident_shared32
+    if type(operand_bank) is not int or operand_bank not in (0, 1):
+        raise ValueError("operand_bank must be 0 or 1")
+    if operand_bank and alternate_operands is None:
+        raise ValueError("bank 1 requires an alternate operand image")
+    if alternate_operands is not None:
+        if not circuit.resident_tilebanks or refresh_operands:
+            raise ValueError("alternate operands require tilebanks without refresh")
+        _unsigned(alternate_operands, 128, 255, "alternate_operands")
     if refresh_operands and resident_cache is None:
         raise ValueError("refresh_operands requires a retained cache")
     if resident_cache is not None and not resident_add32:
@@ -415,6 +428,11 @@ def execute(
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 8 * first_row_pair + 1
     operands = nibbles(operand_base, _digits(case["a"] + case["b"], 8))
+    alternate = (
+        nibbles(ALT_OPERAND, _digits(alternate_operands, 8))
+        if alternate_operands is not None
+        else []
+    )
     memory = nibbles(C_MEMORY, _digits(case["c"], 16))
     initial_registers = case.get("initial_registers", [[0] * 8, [0] * 8])
     registers = [
@@ -473,6 +491,7 @@ def execute(
         if resident_cache is None or refresh_operands:
             uploads.extend(operands)
         if resident_cache is None:
+            uploads.extend(alternate)
             uploads.extend(memory)
     pending.extend(uploads)
     transport = {
@@ -483,7 +502,7 @@ def execute(
     }
 
     if resident_grid:
-        pending.append(GRID + last_row_pair)
+        pending.append(GRID + last_row_pair + ROW_PAIRS * operand_bank)
         transport["grid_initial_tokens"] = 1
 
     if resident_add32:
@@ -722,6 +741,12 @@ def execute(
         transport["resident_memory_exact"] = _check_resident_memory(
             cache, circuit, operands, memory, indexed=indexed
         )
+    if alternate:
+        transport["resident_operand_banks_exact"] = head_row(
+            cache, circuit, "grid", 0, 3
+        ) == last_row_pair + ROW_PAIRS * operand_bank and _check_tile_operands(
+            cache, circuit, alternate, bank=1
+        )
     if resident_rom:
         transport["resident_rom_exact"] = all(
             head_row(
@@ -792,10 +817,13 @@ def launch_cached_tile(
     offset: int,
     *,
     cache: Cache | None = None,
+    alternate_operands: list[int] | None = None,
+    operand_bank: int = 0,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
     audit: list[dict[str, int]] = []
+    banked = alternate_operands is not None
 
     def capture(_model, _args, kwargs, output) -> None:
         nonlocal cache
@@ -811,6 +839,16 @@ def launch_cached_tile(
                     INDEX_OPERAND <= token < INDEX_OPERAND + 4096 for token in tokens
                 ),
                 "c": sum(C_MEMORY <= token < C_MEMORY + 4096 for token in tokens),
+                **(
+                    {
+                        "alternate_operands": sum(
+                            ALT_OPERAND <= token < ALT_OPERAND + 4096
+                            for token in tokens
+                        )
+                    }
+                    if banked
+                    else {}
+                ),
             }
         )
 
@@ -826,20 +864,30 @@ def launch_cached_tile(
             resident_add32=True,
             resident_io=True,
             resident_cache=start,
-            refresh_operands=start is not None,
+            refresh_operands=start is not None and not banked,
+            alternate_operands=alternate_operands,
+            operand_bank=operand_bank,
         )
     finally:
         handle.remove()
     transport = result["transport"]
     initial_c = 256 if start is None else 0
+    initial_operands = 0 if banked and start is not None else 256
+    initial_counts = {"operands": initial_operands, "c": initial_c}
+    if banked:
+        initial_counts["alternate_operands"] = initial_operands
     if (
         cache is None
         or not audit
-        or audit[0] != {"operands": 256, "c": initial_c}
-        or sum(call["operands"] for call in audit) != 256
+        or audit[0] != initial_counts
+        or sum(call["operands"] for call in audit) != initial_operands
+        or (
+            banked
+            and sum(call["alternate_operands"] for call in audit) != initial_operands
+        )
         or sum(call["c"] for call in audit)
         != initial_c + transport["matrix_patch_tokens"]
-        or transport["matrix_initial_tokens"] != 256 + initial_c
+        or transport["matrix_initial_tokens"] != sum(initial_counts.values())
         or transport["fresh_caches"] != int(start is None)
     ):
         raise ValueError("tile slice memory transport audit failed")
@@ -861,9 +909,7 @@ def _state_snapshot_digits(bits: list[int] | None, dirty_offset: int) -> list[in
     ]
 
 
-def _check_resident_memory(
-    cache, circuit, operands: list[int], memory: list[int], *, indexed: bool = False
-) -> bool:
+def _check_tile_operands(cache, circuit, operands: list[int], *, bank: int = 0) -> bool:
     for address, token in enumerate(operands):
         byte, nibble = divmod(address, 2)
         if byte < 64:
@@ -871,8 +917,19 @@ def _check_resident_memory(
         else:
             row, col = divmod(byte - 64, 8)
             head, slot = f"B.{col}.{nibble}", row
-        if head_row(cache, circuit, head, slot, 4) != token & 15:
+        if (
+            head_row(cache, circuit, head, slot + bank * (64 if byte < 64 else 8), 4)
+            != token & 15
+        ):
             return False
+    return True
+
+
+def _check_resident_memory(
+    cache, circuit, operands: list[int], memory: list[int], *, indexed: bool = False
+) -> bool:
+    if not _check_tile_operands(cache, circuit, operands):
+        return False
     for address, token in enumerate(memory):
         row, nibble = divmod(address, 32)
         if head_row(cache, circuit, f"C.{nibble}", row, 4) != token & 15:
@@ -897,6 +954,8 @@ def oracle(
     masked: bool = False,
     divergent: bool = False,
     looping: bool = False,
+    alternate_operands: list[int] | None = None,
+    operand_bank: int = 0,
 ) -> dict:
     divergent = divergent or looping
     masked = masked or divergent
@@ -915,6 +974,7 @@ def oracle(
     branches: list[list[tuple[int, int]]] = [[], []]
     loops: list[list[int]] = [[], []]
     operands = bytearray(case["a"] + case["b"])
+    mac_operands = alternate_operands if operand_bank else operands
     c = case["c"][:]
     schedules = []
     trace = []
@@ -960,7 +1020,8 @@ def oracle(
             candidate = c[start : start + 8]
         elif op == "MAC_K":
             candidate = [
-                (v + operands[start + arg] * operands[64 + 8 * arg + col]) & 65535
+                (v + mac_operands[start + arg] * mac_operands[64 + 8 * arg + col])
+                & 65535
                 for col, v in enumerate(acc[warp])
             ]
         elif op == "ADD16I":
@@ -1184,10 +1245,12 @@ def load_tile_model(
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
     resident_loop32: bool = False,
+    resident_tilebanks: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        resident_loop32 = layout == RESIDENT_LOOP32_LAYOUT
+        resident_tilebanks = layout == RESIDENT_TILEBANKS_LAYOUT
+        resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
         resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
         resident_shared32 = layout in RESIDENT_SHARED32_LAYOUTS
@@ -1210,6 +1273,7 @@ def load_tile_model(
             resident_addmem32=resident_addmem32,
             resident_branch32=resident_branch32,
             resident_loop32=resident_loop32,
+            resident_tilebanks=resident_tilebanks,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1239,6 +1303,7 @@ def load_tile_model(
             resident_addmem32=resident_addmem32,
             resident_branch32=resident_branch32,
             resident_loop32=resident_loop32,
+            resident_tilebanks=resident_tilebanks,
         )
     return model.to(device).eval(), circuit
 
@@ -1265,6 +1330,7 @@ def main() -> None:
     variants.add_argument("--resident-addmem32", action="store_true")
     variants.add_argument("--resident-branch32", action="store_true")
     variants.add_argument("--resident-loop32", action="store_true")
+    variants.add_argument("--resident-tilebanks", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1274,7 +1340,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_loop32 = args.resident_loop32
+    resident_tilebanks = args.resident_tilebanks
+    resident_loop32 = args.resident_loop32 or resident_tilebanks
     resident_branch32 = args.resident_branch32 or resident_loop32
     resident_addmem32 = args.resident_addmem32 or resident_branch32
     resident_shared32 = args.resident_shared32 or resident_addmem32
@@ -1311,7 +1378,8 @@ def main() -> None:
             *RESIDENT_ADD32_LAYOUTS,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_loop32 = layout == RESIDENT_LOOP32_LAYOUT
+        resident_tilebanks = layout == RESIDENT_TILEBANKS_LAYOUT
+        resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
         resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
         resident_shared32 = layout in RESIDENT_SHARED32_LAYOUTS
@@ -1362,6 +1430,8 @@ def main() -> None:
             raise ValueError("--resident-branch32 requires a branch32 checkpoint")
         if args.resident_loop32 and not resident_loop32:
             raise ValueError("--resident-loop32 requires a loop32 checkpoint")
+        if args.resident_tilebanks and not resident_tilebanks:
+            raise ValueError("--resident-tilebanks requires a tilebanks checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1434,6 +1504,7 @@ def main() -> None:
         resident_addmem32=resident_addmem32,
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
+        resident_tilebanks=resident_tilebanks,
     )
     report = {
         "device": args.device,

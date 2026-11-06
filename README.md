@@ -314,6 +314,16 @@ python3 -m qwengpu.run_resident --resident-loop32 \
   eval/frozen/resident_loop32_gate_v1/cooperative_loop32.json
 ```
 
+The tilebanks layout holds both K-slice operand banks and partial
+C in the same cache. The host selects the bank at launch. Both
+banks are uploaded before the first slice, and the second slice
+reuses all three memory images.
+
+```sh
+python3 -m qwengpu.eval_cached_tile --preload-operands --device mps \
+  --out results/resident_tilebanks_cached_tile_mps.json
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
