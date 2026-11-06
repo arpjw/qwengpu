@@ -82,10 +82,10 @@ launcher packs four 8×8 output tiles and carries each output tile
 across two K slices. The model computes the multiply-accumulates.
 MPS and merged 9B match the scalar reference at both K slices.
 
-The next gate prototypes 32-bit lane addition with two 16-bit limbs.
-Have the model propagate the low limb carry into the high limb.
-Check carry, modular wrap, and masked lanes before integrating
-the wider arithmetic into the resident tile engine.
+An isolated 32-bit lane adder propagates carry from the low
+16-bit limb to the high limb. Twelve MPS cases cover carries, modular
+wrap, and inactive lanes. Standalone CUDA and merged 9B validation
+are the remaining checks before resident integration.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

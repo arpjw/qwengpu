@@ -44,11 +44,11 @@ def packet_tokens(data: list[int]) -> list[int]:
 def _word_from_columns(
     c: Circ, columns: list[Expr], limits: list[int], name: str
 ) -> list[Expr]:
-    """Decode four nibbles with exact bounded threshold sums."""
+    """Decode a whole number of nibbles with exact bounded threshold sums."""
     result = []
     carry = Expr()
     carry_limit = 0
-    for start in range(0, 16, 4):
+    for start in range(0, len(columns), 4):
         prefix = carry
         upper = carry_limit
         for bit in range(4):
@@ -60,7 +60,7 @@ def _word_from_columns(
                 sign = 1 if (threshold // weight) & 1 else -1
                 terms += c.t_ge(prefix, threshold, 0, upper, coef=sign)
             result.append(c.node(terms, f"{name}.bit.{start + bit}"))
-        if start < 12:
+        if start + 4 < len(columns):
             carry = c.node(
                 [
                     term

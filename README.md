@@ -236,6 +236,11 @@ optional 16×16 unsigned 16-bit C. It returns both intermediate and final
 matrices. Add `--model /path/to/Qwen3.5-9B-qwengpu-resident-grid --device cuda`
 to run the merged checkpoint.
 
+The isolated ADD32 prototype adds two unsigned 32-bit words per lane.
+The model propagates carry between the 16-bit halves and keeps the
+left operand in inactive lanes. Run the frozen checks with
+`python3 -m qwengpu.eval_add32 --device mps --out results/add32_mps.json`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

@@ -750,3 +750,18 @@ matches the earlier resident grid checkpoint. The model and compiler
 revisions, host details, and source hashes are saved in
 `results/resident_matmul16_host_a100.txt`. Run
 `python3 scripts/check_matmul16.py` to reproduce the comparisons.
+
+## Masked 32-bit lane addition
+
+The standalone ADD32 prototype matched all 12 frozen cases on MPS.
+The checks cover 384 emitted byte tokens and 96 cached lane results.
+The vectors exercise carry across bit 15, wrap at bit 31, all lanes
+inactive, alternating masks, and each single-lane mask. The verifier
+also checked the loaded operands and mask directly in the cache.
+Each case uses one inference cache, 98 input tokens, and two forwards.
+
+The standalone circuit has 14 layers, 73 heads, and 1,722 dimensions.
+The existing carry decoder now handles any whole number of nibbles.
+All 25 unit tests passed. The dense resident 8×8 regression matched
+the prior circuit statistics and its exact 116-instruction trace and
+117 scheduler decisions. See `results/add32_resident_regression_mps.json`.

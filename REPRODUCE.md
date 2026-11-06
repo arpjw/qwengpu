@@ -860,3 +860,44 @@ The checker computes both partial products independently from the original
 inputs. It compares all 256 entries after each K slice and checks that the
 MPS and CUDA reports have identical per-tile trace hashes and transport
 records. Pass a single report path to check one device.
+
+## Check masked 32-bit addition
+
+The ADD32 prototype runs eight lanes in one model operation. Each
+word is uploaded as four bytes. A single execute token computes the
+sums and writes a snapshot to the inference cache. The verifier
+reads all 32 result bytes in one forward and compares the emitted
+tokens and cached results with modular integer addition. It also
+reads the operand and mask rows directly from the cache.
+
+```sh
+cd "$QWENGPU_DIR"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_add32 \
+  --device mps --out results/add32_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_add32 \
+  --device cuda --out results/add32_cuda_fla.json
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --add32 --out /path/to/Qwen3.5-9B-qwengpu-add32
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_add32 \
+  /path/to/Qwen3.5-9B-qwengpu-add32 --device cuda --out results/add32_9b_cuda_fla.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+names = ("add32_mps", "add32_cuda_fla", "add32_9b_cuda_fla")
+reports = [json.loads((Path("results") / f"{name}.json").read_text()) for name in names]
+assert all(report["all_exact"] for report in reports)
+assert len({report["fixture_sha256"] for report in reports}) == 1
+assert reports[0]["cases"] == reports[1]["cases"] == reports[2]["cases"]
+PY
+```
+
+The shared carry decoder also serves the resident grid. Repeat the
+dense tile regression with:
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-grid --device mps --kernel eval/frozen/tile8_gate_v1/dense_seeded.json \
+  --out results/add32_resident_regression_mps.json
+```
