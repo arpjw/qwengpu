@@ -238,6 +238,17 @@ ADD32I. For CUDA, pass the path to either merged checkpoint with
 `--model` and set `--device cuda`. The multiply accumulates modulo
 65536 on both layouts.
 
+With the resident ADD32 checkpoint, add `--retain-c` to run both K
+slices for each output tile in the same inference cache. Each tile
+starts with one upload of its initial C and keeps the partial result
+in model state between the slices. The second launch refreshes A
+and B. The 16×16 multiply uses four caches in total.
+
+```sh
+python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --resident-add32 --retain-c --device mps
+```
+
 The isolated ADD32 prototype adds two unsigned 32-bit words per lane.
 The model propagates carry between the 16-bit halves and keeps the
 left operand in inactive lanes. Run the frozen checks with

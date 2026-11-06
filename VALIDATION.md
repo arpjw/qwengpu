@@ -1018,4 +1018,13 @@ fixed-transport mode used 150,626. The retained mode also uses
 model-generated read plans, so this total difference includes
 changes beyond the C uploads. See
 `results/resident_add32_matmul16_retained_mps.json` for the audited
-launches. Merged 9B validation remains open.
+launches.
+
+The merged ADD32 checkpoint on one A100 matched the complete MPS
+pass records, including all cache and transport counters. The
+runner finished in 299 seconds from model load through report
+write on this host. That elapsed time is for the audited run.
+The fixed-transport report comes from an earlier run. See
+`results/resident_add32_matmul16_retained_9b_cuda_fla.json` and
+`results/resident_add32_matmul16_retained_host_a100.txt` for the
+CUDA records and `REPRODUCE.md` for commands.

@@ -133,9 +133,16 @@ the prior tile traces, and the second slice's fresh-cache control.
 
 The 16×16 launcher's `--retain-c` mode keeps C across both K slices
 for each of the four output tiles, using one cache per output tile.
-On MPS, both pass matrices and all eight traces match the existing
-launcher, and the audit finds four omitted C uploads. Merged 9B
-validation is the remaining check.
+MPS and merged Qwen3.5-9B match both scalar pass matrices, all eight
+prior traces, and all per-forward memory counts. The four second
+launches omit 1,024 C upload tokens in total.
+
+The next arithmetic gate is to move both halves of a 32-bit value
+through indexed shared memory. First qualify a two-warp kernel that
+loads both halves from shared words, adds with carry, and stores both
+halves for a second warp to load after a barrier. Check inactive lanes,
+scatter collisions, and exact prior traces before extending the
+checkpoint further.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
