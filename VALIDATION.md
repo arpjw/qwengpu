@@ -1055,3 +1055,13 @@ and exact recurrent ROM, shared memory, warp and grid state.
 The merge uses 22 chip layers and hidden width 6,656, matching
 the previous resident ADD32 dimensions. See the two
 `results/resident_shared32_full_*` reports and `REPRODUCE.md`.
+
+The public MPS launcher reproduced the handoff's complete trace.
+The retained 16×16 launcher passed on both backends with all 928
+instructions, 936 decisions, and memory audits identical to the
+prior ADD32 runs. It still uses four caches across eight launches
+and omits 1,024 initial C tokens. The merged shared32 checkpoint
+also reproduced the two-slice tile and GPU-to-text-to-GPU cache
+replays. The reset text output matched that checkpoint's own
+fresh-cache control in the relaunch fixture. See the saved
+`results/resident_shared32_*` reports and A100 host record.

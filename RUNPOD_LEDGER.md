@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 9:23 p.m. Pacific.
+was November 6, 2026 at approximately noon Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -38,14 +38,15 @@ was November 5, 2026 at approximately 9:23 p.m. Pacific.
 | `rg0clhnajboc7f` | Composed multiply and mixed kernel on one ADD32 merge | $0.340125 | |
 | `xu7m4p6hee9a0w` | Full resident ADD32 qualification on merged 9B | $0.627930 | |
 | `pjb7usdcbldw80` | Fresh-cache text comparison for the unified ADD32 merge | $0.193388 | |
-| `icyks8qxc6uuwd` | Direct GPU-to-text cache handoff | $0.209984 | $0.06 remaining |
-| `d77qwi6198u2f1` | Text cache reset with persistent GPU state | Pending | $0.26 |
-| `spczei5clluhi2` | GPU-to-text-to-GPU cache relaunch | Pending | $0.21 |
-| `e7dircqgmin263` | Two K slices with resident C | Pending | $0.23 |
-| `ulujgufwzoo34a` | Full 16×16 multiply with resident C | Pending | $0.30 |
+| `icyks8qxc6uuwd` | Direct GPU-to-text cache handoff | $0.262291 | |
+| `d77qwi6198u2f1` | Text cache reset with persistent GPU state | $0.253064 | |
+| `spczei5clluhi2` | GPU-to-text-to-GPU cache relaunch | $0.202233 | |
+| `e7dircqgmin263` | Two K slices with resident C | $0.214874 | |
+| `ulujgufwzoo34a` | Full 16×16 multiply with resident C | $0.276951 | |
+| `q07e1z7zdcgywv` | Shared32 qualification and retained launch replays | Pending | $0.73 |
 
-Total posted is about $12.38. With pending estimates, tracked spend is
-about $13.44. All project pods are terminated and the live pod list was
+Total posted is about $13.38. With pending estimates, tracked spend is
+about $14.11. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -199,3 +200,10 @@ The retained 16×16 multiply A100 ran from about 9:14:15 p.m. to
 MPS. Elapsed compute was about $0.28, with $0.30 reserved including
 disk. The pod was terminated after copying the reports. RunPod
 showed an empty pod list and no posted record for this pod.
+
+The shared32 A100 ran from about 11:36:24 a.m. to 11:59:55 a.m.
+Pacific at $1.79/hour. The merged checkpoint passed all 24 cases
+and the retained multiply, two-slice tile, and cache relaunch
+replays. Elapsed compute was about $0.70, with $0.73 reserved
+including disk. The pod was terminated after copying results.
+RunPod showed an empty pod list and no posted record for this pod.

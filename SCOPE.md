@@ -141,8 +141,15 @@ The shared32 layout moves both halves of a 32-bit value through
 indexed shared memory. One warp loads both halves, adds with carry,
 and stores both halves for a second warp to read after a barrier.
 MPS and merged 9B match the independent reference for the handoff
-and all 23 inherited ADD32 case records. Retained launcher replays
-are in progress.
+and all 23 inherited ADD32 case records. Both reproduce all eight
+retained 16×16 tile traces. Merged 9B also reproduces the single-tile
+retention and GPU-to-text-to-GPU traces.
+
+The next arithmetic gate is to add two arbitrary 32-bit operands
+from shared memory. Compare carries, full-width wrap, inactive
+lanes, and a dependent consumer against an independent reference.
+Requalify the shared32 handoff and tiled workloads on the extended
+checkpoint.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
