@@ -126,10 +126,15 @@ The consumer copies sixteen producer-written values after text.
 Its trace matches the interpreter and a fresh-cache control with
 zero initial memory uploads.
 
-Two K slices accumulate into one 8×8 output tile in one MPS
-cache. The second slice refreshes A and B and keeps C in the model.
-Both results match the scalar reference and the prior tile traces.
-Merged 9B validation is the remaining check.
+Two K slices accumulate into one 8×8 output tile in one inference
+cache on MPS and merged Qwen3.5-9B. The second slice refreshes A and
+B and keeps C in the model. Both results match the scalar reference,
+the prior tile traces, and the second slice's fresh-cache control.
+
+The next gate is to retain C across both K slices for each of the four
+output tiles in the 16×16 launcher. Use one cache per output tile.
+Compare both pass matrices and all eight traces with the existing
+launcher and audit the four omitted C uploads.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

@@ -1,0 +1,4137 @@
+{
+  "device": "cuda",
+  "torch": "2.14.1+cu130",
+  "transformers": "5.19.0",
+  "merge": {
+    "layout": "qwengpu-resident-add32-9b-v1",
+    "chip_token_offset": 248320,
+    "chip_vocab": 65536,
+    "chip_layers": 22,
+    "hidden": 6656,
+    "slots": 2322,
+    "code_dims": [
+      4268,
+      4269,
+      4270,
+      4271,
+      4272,
+      4273,
+      4274,
+      4275,
+      4276,
+      4277,
+      4278,
+      4279,
+      4280,
+      4281,
+      4282,
+      4283
+    ],
+    "tau_dim": 4122,
+    "mute_dim": 5030,
+    "fit_anti_sink": true,
+    "circuit": {
+      "layers": 22,
+      "dims": 4640,
+      "heads": 189,
+      "ffn_units": 9118,
+      "max_units": 1446,
+      "max_heads": 16
+    },
+    "output_head_tied": false
+  },
+  "input_sha256": "efbb7e4a3cd546e3c5245ce27b4d25811d3d46f5aef8cfbecf3ec65d8a84aa59",
+  "passes": [
+    {
+      "k": 0,
+      "matrix": [
+        [
+          53530,
+          38056,
+          58928,
+          27920,
+          10465,
+          5755,
+          61798,
+          26320
+        ],
+        [
+          56710,
+          8598,
+          35193,
+          18320,
+          48718,
+          45628,
+          19297,
+          30723
+        ],
+        [
+          5478,
+          3918,
+          38746,
+          18386,
+          42421,
+          21019,
+          44620,
+          40763
+        ],
+        [
+          56015,
+          53545,
+          52435,
+          17734,
+          52356,
+          18248,
+          26136,
+          708
+        ],
+        [
+          14920,
+          16743,
+          28214,
+          30356,
+          43148,
+          52737,
+          28343,
+          28471
+        ],
+        [
+          65223,
+          35389,
+          28560,
+          36551,
+          41704,
+          15995,
+          15531,
+          10452
+        ],
+        [
+          18940,
+          1959,
+          46453,
+          57508,
+          41528,
+          30369,
+          49124,
+          31833
+        ],
+        [
+          45741,
+          5067,
+          47128,
+          43483,
+          60487,
+          11159,
+          6237,
+          2853
+        ]
+      ],
+      "instructions": 116,
+      "scheduler_decisions": 117,
+      "trace_sha256": "fd2a8ecb9e0cc4c78f2d020804884172a74e21c3c6a2d0cc242d86115b0d4892",
+      "transport": {
+        "input_tokens": 7785,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "grid_initial_tokens": 1,
+        "high_register_updates": 0,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 192,
+        "warp_update_tokens": 2046,
+        "forward_calls": 313,
+        "state_plan_tokens": 1392,
+        "state_read_tokens": 2046,
+        "store_plan_tokens": 116,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 36,
+        "resident_grid_exact": true,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "memory_tokens_by_call": [
+        {
+          "operands": 256,
+          "c": 256
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        }
+      ]
+    },
+    {
+      "k": 8,
+      "matrix": [
+        [
+          60502,
+          62768,
+          48329,
+          29346,
+          15836,
+          6297,
+          36586,
+          37231
+        ],
+        [
+          27398,
+          33739,
+          3414,
+          45157,
+          14337,
+          18209,
+          35957,
+          29925
+        ],
+        [
+          34924,
+          33594,
+          4108,
+          44764,
+          176,
+          13808,
+          51072,
+          59393
+        ],
+        [
+          47005,
+          51213,
+          40191,
+          15642,
+          41928,
+          32789,
+          64000,
+          45904
+        ],
+        [
+          35916,
+          29586,
+          26567,
+          42867,
+          40354,
+          10295,
+          26071,
+          18645
+        ],
+        [
+          45911,
+          58597,
+          63895,
+          7272,
+          2635,
+          34907,
+          48699,
+          58322
+        ],
+        [
+          34321,
+          12314,
+          52538,
+          41562,
+          52744,
+          15008,
+          32138,
+          5802
+        ],
+        [
+          47468,
+          26341,
+          11325,
+          61780,
+          18591,
+          52406,
+          54059,
+          1131
+        ]
+      ],
+      "instructions": 116,
+      "scheduler_decisions": 117,
+      "trace_sha256": "86148994e00f798b86667ebc76a542d7d6cef496bdbf795485ad531c58adf639",
+      "transport": {
+        "input_tokens": 7677,
+        "fresh_caches": 0,
+        "matrix_initial_tokens": 256,
+        "matrix_patch_tokens": 256,
+        "grid_initial_tokens": 1,
+        "high_register_updates": 0,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 192,
+        "warp_update_tokens": 2120,
+        "forward_calls": 313,
+        "state_plan_tokens": 1392,
+        "state_read_tokens": 2120,
+        "store_plan_tokens": 116,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 36,
+        "resident_grid_exact": true,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "memory_tokens_by_call": [
+        {
+          "operands": 256,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 32
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        },
+        {
+          "operands": 0,
+          "c": 0
+        }
+      ]
+    }
+  ],
+  "cold_second_slice": {
+    "matrix": [
+      [
+        60502,
+        62768,
+        48329,
+        29346,
+        15836,
+        6297,
+        36586,
+        37231
+      ],
+      [
+        27398,
+        33739,
+        3414,
+        45157,
+        14337,
+        18209,
+        35957,
+        29925
+      ],
+      [
+        34924,
+        33594,
+        4108,
+        44764,
+        176,
+        13808,
+        51072,
+        59393
+      ],
+      [
+        47005,
+        51213,
+        40191,
+        15642,
+        41928,
+        32789,
+        64000,
+        45904
+      ],
+      [
+        35916,
+        29586,
+        26567,
+        42867,
+        40354,
+        10295,
+        26071,
+        18645
+      ],
+      [
+        45911,
+        58597,
+        63895,
+        7272,
+        2635,
+        34907,
+        48699,
+        58322
+      ],
+      [
+        34321,
+        12314,
+        52538,
+        41562,
+        52744,
+        15008,
+        32138,
+        5802
+      ],
+      [
+        47468,
+        26341,
+        11325,
+        61780,
+        18591,
+        52406,
+        54059,
+        1131
+      ]
+    ],
+    "instructions": 116,
+    "scheduler_decisions": 117,
+    "trace_sha256": "86148994e00f798b86667ebc76a542d7d6cef496bdbf795485ad531c58adf639",
+    "transport": {
+      "input_tokens": 7933,
+      "fresh_caches": 1,
+      "matrix_initial_tokens": 512,
+      "matrix_patch_tokens": 256,
+      "grid_initial_tokens": 1,
+      "high_register_updates": 0,
+      "rom_program_tokens": 32,
+      "rom_select_tokens": 2,
+      "warp_initial_tokens": 192,
+      "warp_update_tokens": 2120,
+      "forward_calls": 313,
+      "state_plan_tokens": 1392,
+      "state_read_tokens": 2120,
+      "store_plan_tokens": 116,
+      "store_read_tokens": 256,
+      "skipped_read_calls": 36,
+      "resident_grid_exact": true,
+      "resident_memory_exact": true,
+      "resident_rom_exact": true,
+      "resident_state_exact": true
+    },
+    "memory_tokens_by_call": [
+      {
+        "operands": 256,
+        "c": 256
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 32
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      },
+      {
+        "operands": 0,
+        "c": 0
+      }
+    ]
+  }
+}

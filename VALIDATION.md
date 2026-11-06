@@ -995,3 +995,10 @@ tokens on the second pass. Its 256 C tokens were the model's own
 stores. The retained pass used 7,677 input tokens, compared with
 7,933 for the exact fresh-cache control. All 25 existing tests
 passed. The MPS report includes each forward's memory token counts.
+
+The merged Qwen3.5-9B A100 run matched both MPS pass records and
+the fresh-cache control exactly, including all forward token counts
+and trace digests. Both devices used a single cache for the retained
+pair. The control used a separate cache and reproduced the second
+slice's result and trace. See `results/resident_add32_cached_tile*`
+for the reports and host details, and `REPRODUCE.md` for the commands.
