@@ -19,6 +19,11 @@ def check_matmul(report: dict) -> None:
     assert report["checkpoint"] == (
         LAYOUT if report["merge"] else "standalone-resident-tilepipe"
     )
+    if report["merge"] is not None:
+        assert (
+            report["merge"]
+            == load_report("resident_tilepipe_full_9b_cuda_fla")["merge"]
+        )
     inputs = json.loads(fixture)
     a, b, c = (inputs[key] for key in ("a", "b", "c"))
     baseline = load_report("resident_add32_matmul16_retained_mps")

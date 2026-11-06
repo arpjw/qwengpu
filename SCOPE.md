@@ -1,6 +1,18 @@
 # QwenGPU scope and next gates
 
-## Current milestone and next gate
+## Current validated checkpoint
+
+The bounded project target is met by the pinned tilepipe
+Qwen3.5-9B merge. One checkpoint runs the cooperating warps,
+full-width arithmetic and control, and the public tiled multiply.
+The 27 inherited GPU cases, four-launch 16×16 multiply, frozen
+text corpus, and text cache handoffs all have saved evidence.
+
+The current machine uses host-relayed tokens, 16 ROM slots per
+warp, and four caches for a 16×16 multiply. The scheduler controls
+both K slices within each 8×8 output tile. The evidence covers
+frozen workloads. Larger geometry and changes to the host
+protocol are separate design decisions for review.
 
 The resident 8×8 tile engine holds its 256 shared bytes in one inference
 cache per launch. A, B, and initial C are uploaded once. The host relays
@@ -197,7 +209,10 @@ also match the 27 inherited tilebanks case records.
 The public 16×16 launcher now uses one scheduled launch per output
 tile in `--schedule-k` mode. MPS and merged 9B match both scalar
 matrices, all four model-generated transitions, and the upload
-audits. Native text and cache handoff checks are in progress.
+audits. On the same merged checkpoint, native text matches the
+base first token on all 24 prompts and the greedy continuation
+on 23. The four text resets and full-width GPU relaunch are exact
+against their fresh-cache controls.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

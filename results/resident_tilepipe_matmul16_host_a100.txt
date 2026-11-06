@@ -1,0 +1,17 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=21be7b40c43d406b3ffd40d07a1c2756cee122a0
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+5a012194a98221a3080f222c76c313dae1213e4f1510fae9f69838fcd87973e8  qwengpu/run_matmul16.py
+47c4d844701274ae68824b0d46b23028b6feeb505247b823e858dd9f959d42c4  qwengpu/eval_tile8.py
+efbb7e4a3cd546e3c5245ce27b4d25811d3d46f5aef8cfbecf3ec65d8a84aa59  eval/frozen/matmul16_gate_v1/dense_seeded.json
+4099813c9470c74028059826414fde262d0cdb4bfec75b0806aae45bf92b6146  eval/frozen/text_add32_gate_v1/prompts.json
+matmul_started_utc=2026-11-06T23:02:44Z
+matmul_finished_utc=2026-11-06T23:08:19Z
+text_finished_utc=2026-11-06T23:09:28Z
+arithmetic_relaunch_finished_utc=2026-11-06T23:10:13Z
+handoff_reset_finished_utc=2026-11-06T23:14:06Z

@@ -1252,7 +1252,7 @@ See `results/resident_tilepipe_*` for the reports and host record.
 
 The public `--schedule-k` mode uses one launch and cache for each
 8×8 output tile. The model transitions between preloaded banks
-inside each launch. Both 16×16 scalar matrices match MPS. The
+inside each launch. The MPS run matches both scalar matrices. The
 checker verifies all four transition tickets and the grid, ROM,
 warp and memory upload counts for each tile. The four launches
 execute 928 instructions and 932 scheduler decisions.
@@ -1261,5 +1261,21 @@ The MPS and merged 9B reports match both pass matrices and every
 tile record. They use 60,408 input tokens, compared with 61,340
 in the earlier eight-launch retained-C mode. The legacy
 single-tile evaluator reproduces its saved MPS report after
-the launcher change. All 25 local tests passed. Native text
-and cache handoff checks are in progress.
+the launcher change. All 25 local tests passed.
+
+## Native text and cache handoff on the final tilepipe merge
+
+The pinned 28-layer tilepipe merge and base model were compared on
+one A100 across 24 frozen prompts. The merge matches all 24 first
+tokens and 23 greedy continuations, with zero chip tokens. The
+diverging continuation matches its first two generated tokens.
+The median per-prompt maximum next-token logit difference is
+0.2265625 and the maximum is 0.421875.
+
+All four text resets match their fresh-cache logits and
+continuations exactly, preserving all 18,944 inspected GPU
+nibbles. The full-width arithmetic relaunch also reproduces
+the inherited GPU trace, copies eight pairs after text, and
+uploads zero initial shared-memory tokens. These checks use
+the same tilepipe merge as the public multiply and the 27-case
+GPU suite. See `results/resident_tilepipe_*` and `REPRODUCE.md`.
