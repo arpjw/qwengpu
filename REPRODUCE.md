@@ -1298,3 +1298,39 @@ bash scripts/qualify_resident_add32.sh --resident-addmem32 "$model" --device cud
 python3 scripts/check_resident_addmem32.py
 python3 scripts/check_matmul16.py results/resident_addmem32_matmul16_retained_*.json
 ```
+
+## Verify text and cache handoff on addmem32
+
+Use the same addmem32 merge that passed the arithmetic suite.
+The fresh-cache check compares the pinned base and merge on the
+24 frozen prompts. The other checks reset the pretrained layers'
+text history while retaining the GPU layers in the cache.
+
+```sh
+cd "$QWENGPU_DIR"
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+base=/path/to/Qwen3.5-9B
+model=/path/to/Qwen3.5-9B-qwengpu-resident-addmem32
+"$QWENGPU_PYTHON" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out results/resident_addmem32_text_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch "$model" --device cuda \
+  --out results/resident_addmem32_cache_relaunch_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_text_handoff "$model" --device cuda \
+  --reset-text --out results/resident_addmem32_handoff_reset_9b_cuda_fla.json
+```
+
+For the same-device control, build and measure the earlier ADD32
+checkpoint from the same pinned base on the same CUDA host.
+Reserve space for the control weights or finish copying the
+addmem32 evidence before reusing its scratch storage.
+
+```sh
+control=/path/to/Qwen3.5-9B-qwengpu-resident-add32
+"$QWENGPU_PYTHON" -m qwengpu.merge9b "$base" --resident-add32 --out "$control"
+"$QWENGPU_PYTHON" -m qwengpu.textcheck_9b "$base" "$control" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out results/resident_add32_text_9b_cuda_h100_control.json
+python3 scripts/check_addmem32_text.py
+```

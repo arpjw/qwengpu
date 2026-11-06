@@ -153,11 +153,17 @@ inherited case records match the previous checkpoint. Both also
 reproduce the retained 16×16 multiply, including all eight traces
 and memory counts.
 
-The next integration gate is to measure native text on the deeper
-addmem32 merge. Reuse the frozen base comparison and run a
-GPU-to-text-to-GPU round trip on the same weights. Record any
-fresh-cache text differences and verify that the dependent kernel
-still reads the GPU state after the text reset.
+The addmem32 merge matches the earlier ADD32 merge on all measured
+text fields on one H100. Both match base on 24 first tokens and 21
+greedy continuations. Four cache resets preserve all inspected GPU
+rows. A dependent kernel runs after text with zero initial shared
+memory uploads and reproduces the inherited trace.
+
+The next integration gate is to use the new two-operand arithmetic
+kernel as the producer before text. After the reset, launch a
+separate consumer that reads both limbs and copies them into other
+shared pairs. Check the producer, the text reset, and the final
+128-word shared image against independent references.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

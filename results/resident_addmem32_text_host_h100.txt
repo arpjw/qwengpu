@@ -1,0 +1,18 @@
+NVIDIA H100 80GB HBM3, 595.91.07, 81559 MiB
+source_commit=769600217fd19cef75379105ce0318e27be2eea8
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+40d3b3d933dee4f7254087fcc7448842e73ac549c522ed4120b0b1467ec4acba  qwengpu/textcheck_9b.py
+a1813dd9faa6e820a98d89e8ce994bb743e80a2857d7d6b02cfb5e9a7daab281  qwengpu/eval_text_handoff.py
+52ac1ff4e25cdb89a97420f26aff75eba7246c9714e81f22f8c8ff05debb28e7  qwengpu/eval_cache_relaunch.py
+4099813c9470c74028059826414fde262d0cdb4bfec75b0806aae45bf92b6146  eval/frozen/text_add32_gate_v1/prompts.json
+text_started_utc=2026-11-06T20:34:21Z
+text_finished_utc=2026-11-06T20:35:12Z
+cache_relaunch_finished_utc=2026-11-06T20:37:11Z
+handoff_reset_finished_utc=2026-11-06T20:40:09Z
+control_started_utc=2026-11-06T20:40:21Z
+control_finished_utc=2026-11-06T20:42:55Z

@@ -1095,3 +1095,28 @@ reproduced all 928 instructions, 936 decisions, both scalar
 matrices, and all audited memory counts from the ADD32 baseline.
 It still uses four caches and omits 1,024 C upload tokens. See
 `results/resident_addmem32_*` and the A100 host record.
+
+## Native text and cache handoff on addmem32
+
+One H100 ran the 28-layer addmem32 merge and the earlier 22-layer
+ADD32 control against the same pinned base. Both merge reports
+are identical across the 24 frozen prompts, including all
+generated tokens and reported logit metrics. Both match all 24
+base first tokens and 21 of 24 greedy continuations. The three
+differences start after 3, 3, and 11 matching generated tokens.
+The median per-prompt maximum next-token logit difference from
+base is 0.2265625 and the maximum is 0.46875. Both corpus runs
+emit zero chip tokens. The prior A100 ADD32 run
+matched 23 of 24 continuations against its base run.
+
+On addmem32, all four text resets reproduced fresh-cache logits
+and continuations exactly and preserved all 18,944 inspected GPU
+nibbles. The GPU-to-text-to-GPU replay reproduced the inherited
+producer and consumer traces. The ten-instruction consumer
+copied 16 producer-written values without uploading initial
+shared memory, saving 512 tokens against the cold control.
+
+See `results/resident_addmem32_text_*`,
+`results/resident_addmem32_handoff_reset_*`,
+`results/resident_addmem32_cache_relaunch_*`, and
+`results/resident_add32_text_9b_cuda_h100_control.json`.
