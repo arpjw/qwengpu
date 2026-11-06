@@ -184,8 +184,15 @@ The tilebanks layout preloads both K slices of one output tile in
 the same cache. The host selects the second bank for the second
 launch. MPS and merged 9B match both scalar pass matrices and
 both prior traces, with zero initial memory uploads on the
-second launch. The full MPS replay matches all 27 loop32 cases.
-The merged replay is in progress.
+second launch. The full MPS and merged replays match all 27
+loop32 cases.
+
+The next gate is a model-selected K-slice transition within a
+single scheduled launch. Start with the two preloaded banks and
+the existing 8×8 tile ROM. Require a model-generated transition
+after the last row pair of slice zero, then check that slice one
+starts at row zero and reuses C without a host bank selection or
+memory upload.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

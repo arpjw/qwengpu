@@ -1215,5 +1215,9 @@ fresh-cache control. Preloading moves 256 operand tokens from the
 second launch to the first, so the pair uses the same total
 number of tokens as the earlier retained-C experiment. See
 `results/resident_tilebanks_cached_tile_*` for the audited calls.
-All 27 inherited MPS case records match loop32 exactly.
-All 25 local tests passed. The merged replay is in progress.
+All 27 inherited case records match loop32 on MPS and merged
+9B, with 1,972 instructions and 1,999 scheduler decisions. The
+legacy retained-C launcher reproduced both passes and the cold
+control. All 25 local tests passed. The new merge keeps 28 chip
+layers and hidden width 6,656. See the full reports and H100
+host record under `results/resident_tilebanks_*`.

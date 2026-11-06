@@ -1,0 +1,15 @@
+NVIDIA H100 80GB HBM3, 595.91.07, 81559 MiB
+source_commit=d406f1c9ba2c1ee30007fab59bb8081771973138
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+93883cc07dfae298f8dcb61672914cc728f153bd9a2a94b820447856ebab1148  qwengpu/compiled_tile8.py
+4f2c0a81d2c4e8b8e484e89641c22a39af918c0f25eeb30039560ab64eaf5038  qwengpu/eval_tile8.py
+00ab9d0a35430ce3aa84975bb78a56a566ac8917a3e44552eadad33a69433b02  qwengpu/eval_cached_tile.py
+efbb7e4a3cd546e3c5245ce27b4d25811d3d46f5aef8cfbecf3ec65d8a84aa59  eval/frozen/matmul16_gate_v1/dense_seeded.json
+tile_started_utc=2026-11-06T22:10:17Z
+tile_finished_utc=2026-11-06T22:13:02Z
+qualification_finished_utc=2026-11-06T22:25:44Z
