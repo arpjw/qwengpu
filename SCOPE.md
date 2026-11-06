@@ -191,8 +191,14 @@ The tilepipe layout adds a model-selected K-slice transition
 within one scheduled launch. MPS emits one transition after the
 first slice, resets both PCs, selects bank one, and starts again
 at row zero with the retained C and ROM. MPS and merged 9B
-match both scalar matrices and all raw execution records. The
-inherited replays are in progress.
+match both scalar matrices and all raw execution records. Both
+also match the 27 inherited tilebanks case records.
+
+The next gate is to use the model-selected transition in the
+public 16×16 launcher. Run one scheduled launch per output tile,
+compare both pass matrices and all four transitions, and audit
+the grid, ROM, warp and memory uploads. Then check native text
+and cache handoff on the same merged checkpoint.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

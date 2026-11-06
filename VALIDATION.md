@@ -1244,4 +1244,6 @@ physical cache checks, and every audit entry. The one-launch
 path uses 15,233 input tokens against 15,462 for two launches
 with the same two preloaded banks. The shared memory upload
 count is the same. The one-launch path uploads the grid, ROM,
-and warp setup once. Inherited replays are in progress.
+and warp setup once. Both backends reproduce all 27 inherited
+case records from tilebanks. All 25 local tests passed.
+See `results/resident_tilepipe_*` for the reports and host record.

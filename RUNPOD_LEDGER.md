@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 6, 2026 at approximately 2:26 p.m. Pacific.
+was November 6, 2026 at approximately 2:52 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -47,12 +47,13 @@ was November 6, 2026 at approximately 2:26 p.m. Pacific.
 | `7ag8r4iy5e2exr` | Addmem32 qualification and retained multiply | $0.672188 | |
 | `30mh7vnuymrpdk` | Addmem32 text, cache handoff, and same-device control | $0.864872 | |
 | `bkgbc6rveup6to` | Full-width arithmetic through a text handoff | $0.229964 | |
-| `05o4r8o4duazn3` | Branch32 qualification and retained multiply | $1.206949 | $0.22 remaining |
-| `nbqqwl22xu1sa0` | Loop32 qualification and retained multiply | Pending | $1.54 |
+| `05o4r8o4duazn3` | Branch32 qualification and retained multiply | $1.400939 | |
+| `nbqqwl22xu1sa0` | Loop32 qualification and retained multiply | $1.100003 | $0.44 remaining |
 | `v6b971ophoua68` | Preloaded operand banks and inherited suite | Pending | $1.50 |
+| `ev84g71gc7yn2n` | Model-selected K transition and inherited suite | Pending | $0.63 |
 
-Total posted is about $17.06. With pending estimates, tracked spend is
-about $20.32. All project pods are terminated and the live pod list was
+Total posted is about $18.35. With pending estimates, tracked spend is
+about $20.92. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -256,3 +257,10 @@ inherited cases matched MPS. Elapsed compute was about $1.47,
 with $1.50 reserved including disk. The pod was terminated
 after copying results. RunPod showed an empty pod list and no
 posted record for this pod.
+
+The tilepipe A100 ran from about 2:31:46 p.m. to 2:52:12 p.m.
+Pacific at $1.79/hour. The one-launch transition and all 27
+inherited cases matched MPS. Elapsed compute was about $0.61,
+with $0.63 reserved including disk. The pod was terminated after
+copying results. RunPod showed an empty pod list and no posted
+record for this pod.

@@ -1,0 +1,16 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=ac39731db1e3971c00a15aab76e6440b625bdb4d
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+f7a9506fce7c33316247bde24624055d90ae119662a0028e7172ecc581120ec7  qwengpu/compiled_tile8.py
+47c4d844701274ae68824b0d46b23028b6feeb505247b823e858dd9f959d42c4  qwengpu/eval_tile8.py
+f5fb5056650fc7bcfb440c91d20364b98ff324c56945767c0ea7885c1f3fa1dd  qwengpu/eval_tilepipe.py
+efbb7e4a3cd546e3c5245ce27b4d25811d3d46f5aef8cfbecf3ec65d8a84aa59  eval/frozen/matmul16_gate_v1/dense_seeded.json
+tile_started_utc=2026-11-06T22:37:29Z
+evaluator_commit=05670b0e6f9bc1dca0c69c784d4021ed170ca664
+tile_finished_utc=2026-11-06T22:39:25Z
+qualification_finished_utc=2026-11-06T22:51:57Z
