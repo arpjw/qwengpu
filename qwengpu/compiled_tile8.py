@@ -47,6 +47,7 @@ LOOP_OFFSET = BRANCH_OFFSET + 4 * BRANCH_NIBBLES
 LOOP_REGISTER = 0x9300
 READ_LOOP = READ_BRANCH + BRANCH_NIBBLES
 LOOP_NIBBLES = 5
+WARP_DIRTY_OFFSET = LOOP_OFFSET + 4 * LOOP_NIBBLES
 ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
 WARP_BANKS = (0xB000, 0xC000)
@@ -153,7 +154,9 @@ def build(
     looping: bool = False,
     resident_rom: bool = False,
     resident_state: bool = False,
+    resident_delta: bool = False,
 ) -> Circ:
+    resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
     divergent = divergent or looping
@@ -543,6 +546,7 @@ def build(
             ]
 
     next_index = []
+    old_indices = []
     grants = []
     indexed_values = []
     if indexed:
@@ -555,6 +559,7 @@ def build(
                     f"index.{lane}.{nib}", INDEX_REGISTER, 2 * lane + nib
                 )[:width]
             ]
+            old_indices.extend(address)
             queries = [
                 c.and_(
                     [
@@ -658,6 +663,26 @@ def build(
         *next_branch,
         *next_loop,
     ]
+    if resident_delta:
+
+        def padded_indices(indices: list[Expr]) -> list[Expr]:
+            return [
+                bit
+                for start in range(0, len(indices), 7)
+                for bit in (*indices[start : start + 7], Expr())
+            ]
+
+        prior_state = old + padded_indices(old_indices) + active + stack + loop
+        updated_state = (
+            result + padded_indices(next_index) + next_mask + next_branch + next_loop
+        )
+        for nib in range(len(WARP_TAGS)):
+            start = 4 * nib
+            difference = from_bits(updated_state[start : start + 4]) - from_bits(
+                prior_state[start : start + 4]
+            )
+            equal = c.node(c.t_eq(difference, 0, -15, 15), f"state.equal.{nib}")
+            bits.append(one - equal)
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -693,6 +718,23 @@ def build(
     pc_sources.append(([increment], _increment4(c, pc)))
     next_pc = c.select_bits(pc_sources, 4, "pc.next")
     execution = next_pc + [halted, ops["BARRIER"], warp_bit]
+
+    if resident_delta:
+        # State output requests are in packet order. Only changed fields
+        # participate in the output code. The default code is token zero.
+        dirty_reads = iter(saved[WARP_DIRTY_OFFSET:])
+
+        def only_dirty(requests: list[Expr], name: str) -> list[Expr]:
+            return [
+                c.and_([read, next(dirty_reads)], f"{name}.dirty.{nib}")
+                for nib, read in enumerate(requests)
+            ]
+
+        reads = only_dirty(reads, "register")
+        index_reads = only_dirty(index_reads, "index")
+        mask_reads = only_dirty(mask_reads, "mask")
+        branch_reads = only_dirty(branch_reads, "branch")
+        loop_reads = only_dirty(loop_reads, "loop")
 
     def state_tag(base: int, nib: int) -> int:
         if resident_state:
@@ -807,6 +849,7 @@ def build_standalone(
     looping: bool = False,
     resident_rom: bool = False,
     resident_state: bool = False,
+    resident_delta: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -818,6 +861,7 @@ def build_standalone(
         looping=looping,
         resident_rom=resident_rom,
         resident_state=resident_state,
+        resident_delta=resident_delta,
     )
     return build_qwen(
         circuit,

@@ -605,3 +605,31 @@ merged resident-state directory with `--model`.
   --model /path/to/Qwen3.5-9B-qwengpu-resident-state --device cuda \
   --out "$QWENGPU_DIR/results/resident_state_launch_9b_cuda_fla.json"
 ```
+
+## Changed-only warp state updates
+
+The resident-delta checkpoint compares each new state nibble with the
+active warp's cached value. It emits a tagged update when the value
+changes and a zero sentinel otherwise. The host forwards the emitted
+tags unchanged. All state read requests still run, and the verifier
+reconstructs the canonical trace and checks the bank contents.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-delta --device mps --out "$QWENGPU_DIR/results/resident_delta_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-delta --out /path/to/Qwen3.5-9B-qwengpu-resident-delta
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-delta --device cuda \
+  --out "$QWENGPU_DIR/results/resident_delta_9b_cuda_fla.json"
+```
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --resident-delta --device mps --out "$QWENGPU_DIR/results/resident_delta_launch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-delta --device cuda \
+  --out "$QWENGPU_DIR/results/resident_delta_launch_9b_cuda_fla.json"
+```

@@ -53,6 +53,7 @@ from qwengpu.compiled_tile8 import (
     ROM_PAYLOAD_BITS,
     SNAPSHOT_BITS,
     WARP_BANKS,
+    WARP_DIRTY_OFFSET,
     WARP_TAGS,
     build,
     build_standalone,
@@ -73,6 +74,7 @@ LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
+RESIDENT_DELTA_LAYOUT = "qwengpu-resident-delta9b-v1"
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -250,7 +252,9 @@ def execute(
     looping: bool = False,
     resident_rom: bool = False,
     resident_state: bool = False,
+    resident_delta: bool = False,
 ) -> dict:
+    resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
     divergent = divergent or looping
@@ -367,18 +371,37 @@ def execute(
         )
         control, *packet = emitted
         _check_control(control, warp)
+        observed_bits = snapshot(cache, circuit, 0)
         tagged_state = []
         if resident_state:
-            tagged_state = packet[:-32]
+            state_output = packet[:-32]
+            tagged_state = [token for token in state_output if token != NO_WRITE]
+            prior = state_packet(warp) if resident_delta else []
+            expected_digits = (
+                _state_snapshot_digits(observed_bits) if resident_delta else []
+            )
             canonical = []
             for nib, (token, tag) in enumerate(
-                zip(tagged_state, WARP_TAGS, strict=True)
+                zip(state_output, WARP_TAGS, strict=True)
             ):
+                if resident_delta:
+                    changed = expected_digits[nib] != prior[nib] & 15
+                    if changed != (token != NO_WRITE) or changed != bool(
+                        observed_bits[WARP_DIRTY_OFFSET + nib]
+                    ):
+                        raise ValueError(f"incorrect warp delta at nibble {nib}")
+                    if not changed:
+                        canonical.append(prior[nib])
+                        continue
+                    if token & 15 != expected_digits[nib]:
+                        raise ValueError(f"incorrect warp delta value at nibble {nib}")
                 start = WARP_BANKS[warp] + 16 * nib
                 if not start <= token < start + 16:
                     raise ValueError(f"invalid banked warp packet at nibble {nib}")
                 canonical.append(tag + (token & 15))
             packet = canonical + packet[-32:]
+        if resident_delta:
+            observed_bits = observed_bits[:WARP_DIRTY_OFFSET]
         next_registers, patch = packet[:32], packet[-32:]
         for nib, token in enumerate(next_registers):
             if not REGISTER + 16 * nib <= token < REGISTER + 16 * (nib + 1):
@@ -437,7 +460,7 @@ def execute(
                 **({"branch": branches[warp]} if divergent else {}),
                 **({"loop": loops[warp]} if looping else {}),
                 "patch": patch,
-                "snapshot": hex_bits(snapshot(cache, circuit, 0)),
+                "snapshot": hex_bits(observed_bits),
             }
         )
     if resident:
@@ -474,6 +497,21 @@ def execute(
         "matrix": _matrix(memory),
         **({"shared_words": _words(operands + memory)} if indexed else {}),
     }
+
+
+def _state_snapshot_digits(bits: list[int] | None) -> list[int]:
+    if bits is None:
+        raise ValueError("missing warp snapshot")
+    index_bits = [
+        bit
+        for start in range(SNAPSHOT_BITS, SNAPSHOT_BITS + 56, 7)
+        for bit in (*bits[start : start + 7], 0)
+    ]
+    state = bits[:128] + index_bits + bits[MASK_OFFSET:WARP_DIRTY_OFFSET]
+    return [
+        sum(state[start + bit] << bit for bit in range(4))
+        for start in range(0, len(state), 4)
+    ]
 
 
 def _check_resident_memory(
@@ -726,6 +764,7 @@ def load_tile_model(
     looping: bool = False,
     resident_rom: bool = False,
     resident_state: bool = False,
+    resident_delta: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -736,6 +775,7 @@ def load_tile_model(
             looping=looping,
             resident_rom=resident_rom,
             resident_state=resident_state,
+            resident_delta=resident_delta,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -755,6 +795,7 @@ def load_tile_model(
             looping=looping,
             resident_rom=resident_rom,
             resident_state=resident_state,
+            resident_delta=resident_delta,
         )
     return model.to(device).eval(), circuit
 
@@ -771,6 +812,7 @@ def main() -> None:
     variants.add_argument("--looping", action="store_true")
     variants.add_argument("--resident-rom", action="store_true")
     variants.add_argument("--resident-state", action="store_true")
+    variants.add_argument("--resident-delta", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -780,7 +822,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_state = args.resident_state
+    resident_delta = args.resident_delta
+    resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     looping = args.looping or resident_rom
     divergent = args.divergent or looping
@@ -799,9 +842,11 @@ def main() -> None:
             LOOP_LAYOUT,
             RESIDENT_ROM_LAYOUT,
             RESIDENT_STATE_LAYOUT,
+            RESIDENT_DELTA_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_state = layout == RESIDENT_STATE_LAYOUT
+        resident_delta = layout == RESIDENT_DELTA_LAYOUT
+        resident_state = resident_delta or layout == RESIDENT_STATE_LAYOUT
         resident_rom = resident_state or layout == RESIDENT_ROM_LAYOUT
         looping = resident_rom or layout == LOOP_LAYOUT
         divergent = looping or layout == "qwengpu-divergent9b-v1"
@@ -822,6 +867,8 @@ def main() -> None:
             raise ValueError("--resident-rom requires a resident ROM checkpoint")
         if args.resident_state and not resident_state:
             raise ValueError("--resident-state requires a resident state checkpoint")
+        if args.resident_delta and not resident_delta:
+            raise ValueError("--resident-delta requires a resident delta checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -863,6 +910,7 @@ def main() -> None:
         looping=looping,
         resident_rom=resident_rom,
         resident_state=resident_state,
+        resident_delta=resident_delta,
     )
     report = {
         "device": args.device,
@@ -895,6 +943,7 @@ def main() -> None:
             looping=looping,
             resident_rom=resident_rom,
             resident_state=resident_state,
+            resident_delta=resident_delta,
         )
         transport = observed.pop("transport")
         exact = (

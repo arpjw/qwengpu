@@ -204,7 +204,9 @@ use a merge built with `merge9b --resident-rom` to upload each warp program
 once per launch. The model fetches instructions by its scheduled warp
 and PC. Pass `--resident-state` or use a merge built with
 `merge9b --resident-state` to keep each warp's accumulators, indices,
-mask, and stacks in its own bank in the same cache. The launcher
+mask, and stacks in its own bank in the same cache. With
+`--resident-delta`, or a merge built with `merge9b --resident-delta`,
+the model emits a state update only when a nibble changes. The launcher
 reports the resulting matrix, shared words, instruction count, and
 launch outcome as JSON.
 

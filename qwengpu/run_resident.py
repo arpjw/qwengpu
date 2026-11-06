@@ -12,6 +12,7 @@ import torch
 from qwengpu.compiled_tile8 import VOCAB
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
+    RESIDENT_DELTA_LAYOUT,
     RESIDENT_ROM_LAYOUT,
     RESIDENT_STATE_LAYOUT,
     execute,
@@ -30,6 +31,11 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-delta",
+        action="store_true",
+        help="relay only changed state in the cache",
+    )
     variants.add_argument(
         "--resident-state",
         action="store_true",
@@ -53,10 +59,13 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_state = args.resident_state
+    resident_delta = args.resident_delta
+    resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-state"
+        "standalone-resident-delta"
+        if resident_delta
+        else "standalone-resident-state"
         if resident_state
         else "standalone-resident-rom"
         if resident_rom
@@ -72,20 +81,30 @@ def main() -> int:
             if (
                 not isinstance(meta, dict)
                 or meta.get("layout")
-                not in (LOOP_LAYOUT, RESIDENT_ROM_LAYOUT, RESIDENT_STATE_LAYOUT)
+                not in (
+                    LOOP_LAYOUT,
+                    RESIDENT_ROM_LAYOUT,
+                    RESIDENT_STATE_LAYOUT,
+                    RESIDENT_DELTA_LAYOUT,
+                )
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
-            resident_state = layout == RESIDENT_STATE_LAYOUT
+            resident_delta = layout == RESIDENT_DELTA_LAYOUT
+            resident_state = resident_delta or layout == RESIDENT_STATE_LAYOUT
             resident_rom = resident_state or layout == RESIDENT_ROM_LAYOUT
             if args.resident_rom and not resident_rom:
                 raise ValueError("--resident-rom requires a resident ROM checkpoint")
             if args.resident_state and not resident_state:
                 raise ValueError(
                     "--resident-state requires a resident state checkpoint"
+                )
+            if args.resident_delta and not resident_delta:
+                raise ValueError(
+                    "--resident-delta requires a resident delta checkpoint"
                 )
             offset = meta["chip_token_offset"]
     except (OSError, ValueError) as exc:
@@ -106,6 +125,7 @@ def main() -> int:
         looping=True,
         resident_rom=resident_rom,
         resident_state=resident_state,
+        resident_delta=resident_delta,
     )
     observed = execute(
         model,
@@ -117,6 +137,7 @@ def main() -> int:
         looping=True,
         resident_rom=resident_rom,
         resident_state=resident_state,
+        resident_delta=resident_delta,
     )
     trace = observed.pop("trace")
     schedules = observed.pop("schedules")
