@@ -861,3 +861,20 @@ cooperative ADD32I fixture also passed on the exact merged directory
 used for the multiply, with an identical case record to the previous
 ADD32 verification. The three reports and host record are under
 `results/resident_add32_matmul16*`.
+
+## Full inherited qualification on the resident ADD32 checkpoint
+
+One loaded ADD32 model ran all 23 frozen cases on MPS, with a fresh
+cache per case. All 1,892 instructions and 1,915 scheduler decisions
+matched the independent interpreter. The suite includes the dense
+and cooperative tiles, indexed loads and collision-aware stores,
+masks, nested branches and loops, three partial extents, four row
+windows, and both new ADD32I kernels. It produced 21 halts, one
+deliberate deadlock, and one deliberate step limit.
+
+Nineteen grid and row-window cases match the prior traces after
+projecting the snapshots onto the original fields. The two seeded
+wide cases and two ADD32I cases match their earlier full snapshots.
+The verifier also checked the transport counters and direct reads
+of grid, memory, ROM, and warp state for every launch. See
+`results/resident_add32_full_mps.json`.

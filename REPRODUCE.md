@@ -1043,3 +1043,27 @@ assert mixed["all_exact"] and mixed["merge"] == multiply["merge"] == prior["merg
 assert mixed["cases"] == [case for case in prior["cases"] if case["fixture"] == "cooperative_add32.json"]
 PY
 ```
+
+## Qualify the unified resident ADD32 checkpoint
+
+Run the inherited resident, indexed, masked, divergent, loop, grid,
+wide, and ADD32 fixtures along with all four row windows. The shell
+runner passes the same 23 manifests to one loaded model on each device.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+bash scripts/qualify_resident_add32.sh --device mps \
+  --out results/resident_add32_full_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENGPU_PYTHON" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-add32 --out /path/to/Qwen3.5-9B-qwengpu-resident-add32
+bash scripts/qualify_resident_add32.sh /path/to/Qwen3.5-9B-qwengpu-resident-add32 \
+  --device cuda --out results/resident_add32_full_9b_cuda_fla.json
+python3 scripts/check_resident_add32_full.py
+```
+
+The evaluator compares every instruction, scheduler decision, and
+cache check with the interpreter. The final checker compares the
+MPS and CUDA records, then projects inherited grid snapshots onto
+their original fields and checks the original terminal outcomes.

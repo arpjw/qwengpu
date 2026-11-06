@@ -102,10 +102,10 @@ and match all eight earlier grid traces on their shared fields.
 The composed multiply and the mixed ADD32I kernel passed from the
 same merged directory.
 
-The next gate runs the full inherited fixture suite on the unified
-resident ADD32 layout. Check control, indexed addressing, masks,
-partial extents, row windows, and terminal outcomes against the
-saved grid reports and the independent interpreter.
+The full inherited suite passes on the unified resident ADD32
+layout on MPS. All 23 cases match the interpreter and the saved
+baselines, including row windows and terminal outcomes. The full
+merged 9B run is the remaining qualification check.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
