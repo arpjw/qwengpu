@@ -1047,5 +1047,11 @@ all 128 words, and the two six-lane scatter grants.
 
 On MPS, all 24 cases match the interpreter. The 23 inherited
 case records match the original ADD32 MPS suite in full. All 25
-local tests passed. See `results/resident_shared32_full_mps.json`
-and `REPRODUCE.md`. Merged 9B validation remains in progress.
+local tests passed.
+
+The pinned merged Qwen3.5-9B on A100 reproduces all 24 MPS case
+records, including 1,912 instructions, 1,936 scheduler decisions,
+and exact recurrent ROM, shared memory, warp and grid state.
+The merge uses 22 chip layers and hidden width 6,656, matching
+the previous resident ADD32 dimensions. See the two
+`results/resident_shared32_full_*` reports and `REPRODUCE.md`.

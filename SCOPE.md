@@ -140,9 +140,9 @@ launches omit 1,024 C upload tokens in total.
 The shared32 layout moves both halves of a 32-bit value through
 indexed shared memory. One warp loads both halves, adds with carry,
 and stores both halves for a second warp to read after a barrier.
-The MPS run matches the independent reference for the handoff and
-all 23 inherited ADD32 case records. Merged 9B and retained launcher
-replays are in progress.
+MPS and merged 9B match the independent reference for the handoff
+and all 23 inherited ADD32 case records. Retained launcher replays
+are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
