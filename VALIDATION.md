@@ -579,8 +579,8 @@ requested store nibble corresponds to an emitted write.
 | Cooperative multiply and gather | 10,296 | 6,460 | 397 | 373 |
 | 256-instruction budget exhaustion | 14,660 | 6,724 | 769 | 683 |
 
-These counts measure transport and model invocations. Wall-clock
-throughput remains unmeasured. The merge adds 18 layers, uses width
+These counts measure transport and model invocations. The timing
+comparison follows below. The merge adds 18 layers, uses width
 6,400, and contains 41,942,202,112 bytes of weights. Short, single-token
 follow-ups exercise the recurrent kernel. On MPS this uses the
 PyTorch fallback.
@@ -592,3 +592,33 @@ earlier compiler graphs were unchanged. Reports are
 `results/resident_io_mps.json`, `results/resident_io_9b_cuda_fla.json`,
 `results/resident_io_launch_mps.json`, and
 `results/resident_io_launch_9b_cuda_fla.json`.
+
+## Same-checkpoint transport benchmark
+
+Fixed requests gave the lowest latency for the cooperative kernel on
+this A100. The state and store plan used the fewest tokens and the
+lowest peak allocated memory. All 18 timed launches and three
+profiled warmups matched the reference trace and frozen output
+matrix. There were zero failures. The six timed samples per mode
+covered every order permutation on the same loaded checkpoint.
+
+| Transport | Median launch time | Range | Input tokens | Forward calls | Peak allocated GiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fixed requests | 27.179 s | 27.082–27.208 s | 16,176 | 265 | 39.917 |
+| State-only plan | 39.599 s | 39.499–39.729 s | 10,296 | 397 | 39.638 |
+| State and store plan | 37.201 s | 37.076–37.357 s | 6,460 | 373 | 39.462 |
+
+Each peak allocation was identical across the six samples for its
+mode. The profiled warmups spent about 88–89% of wall time inside
+CUDA model-forward intervals. In the timed launches, elapsed time
+per forward averaged about 0.10 seconds across modes. The increased
+number of forwards explains the observed direction of the latency
+tradeoff. The environment used FLA and reference causal convolution.
+The timer includes host relay and cache verification and excludes
+checkpoint loading and reference generation.
+
+The result applies to the cooperative fixture on one A100 with this
+software stack. Use fixed requests as the latency baseline for that
+configuration. The launcher retains its layout-based defaults.
+Reports are `results/resident_transport_benchmark_a100.json` and
+`results/resident_transport_benchmark_host.txt`.

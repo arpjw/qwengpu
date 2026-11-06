@@ -1,0 +1,853 @@
+{
+  "fixture": "cooperative_matmul.json",
+  "fixture_sha256": "cfd7ee743ddeafdff129b8d51cb80bbeae88c535f54eb407d90f89cc950c47aa",
+  "checkpoint": {
+    "layout": "qwengpu-resident-io9b-v1",
+    "chip_token_offset": 248320,
+    "chip_vocab": 65536,
+    "chip_layers": 18,
+    "hidden": 6400,
+    "slots": 2143,
+    "code_dims": [
+      4231,
+      4232,
+      4233,
+      4234,
+      4235,
+      4236,
+      4237,
+      4238,
+      4239,
+      4240,
+      4241,
+      4242,
+      4243,
+      4244,
+      4245,
+      4246
+    ],
+    "tau_dim": 4121,
+    "mute_dim": 4927,
+    "fit_anti_sink": true,
+    "circuit": {
+      "layers": 18,
+      "dims": 3886,
+      "heads": 154,
+      "ffn_units": 7821,
+      "max_units": 1928,
+      "max_heads": 16
+    },
+    "output_head_tied": false
+  },
+  "max_steps": 256,
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "gpu_bytes": 85094825984,
+  "torch": "2.14.1+cu130",
+  "torch_cuda": "13.0",
+  "transformers": "5.19.0",
+  "flash_linear_attention": "0.6.0",
+  "torch_threads": 8,
+  "available_cpu_cores": 128,
+  "initial_load_average": [
+    5.66015625,
+    4.763671875,
+    4.40625
+  ],
+  "expected_trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+  "rounds": 6,
+  "warmups": [
+    {
+      "mode": "fixed",
+      "seconds": 54.86611930211075,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41943816704,
+      "peak_allocated_bytes": 42860073984,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "profile": {
+        "forward_stream_seconds": 48.78017746734619,
+        "top_cpu_cumulative": [
+          {
+            "function": "eval_compiled_rom.py:24:head_row",
+            "seconds": 5.977416229
+          },
+          {
+            "function": "modeling_qwen3_5.py:840:forward",
+            "seconds": 4.137787708
+          },
+          {
+            "function": "threading.py:637:wait",
+            "seconds": 3.846257693
+          },
+          {
+            "function": "l2norm.py:111:l2norm_fwd",
+            "seconds": 3.5912454310000004
+          },
+          {
+            "function": "chunk_fwd.py:331:chunk_gated_delta_rule_fwd_intra",
+            "seconds": 3.211693468
+          },
+          {
+            "function": "linear.py:130:forward",
+            "seconds": 3.2079389640000002
+          },
+          {
+            "function": "~:0:<built-in method torch._C._nn.linear>",
+            "seconds": 3.040873893
+          },
+          {
+            "function": "~:0:<method 'index' of 'list' objects>",
+            "seconds": 2.733030196
+          },
+          {
+            "function": "modeling_qwen3_5.py:215:forward",
+            "seconds": 2.1712113730000002
+          },
+          {
+            "function": "modeling_qwen3_5.py:766:forward",
+            "seconds": 2.165677993
+          },
+          {
+            "function": "modeling_qwen3_5.py:837:_norm",
+            "seconds": 2.080725853
+          },
+          {
+            "function": "compiler.py:607:<lambda>",
+            "seconds": 2.075433771
+          }
+        ]
+      },
+      "round": 0,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 54.872057653963566,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "profile": {
+        "forward_stream_seconds": 48.701161392211915,
+        "top_cpu_cumulative": [
+          {
+            "function": "_contextlib.py:120:decorate_context",
+            "seconds": 54.871879756000006
+          },
+          {
+            "function": "eval_tile8.py:244:execute",
+            "seconds": 54.871379947
+          },
+          {
+            "function": "eval_tile8.py:343:feed",
+            "seconds": 48.770207559000006
+          },
+          {
+            "function": "module.py:1779:_wrapped_call_impl",
+            "seconds": 47.670553170000005
+          },
+          {
+            "function": "module.py:1787:_call_impl",
+            "seconds": 47.669016486000004
+          },
+          {
+            "function": "module.py:1799:inner",
+            "seconds": 47.666529701
+          },
+          {
+            "function": "generic.py:937:wrapper",
+            "seconds": 47.620332606000005
+          },
+          {
+            "function": "modeling_qwen3_5.py:1681:forward",
+            "seconds": 47.614957780000005
+          },
+          {
+            "function": "generic.py:1019:wrapper",
+            "seconds": 47.567748241000004
+          },
+          {
+            "function": "output_capturing.py:250:wrapper",
+            "seconds": 47.552410086
+          },
+          {
+            "function": "modeling_qwen3_5.py:1227:forward",
+            "seconds": 47.533420005
+          },
+          {
+            "function": "modeling_layers.py:81:__call__",
+            "seconds": 46.858131711000006
+          }
+        ]
+      },
+      "round": 0,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 52.008516611065716,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "profile": {
+        "forward_stream_seconds": 45.88788874816895,
+        "top_cpu_cumulative": [
+          {
+            "function": "eval_frame.py:1523:_fn",
+            "seconds": 19.493478481
+          },
+          {
+            "function": "backends.py:169:wrapper",
+            "seconds": 19.433683929
+          },
+          {
+            "function": "chunk.py:395:chunk_gated_delta_rule",
+            "seconds": 19.263650455
+          },
+          {
+            "function": "autocast_mode.py:476:decorate_fwd",
+            "seconds": 17.735901443
+          },
+          {
+            "function": "chunk.py:255:forward",
+            "seconds": 17.655007017000003
+          },
+          {
+            "function": "chunk.py:33:chunk_gated_delta_rule_fwd",
+            "seconds": 12.695057723000001
+          },
+          {
+            "function": "cache.py:374:run",
+            "seconds": 10.701196851
+          },
+          {
+            "function": "eval_tile8.py:343:feed",
+            "seconds": 9.421524978
+          },
+          {
+            "function": "module.py:1779:_wrapped_call_impl",
+            "seconds": 9.198274971
+          },
+          {
+            "function": "module.py:1787:_call_impl",
+            "seconds": 9.197971735000001
+          },
+          {
+            "function": "module.py:1799:inner",
+            "seconds": 9.197500005
+          },
+          {
+            "function": "generic.py:937:wrapper",
+            "seconds": 9.188428850000001
+          }
+        ]
+      },
+      "round": 0,
+      "exact": true
+    }
+  ],
+  "trials": [
+    {
+      "mode": "fixed",
+      "seconds": 27.18497480894439,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42860520448,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 1,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 39.499235183000565,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 1,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 37.166030080989,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 1,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 39.569505729014054,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 2,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 37.07604221301153,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 2,
+      "exact": true
+    },
+    {
+      "mode": "fixed",
+      "seconds": 27.08164942706935,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42860520448,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 2,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 37.35723209101707,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 3,
+      "exact": true
+    },
+    {
+      "mode": "fixed",
+      "seconds": 27.17357738991268,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42860520448,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 3,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 39.56308823893778,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 3,
+      "exact": true
+    },
+    {
+      "mode": "fixed",
+      "seconds": 27.18514098599553,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42860520448,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 4,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 37.23552864091471,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 4,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 39.64968232088722,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 4,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 37.132907264865935,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 5,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 39.62852754886262,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 5,
+      "exact": true
+    },
+    {
+      "mode": "fixed",
+      "seconds": 27.169150572037324,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42860520448,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 5,
+      "exact": true
+    },
+    {
+      "mode": "state_plan",
+      "seconds": 39.7287706960924,
+      "forward_calls": 397,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42560628736,
+      "transport": {
+        "input_tokens": 10296,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 397,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 6,
+      "exact": true
+    },
+    {
+      "mode": "fixed",
+      "seconds": 27.207950401119888,
+      "forward_calls": 265,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42860520448,
+      "transport": {
+        "input_tokens": 16176,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 6,
+      "exact": true
+    },
+    {
+      "mode": "state_store_plan",
+      "seconds": 37.2790462509729,
+      "forward_calls": 373,
+      "allocated_before_bytes": 41952336384,
+      "peak_allocated_bytes": 42371469312,
+      "transport": {
+        "input_tokens": 6460,
+        "fresh_caches": 1,
+        "matrix_initial_tokens": 512,
+        "matrix_patch_tokens": 256,
+        "rom_program_tokens": 32,
+        "rom_select_tokens": 2,
+        "warp_initial_tokens": 128,
+        "warp_update_tokens": 1512,
+        "forward_calls": 373,
+        "state_plan_tokens": 1056,
+        "state_read_tokens": 1512,
+        "store_plan_tokens": 132,
+        "store_read_tokens": 256,
+        "skipped_read_calls": 24,
+        "resident_memory_exact": true,
+        "resident_rom_exact": true,
+        "resident_state_exact": true
+      },
+      "instructions": 132,
+      "outcome": "halted",
+      "trace_sha256": "190b8aa654c5c29b2e1b7f8f661d785ce29282dc589c55068f9c815663b73e4a",
+      "round": 6,
+      "exact": true
+    }
+  ],
+  "failures": [],
+  "complete": true,
+  "checkpoint_load_seconds": 10.575510561000556,
+  "summary": {
+    "fixed": {
+      "trials": 6,
+      "median_seconds": 27.179276099428535,
+      "range_seconds": [
+        27.08164942706935,
+        27.207950401119888
+      ],
+      "median_peak_allocated_bytes": 42860520448,
+      "range_peak_allocated_bytes": [
+        42860520448,
+        42860520448
+      ]
+    },
+    "state_plan": {
+      "trials": 6,
+      "median_seconds": 39.59901663893834,
+      "range_seconds": [
+        39.499235183000565,
+        39.7287706960924
+      ],
+      "median_peak_allocated_bytes": 42560628736,
+      "range_peak_allocated_bytes": [
+        42560628736,
+        42560628736
+      ]
+    },
+    "state_store_plan": {
+      "trials": 6,
+      "median_seconds": 37.200779360951856,
+      "range_seconds": [
+        37.07604221301153,
+        37.35723209101707
+      ],
+      "median_peak_allocated_bytes": 42371469312,
+      "range_peak_allocated_bytes": [
+        42371469312,
+        42371469312
+      ]
+    }
+  }
+}

@@ -56,11 +56,16 @@ The resident I/O checkpoint adds a store-lane bitmap to the
 state read plan and skips empty follow-up calls. The launcher
 still relays the resulting tagged values.
 
-The next gate measures the transport tradeoff on the same merged
-checkpoint. Run fixed requests, state-only plans, and state plus
-store plans with warmed, interleaved trials. Compare exact outputs,
-elapsed time, forward calls, and peak device allocation. Use the
-results to decide which transport should be the default.
+On the tested A100 cooperative kernel, fixed requests give the
+lowest launch latency. The state and store plan gives the lowest
+token count and peak allocation. The benchmark uses the same
+merged checkpoint for all modes. The launcher keeps its existing
+layout-based defaults pending evidence from more workloads.
+
+The next gate exposes explicit transport selection on one merged
+checkpoint, with exact launcher checks for each mode. Extend the
+timing comparison to a workload with a different write pattern
+before changing the general launcher default.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

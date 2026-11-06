@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 5:05 p.m. Pacific.
+was November 5, 2026 at approximately 5:27 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -23,13 +23,14 @@ was November 5, 2026 at approximately 5:05 p.m. Pacific.
 | `3f8xz3lqh43ja8` | Resident data-dependent loop validation | $0.198139 | |
 | `96stm71qzgxsm2` | Cooperative kernel and launcher validation | $0.267857 | |
 | `4vqekx2tdst3uz` | Resident warp programs and launcher validation | $0.315822 | |
-| `mimr8xs3ebeqeb` | Resident warp banks and launcher validation | Pending | $0.34 |
-| `8ntzzjatpnm2q4` | Resident changed-only state validation | Pending | $0.34 |
+| `mimr8xs3ebeqeb` | Resident warp banks and launcher validation | $0.339075 | |
+| `8ntzzjatpnm2q4` | Resident changed-only state validation | $0.078716 | $0.26 remaining |
 | `yr7ft6o0sdf34z` | Model-generated state read plan validation | Pending | $0.38 |
 | `pyh42o27vq2rux` | Selective state and store read validation | Pending | $0.37 |
+| `izc2or1pmn2hyu` | Same-checkpoint transport benchmark | Pending | $0.59 |
 
-Total posted is about $7.01. With pending estimates, tracked spend is
-about $8.44. All project pods are terminated and the live pod list was
+Total posted is about $7.42. With pending estimates, tracked spend is
+about $9.02. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -82,3 +83,8 @@ The resident I/O A100 ran from about 4:53:15 p.m. to 5:05:42 p.m.
 Pacific at $1.79/hour. Both checks passed. The pod was terminated after
 copying both reports. RunPod showed an empty pod list and no posted
 record for this pod at teardown.
+
+The benchmark A100 ran from about 5:07:38 p.m. to 5:27:30 p.m.
+Pacific at $1.79/hour. All 18 timed launches passed. The pod was
+terminated after copying the report and host record. RunPod showed
+an empty pod list and no posted record for this pod at teardown.
