@@ -109,6 +109,24 @@ def persistent_gpu_rows(cache: Cache, circuit) -> dict:
             for nib in range(4)
             for word in range(128)
         ],
+        "tile_memory": [
+            *(
+                head_row(cache, circuit, f"A.{nib}", byte, 4)
+                for nib in range(2)
+                for byte in range(64)
+            ),
+            *(
+                head_row(cache, circuit, f"B.{col}.{nib}", row, 4)
+                for col in range(8)
+                for nib in range(2)
+                for row in range(8)
+            ),
+            *(
+                head_row(cache, circuit, f"C.{nib}", row, 4)
+                for nib in range(32)
+                for row in range(8)
+            ),
+        ],
     }
     if any(value is None for bank in rows.values() for value in bank):
         raise ValueError("persistent GPU row was not initialized")

@@ -1134,8 +1134,9 @@ Run the same four-prompt experiment with the reset policy. The
 boundary replaces the pretrained layers' cache entries with fresh
 entries from the same model configuration. It keeps the GPU layers
 in the same dynamic cache and checks that text starts at position
-zero. The verifier reads all 128 register nibbles and 4,096 shared
-memory nibbles across the lane banks before and after generating text.
+zero. The verifier reads 128 register nibbles, 4,096 indexed memory
+nibbles across the lane banks, and 512 nibbles in the tiled memory
+view before and after generating text.
 
 ```sh
 cd "$QWENGPU_DIR"

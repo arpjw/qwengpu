@@ -934,3 +934,22 @@ The logit differences use the original vocabulary. The four cases
 cover direct reuse of this kernel's cache. See
 `results/resident_add32_handoff_9b_cuda_fla.json` for all cache
 lengths, token sequences, and comparison records.
+
+## Text cache reset with resident GPU state
+
+The reset replaced the pretrained layers' cache entries and kept
+the GPU layers in the same dynamic cache. Text began at position
+zero. All four cooperative kernel replays matched the direct
+handoff report, including the 7,549 input tokens and trace digest.
+
+All four greedy continuations and all native next-token logits
+matched the fresh-cache control exactly. This includes the Moon
+prompt that changed with direct cache reuse. The check compared
+128 register nibbles, 4,096 indexed memory nibbles across the lane
+banks, and 512 nibbles in the tiled memory view per prompt. All
+18,944 comparisons matched after text generation. The report
+records the hashes before and after for each bank.
+
+The measured boundary starts a new text context while preserving
+the tested GPU rows. See `results/resident_add32_handoff_reset*`
+for the A100 report and host details.

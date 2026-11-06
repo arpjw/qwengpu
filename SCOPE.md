@@ -116,10 +116,16 @@ first text tokens and three of four greedy continuations on the
 same merged weights. Shifting positions in a fresh cache keeps
 all four continuations. The handoff report records both comparisons.
 
-The next gate tests an explicit boundary that clears pretrained
-text-layer history while retaining the GPU circuit's recurrent
-state. Verify the text against a fresh cache and check the retained
-register and memory rows after the handoff.
+Replacing the pretrained layers' cache entries starts text at
+position zero while keeping the GPU layers in the same cache.
+All four continuations and native next-token logits match the
+fresh-cache control. The register and shared memory rows remain exact.
+
+The next gate launches a second kernel after text on the retained
+GPU cache. Give the second kernel new control and program state,
+and have it consume shared memory left by the first kernel.
+Compare its trace and results against the interpreter and verify
+that the launch sends no shared-memory upload.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
