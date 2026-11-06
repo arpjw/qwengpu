@@ -10,16 +10,13 @@ from pathlib import Path
 import torch
 import transformers
 
-from qwengpu.compiled_tile8 import NEXT_BANK, TICKET
 from qwengpu.eval_cached_tile import FIXTURE
 from qwengpu.eval_tile8 import (
     RESIDENT_TILEPIPE_LAYOUT,
-    launch_cached_tile,
     load_tile_model,
-    oracle,
     parse_launch,
 )
-from qwengpu.run_matmul16 import TILE, _tile, _trace_digest, parse_inputs
+from qwengpu.run_matmul16 import TILE, _tile, launch_two_slices, parse_inputs
 
 
 def main() -> None:
@@ -45,52 +42,10 @@ def main() -> None:
         resident_add32=True,
     )
     alternate = _tile(a, 0, TILE) + _tile(b, TILE, 0)
-    _, observed, audit = launch_cached_tile(
-        model,
-        circuit,
-        first,
-        args.device,
-        offset,
-        alternate_operands=alternate,
-        auto_operand_bank=True,
+    observed, audit, passes = launch_two_slices(
+        model, circuit, first, alternate, args.device, offset
     )
-    transition = observed["bank_transition"]
-    transport = observed["transport"]
-    if (
-        observed["outcome"] != "halted"
-        or not transition
-        or transition["ticket"] != NEXT_BANK
-        or not transition["resident_memory_exact"]
-        or transition["bank_before"] != 0
-        or not all(
-            transport[f"resident_{name}_exact"]
-            for name in ("grid", "memory", "rom", "state", "operand_banks")
-        )
-        or sum(call["grid"] for call in audit) != 1
-        or sum(call["transition"] for call in audit) != 1
-    ):
-        raise ValueError("model-scheduled transition or physical cache check failed")
-    first_trace = observed["trace"][: transition["instructions"]]
-    second_trace = observed["trace"][transition["instructions"] :]
-    first_schedule = observed["schedules"][: transition["schedule_index"]]
-    second_schedule = observed["schedules"][transition["schedule_index"] :]
-    second_schedule[0] = {**second_schedule[0], "ticket": TICKET}
-    passes = []
-    c = first["c"]
-    registers = first["initial_registers"]
-    for index, (trace, schedule) in enumerate(
-        ((first_trace, first_schedule), (second_trace, second_schedule))
-    ):
-        reference = oracle(
-            {**first, "c": c, "initial_registers": registers},
-            256,
-            looping=True,
-            alternate_operands=alternate,
-            operand_bank=index,
-        )
-        # The first slice emits a transition in place of its separate HALT ticket.
-        if index == 0:
-            schedule.append(reference["schedules"][-1])
+    for index, step in enumerate(passes):
         scalar = [
             [
                 (
@@ -102,54 +57,8 @@ def main() -> None:
             ]
             for row in range(TILE)
         ]
-        matrix = transition["matrix"] if index == 0 else observed["matrix"]
-        if trace != reference["trace"] or schedule != reference["schedules"]:
-            differences = [
-                (i, [key for key in actual if actual[key] != expected[key]])
-                for i, (actual, expected) in enumerate(zip(trace, reference["trace"]))
-                if actual != expected
-            ]
-            raise ValueError(
-                f"slice {index} differs from the reference: {differences[:4]}"
-            )
-        if matrix != reference["matrix"] or matrix != scalar:
+        if step["matrix"] != scalar:
             raise ValueError(f"slice {index} differs from the scalar result")
-        separate = (
-            oracle(
-                {**first, "c": c},
-                256,
-                looping=True,
-                alternate_operands=alternate,
-                operand_bank=index,
-            )
-            if index
-            else reference
-        )
-        differences = [
-            {
-                "instruction": i,
-                "fields": sorted(key for key in actual if actual[key] != old[key]),
-            }
-            for i, (actual, old) in enumerate(
-                zip(trace, separate["trace"], strict=True)
-            )
-            if actual != old
-        ]
-        passes.append(
-            {
-                "k": index * TILE,
-                "matrix": matrix,
-                "instructions": len(trace),
-                "scheduler_decisions": len(schedule),
-                "trace_sha256": _trace_digest({"trace": trace, "schedules": schedule}),
-                "separate_trace_sha256": _trace_digest(
-                    {"trace": separate["trace"], "schedules": separate["schedules"]}
-                ),
-                "register_carry_differences": differences,
-            }
-        )
-        c = [word for row in scalar for word in row]
-        registers = reference["warp_registers"]
 
     report = {
         "device": args.device,

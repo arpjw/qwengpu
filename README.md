@@ -324,6 +324,15 @@ python3 -m qwengpu.eval_cached_tile --preload-operands --device mps \
   --out results/resident_tilebanks_cached_tile_mps.json
 ```
 
+The tilepipe launcher runs both K slices for each 8×8 output tile
+with one model-scheduled launch. The model advances to the second
+operand bank and reuses C, the warp state, and the program.
+
+```sh
+python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --schedule-k --device mps
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

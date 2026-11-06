@@ -1478,3 +1478,31 @@ python3 scripts/check_tilepipe.py --full
 The evaluator compares each slice to a separate execution and
 a scalar matrix product. Its forward audit records the initial
 memory and grid setup, the relayed transition, and the C stores.
+
+## Run the full 16×16 multiply with scheduled K slices
+
+The public `--schedule-k` mode starts one tilepipe launch per output
+tile. Both K slices run inside that launch. It reports the two
+16×16 pass matrices, the four model-generated transitions, and all
+grid, operand and C tokens sent to the model.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+fixture=eval/frozen/matmul16_gate_v1/dense_seeded.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$fixture" --schedule-k --device mps \
+  --out results/resident_tilepipe_matmul16_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+base=/path/to/Qwen3.5-9B
+model=/path/to/Qwen3.5-9B-qwengpu-resident-tilepipe
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$fixture" --schedule-k \
+  --model "$model" --device cuda --out results/resident_tilepipe_matmul16_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out results/resident_tilepipe_text_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_text_handoff "$model" --device cuda \
+  --reset-text --out results/resident_tilepipe_handoff_reset_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch "$model" --addmem32 --device cuda \
+  --out results/resident_tilepipe_arithmetic_relaunch_9b_cuda_fla.json
+python3 scripts/check_tilepipe_matmul16.py --text
+```

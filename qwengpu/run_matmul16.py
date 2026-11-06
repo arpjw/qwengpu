@@ -1,4 +1,4 @@
-"""Compute C + A @ B modulo 65536 with eight resident grid launches."""
+"""Compute C + A @ B modulo 65536 with resident output tiles."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.compiled_tile8 import VOCAB, WARP_DIRTY_OFFSET
+from qwengpu.compiled_tile8 import NEXT_BANK, TICKET, VOCAB, WARP_DIRTY_OFFSET
 from qwengpu.eval_tile import _unsigned
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUTS,
@@ -18,10 +18,12 @@ from qwengpu.eval_tile8 import (
     RESIDENT_GRID_LAYOUT,
     RESIDENT_LOOP32_LAYOUTS,
     RESIDENT_SHARED32_LAYOUTS,
+    RESIDENT_TILEPIPE_LAYOUT,
     RESIDENT_TRANSPORTS,
     execute,
     launch_cached_tile,
     load_tile_model,
+    oracle,
     parse_launch,
 )
 
@@ -59,6 +61,152 @@ def _trace_digest(trace: dict) -> str:
     return hashlib.sha256(
         json.dumps(trace, separators=(",", ":"), sort_keys=True).encode()
     ).hexdigest()
+
+
+def launch_two_slices(
+    model,
+    circuit,
+    first: dict,
+    alternate: list[int],
+    device: str,
+    offset: int,
+) -> tuple[dict, list[dict[str, int]], list[dict]]:
+    """Launch one output tile and verify the model's two execution slices."""
+    _, observed, audit = launch_cached_tile(
+        model,
+        circuit,
+        first,
+        device,
+        offset,
+        alternate_operands=alternate,
+        auto_operand_bank=True,
+    )
+    transition = observed["bank_transition"]
+    transport = observed["transport"]
+    if (
+        observed["outcome"] != "halted"
+        or not transition
+        or transition["ticket"] != NEXT_BANK
+        or not transition["resident_memory_exact"]
+        or transition["bank_before"] != 0
+        or not all(
+            transport[f"resident_{name}_exact"]
+            for name in ("grid", "memory", "rom", "state", "operand_banks")
+        )
+        or sum(call["grid"] for call in audit) != 1
+        or sum(call["transition"] for call in audit) != 1
+    ):
+        raise ValueError("model-scheduled transition or physical cache check failed")
+    first_trace = observed["trace"][: transition["instructions"]]
+    second_trace = observed["trace"][transition["instructions"] :]
+    first_schedule = observed["schedules"][: transition["schedule_index"]]
+    second_schedule = observed["schedules"][transition["schedule_index"] :]
+    second_schedule[0] = {**second_schedule[0], "ticket": TICKET}
+    passes = []
+    c = first["c"]
+    registers = first["initial_registers"]
+    for index, (trace, schedule) in enumerate(
+        ((first_trace, first_schedule), (second_trace, second_schedule))
+    ):
+        reference = oracle(
+            {**first, "c": c, "initial_registers": registers},
+            256,
+            looping=True,
+            alternate_operands=alternate,
+            operand_bank=index,
+        )
+        # The first slice emits a transition in place of its separate HALT ticket.
+        if index == 0:
+            schedule.append(reference["schedules"][-1])
+        matrix = transition["matrix"] if index == 0 else observed["matrix"]
+        if trace != reference["trace"] or schedule != reference["schedules"]:
+            differences = [
+                (i, [key for key in actual if actual[key] != expected[key]])
+                for i, (actual, expected) in enumerate(zip(trace, reference["trace"]))
+                if actual != expected
+            ]
+            raise ValueError(
+                f"slice {index} differs from the reference: {differences[:4]}"
+            )
+        if matrix != reference["matrix"]:
+            raise ValueError(f"slice {index} differs from the reference matrix")
+        separate = (
+            oracle(
+                {**first, "c": c},
+                256,
+                looping=True,
+                alternate_operands=alternate,
+                operand_bank=index,
+            )
+            if index
+            else reference
+        )
+        differences = [
+            {
+                "instruction": i,
+                "fields": sorted(key for key in actual if actual[key] != old[key]),
+            }
+            for i, (actual, old) in enumerate(
+                zip(trace, separate["trace"], strict=True)
+            )
+            if actual != old
+        ]
+        passes.append(
+            {
+                "k": index * TILE,
+                "matrix": matrix,
+                "instructions": len(trace),
+                "scheduler_decisions": len(schedule),
+                "trace_sha256": _trace_digest({"trace": trace, "schedules": schedule}),
+                "separate_trace_sha256": _trace_digest(
+                    {"trace": separate["trace"], "schedules": separate["schedules"]}
+                ),
+                "register_carry_differences": differences,
+            }
+        )
+        c = [word for row in matrix for word in row]
+        registers = reference["warp_registers"]
+
+    return observed, audit, passes
+
+
+def run_scheduled_matmul(
+    model,
+    circuit,
+    device: str,
+    offset: int,
+    a: list[list[int]],
+    b: list[list[int]],
+    c: list[list[int]],
+) -> dict:
+    passes = [{"k": k, "matrix": [row[:] for row in c]} for k in (0, TILE)]
+    tiles = []
+    for row in range(0, SIZE, TILE):
+        for col in range(0, SIZE, TILE):
+            first = parse_launch(
+                {"a": _tile(a, row, 0), "b": _tile(b, 0, col), "c": _tile(c, row, col)},
+                resident_add32=True,
+            )
+            alternate = _tile(a, row, TILE) + _tile(b, TILE, col)
+            observed, audit, tile_passes = launch_two_slices(
+                model, circuit, first, alternate, device, offset
+            )
+            for step, tile in zip(passes, tile_passes, strict=True):
+                for i, output_row in enumerate(tile["matrix"]):
+                    step["matrix"][row + i][col : col + TILE] = output_row
+            tiles.append(
+                {
+                    "row": row,
+                    "col": col,
+                    "instructions": len(observed["trace"]),
+                    "scheduler_decisions": len(observed["schedules"]),
+                    "bank_transition": observed["bank_transition"],
+                    "passes": tile_passes,
+                    "transport": observed["transport"],
+                    "memory_tokens_by_call": audit,
+                }
+            )
+    return {"matrix": passes[-1]["matrix"], "passes": passes, "tiles": tiles}
 
 
 def run_matmul(
@@ -183,8 +331,14 @@ def main() -> None:
         action="store_true",
         help="use the standalone checkpoint with indexed high-limb memory",
     )
-    parser.add_argument(
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
         "--retain-c", action="store_true", help="keep each output tile in one cache"
+    )
+    modes.add_argument(
+        "--schedule-k",
+        action="store_true",
+        help="schedule both slices in one tilepipe launch",
     )
     parser.add_argument("--device", choices=("cpu", "mps", "cuda"))
     parser.add_argument(
@@ -194,7 +348,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_loop32 = args.resident_loop32
+    resident_tilepipe = args.schedule_k
+    resident_loop32 = args.resident_loop32 or resident_tilepipe
     resident_branch32 = args.resident_branch32 or resident_loop32
     resident_addmem32 = args.resident_addmem32 or resident_branch32
     resident_shared32 = args.resident_shared32 or resident_addmem32
@@ -202,6 +357,20 @@ def main() -> None:
     try:
         payload = args.input.read_bytes()
         a, b, c = parse_inputs(json.loads(payload))
+        if (
+            args.schedule_k
+            and args.model is None
+            and any(
+                (
+                    args.resident_add32,
+                    args.resident_shared32,
+                    args.resident_addmem32,
+                    args.resident_branch32,
+                    args.resident_loop32,
+                )
+            )
+        ):
+            raise ValueError("--schedule-k selects the standalone tilepipe checkpoint")
         if args.model:
             meta = json.loads((args.model / "qwengpu9b.json").read_text())
             if (
@@ -213,6 +382,7 @@ def main() -> None:
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged resident grid or ADD32 checkpoint")
+            resident_tilepipe = meta["layout"] == RESIDENT_TILEPIPE_LAYOUT
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
             resident_loop32 = meta["layout"] in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = meta["layout"] in RESIDENT_BRANCH32_LAYOUTS
@@ -231,6 +401,8 @@ def main() -> None:
             if args.resident_loop32 and not resident_loop32:
                 raise ValueError("--resident-loop32 requires a loop32 checkpoint")
             offset = meta["chip_token_offset"]
+        if args.schedule_k and not resident_tilepipe:
+            raise ValueError("--schedule-k requires a tilepipe checkpoint")
         if args.retain_c and not resident_add32:
             raise ValueError("--retain-c requires a resident ADD32 checkpoint")
     except (OSError, TypeError, ValueError) as exc:
@@ -254,9 +426,12 @@ def main() -> None:
         resident_addmem32=resident_addmem32,
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
+        resident_tilepipe=resident_tilepipe,
     )
     standalone = (
-        "standalone-resident-loop32"
+        "standalone-resident-tilepipe"
+        if resident_tilepipe
+        else "standalone-resident-loop32"
         if resident_loop32
         else "standalone-resident-branch32"
         if resident_branch32
@@ -272,23 +447,30 @@ def main() -> None:
         "device": device,
         "torch": torch.__version__,
         "merge": meta,
-        "transport_mode": "state_store_plan" if args.retain_c else "fixed",
+        "transport_mode": "state_store_plan"
+        if args.retain_c or args.schedule_k
+        else "fixed",
+        **({"schedule_k": True} if args.schedule_k else {}),
         **({"retain_c": True} if args.retain_c else {}),
         **(
             {"checkpoint": meta["layout"] if meta else standalone}
             if resident_add32
             else {}
         ),
-        **run_matmul(
-            model,
-            circuit,
-            device,
-            offset,
-            a,
-            b,
-            c,
-            resident_add32=resident_add32,
-            retain_c=args.retain_c,
+        **(
+            run_scheduled_matmul(model, circuit, device, offset, a, b, c)
+            if args.schedule_k
+            else run_matmul(
+                model,
+                circuit,
+                device,
+                offset,
+                a,
+                b,
+                c,
+                resident_add32=resident_add32,
+                retain_c=args.retain_c,
+            )
         ),
     }
     output = json.dumps(result, indent=2) + "\n"
