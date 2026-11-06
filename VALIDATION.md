@@ -966,5 +966,17 @@ cache identity and counts the memory tokens actually sent.
 A standalone MPS smoke check passed the two GPU launches without
 text between them. Its ten consumer instructions matched the
 interpreter, with zero initial memory tokens and zero new caches
-on the second launch. All 25 existing tests passed. The merged
-round-trip run is the remaining validation.
+on the second launch. All 25 existing tests passed.
+
+The merged 9B round trip on one A100 reproduced the prior producer
+trace and exact text. The ten consumer instructions and eleven
+scheduler decisions matched the interpreter and the fresh-cache
+control. All sixteen copied values came from producer-written
+addresses and differed from their destination seeds. The audit
+checked the same cache across all 27 consumer calls. It counted
+zero initial memory tokens and 64 memory tokens for the consumer's
+own stores. The retained launch used 761 input tokens, compared
+with 1,273 for the fresh-cache control.
+
+See `results/resident_add32_cache_relaunch*` for the trace, audited
+token counts, merge metadata, and host details.

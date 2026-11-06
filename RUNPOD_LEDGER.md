@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 8:36 p.m. Pacific.
+was November 5, 2026 at approximately 8:50 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -36,13 +36,14 @@ was November 5, 2026 at approximately 8:36 p.m. Pacific.
 | `tzsvs2wb4ztt3w` | Resident high register banks on merged 9B | $0.231115 | |
 | `pg2ix4z275np5a` | Resident ADD32I and mixed tiled kernel on merged 9B | $0.266326 | |
 | `rg0clhnajboc7f` | Composed multiply and mixed kernel on one ADD32 merge | $0.340125 | |
-| `xu7m4p6hee9a0w` | Full resident ADD32 qualification on merged 9B | $0.032695 | $0.61 remaining |
+| `xu7m4p6hee9a0w` | Full resident ADD32 qualification on merged 9B | $0.482456 | $0.16 remaining |
 | `pjb7usdcbldw80` | Fresh-cache text comparison for the unified ADD32 merge | Pending | $0.20 |
 | `icyks8qxc6uuwd` | Direct GPU-to-text cache handoff | Pending | $0.27 |
 | `d77qwi6198u2f1` | Text cache reset with persistent GPU state | Pending | $0.26 |
+| `spczei5clluhi2` | GPU-to-text-to-GPU cache relaunch | Pending | $0.21 |
 
-Total posted is about $11.38. With pending estimates, tracked spend is
-about $12.72. All project pods are terminated and the live pod list was
+Total posted is about $11.83. With pending estimates, tracked spend is
+about $12.93. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -176,5 +177,11 @@ this pod at teardown.
 The cache reset A100 ran from about 8:28:15 p.m. to 8:36:39 p.m.
 Pacific at $1.79/hour. Four text comparisons and all GPU row checks
 passed. Elapsed compute was about $0.25, with $0.26 reserved including
+disk. The pod was terminated after copying the reports. RunPod
+showed an empty pod list and no posted record for this pod at teardown.
+
+The cache relaunch A100 ran from about 8:43:40 p.m. to 8:50:24 p.m.
+Pacific at $1.79/hour. The GPU, text, and retained consumer checks
+passed. Elapsed compute was about $0.20, with $0.21 reserved including
 disk. The pod was terminated after copying the reports. RunPod
 showed an empty pod list and no posted record for this pod at teardown.

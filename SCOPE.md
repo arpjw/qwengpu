@@ -121,11 +121,15 @@ position zero while keeping the GPU layers in the same cache.
 All four continuations and native next-token logits match the
 fresh-cache control. The register and shared memory rows remain exact.
 
-The next gate launches a second kernel after text on the retained
-GPU cache. Give the second kernel new control and program state,
-and have it consume shared memory left by the first kernel.
-Compare its trace and results against the interpreter and verify
-that the launch sends no shared-memory upload.
+The GPU-to-text-to-GPU round trip uses one retained GPU cache.
+The consumer copies sixteen producer-written values after text.
+Its trace matches the interpreter and a fresh-cache control with
+zero initial memory uploads.
+
+The next gate accumulates two K slices into one 8×8 output tile
+in a single cache. Upload the new A and B operands for the second
+slice and keep C in the model. Verify both scalar results and audit
+the second slice for zero C upload tokens.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
