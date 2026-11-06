@@ -12,8 +12,9 @@ import torch
 from qwengpu.compiled_tile8 import VOCAB, WARP_DIRTY_OFFSET
 from qwengpu.eval_tile import _unsigned
 from qwengpu.eval_tile8 import (
-    RESIDENT_ADD32_LAYOUT,
+    RESIDENT_ADD32_LAYOUTS,
     RESIDENT_GRID_LAYOUT,
+    RESIDENT_SHARED32_LAYOUT,
     RESIDENT_TRANSPORTS,
     execute,
     launch_cached_tile,
@@ -153,10 +154,16 @@ def main() -> None:
     parser.add_argument(
         "--model", type=Path, help="merged resident grid or ADD32 checkpoint"
     )
-    parser.add_argument(
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
         "--resident-add32",
         action="store_true",
         help="use the standalone checkpoint that also runs ADD32I",
+    )
+    variants.add_argument(
+        "--resident-shared32",
+        action="store_true",
+        help="use the standalone checkpoint with indexed high-limb memory",
     )
     parser.add_argument(
         "--retain-c", action="store_true", help="keep each output tile in one cache"
@@ -169,7 +176,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_add32 = args.resident_add32
+    resident_shared32 = args.resident_shared32
+    resident_add32 = args.resident_add32 or resident_shared32
     try:
         payload = args.input.read_bytes()
         a, b, c = parse_inputs(json.loads(payload))
@@ -178,13 +186,16 @@ def main() -> None:
             if (
                 not isinstance(meta, dict)
                 or meta.get("layout")
-                not in (RESIDENT_GRID_LAYOUT, RESIDENT_ADD32_LAYOUT)
+                not in (RESIDENT_GRID_LAYOUT, *RESIDENT_ADD32_LAYOUTS)
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged resident grid or ADD32 checkpoint")
-            resident_add32 = meta["layout"] == RESIDENT_ADD32_LAYOUT
+            resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
+            resident_shared32 = meta["layout"] == RESIDENT_SHARED32_LAYOUT
+            if args.resident_shared32 and not resident_shared32:
+                raise ValueError("--resident-shared32 requires a shared32 checkpoint")
             if args.resident_add32 and not resident_add32:
                 raise ValueError(
                     "--resident-add32 requires a resident ADD32 checkpoint"
@@ -205,7 +216,16 @@ def main() -> None:
             else "cpu"
         )
     model, circuit = load_tile_model(
-        args.model, device, resident_grid=True, resident_add32=resident_add32
+        args.model,
+        device,
+        resident_grid=True,
+        resident_add32=resident_add32,
+        resident_shared32=resident_shared32,
+    )
+    standalone = (
+        "standalone-resident-shared32"
+        if resident_shared32
+        else "standalone-resident-add32"
     )
     result = {
         "format": FORMAT,
@@ -216,7 +236,7 @@ def main() -> None:
         "transport_mode": "state_store_plan" if args.retain_c else "fixed",
         **({"retain_c": True} if args.retain_c else {}),
         **(
-            {"checkpoint": meta["layout"] if meta else "standalone-resident-add32"}
+            {"checkpoint": meta["layout"] if meta else standalone}
             if resident_add32
             else {}
         ),

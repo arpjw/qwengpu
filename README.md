@@ -271,6 +271,17 @@ python3 -m qwengpu.run_resident --resident-add32 \
   eval/frozen/resident_add32_gate_v1/cooperative_add32.json
 ```
 
+The resident shared32 layout adds `LOAD_INDEX_HI` and
+`STORE_INDEX_HI`. They use the same lane mask and scatter priority
+as the indexed operations. Pair a low word at the saved index
+with its high word at that index XOR 1. Use a barrier between a
+producer's two stores and a consumer's loads.
+
+```sh
+python3 -m qwengpu.run_resident --resident-shared32 \
+  eval/frozen/resident_shared32_gate_v1/cooperative_shared32.json
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

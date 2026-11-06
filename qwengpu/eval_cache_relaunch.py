@@ -21,7 +21,7 @@ from qwengpu.eval_text_handoff import (
     persistent_gpu_rows,
 )
 from qwengpu.eval_tile8 import (
-    RESIDENT_ADD32_LAYOUT,
+    RESIDENT_ADD32_LAYOUTS,
     execute,
     load_tile_model,
     oracle,
@@ -39,7 +39,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     meta = json.loads((args.model / "qwengpu9b.json").read_text())
-    if meta["layout"] != RESIDENT_ADD32_LAYOUT:
+    if meta["layout"] not in RESIDENT_ADD32_LAYOUTS:
         parser.error("expected a resident ADD32 checkpoint")
     offset = meta["chip_token_offset"]
     model, circuit = load_tile_model(args.model, args.device, resident_add32=True)

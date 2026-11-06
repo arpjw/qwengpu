@@ -51,6 +51,11 @@ WARP_DIRTY_OFFSET = LOOP_OFFSET + 4 * LOOP_NIBBLES
 ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
 ADD32I_OP = "ADD32I"
+LOAD_INDEX_HI = "LOAD_INDEX_HI"
+STORE_INDEX_HI = "STORE_INDEX_HI"
+SHARED32_OPS = (LOAD_INDEX_HI, STORE_INDEX_HI)
+SHARED32_WIRE_OFFSET = 7
+RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
 ADD32I_ZERO_WIRE = 256 * OPS.index("MAC_K") + 8
 READ_PLAN = ROM_BANK + 2
 PLAN_TAG = 0xD000
@@ -102,6 +107,8 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
         halt = OPS.index("HALT") * 256
         if op in INDEX_OPS:
             return halt + 1 + INDEX_OPS.index(op)
+        if op in SHARED32_OPS:
+            return halt + SHARED32_WIRE_OFFSET + SHARED32_OPS.index(op)
         if op == "MASK_ALL":
             return halt + 4
         if op == "MASK_BIT":
@@ -136,6 +143,7 @@ def rom_payload(
     divergent: bool,
     looping: bool,
     resident_add32: bool = False,
+    resident_shared32: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
@@ -145,6 +153,12 @@ def rom_payload(
         (OPS[tag] == "STORE_TILE" and arg) or wire == ADD32I_ZERO_WIRE
     ):
         return (1 << ROM_PAYLOAD_BITS) + (0 if wire == ADD32I_ZERO_WIRE else arg)
+    if (
+        resident_shared32
+        and OPS[tag] == "HALT"
+        and SHARED32_WIRE_OFFSET <= arg < SHARED32_WIRE_OFFSET + len(SHARED32_OPS)
+    ):
+        return (1 << ROM_PAYLOAD_BITS) + 256 * (arg - SHARED32_WIRE_OFFSET + 1)
     if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
         return (len(OPS) + arg - 1) * 256
     if masked and OPS[tag] == "HALT":
@@ -187,7 +201,9 @@ def build(
     resident_grid: bool = False,
     resident_wide: bool = False,
     resident_add32: bool = False,
+    resident_shared32: bool = False,
 ) -> Circ:
+    resident_add32 = resident_add32 or resident_shared32
     resident_wide = resident_wide or resident_add32
     resident_grid = resident_grid or resident_wide
     warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
@@ -205,6 +221,7 @@ def build(
     resident = resident or indexed
     operand_base = INDEX_OPERAND if indexed else OPERAND
     c = Circ(target or Target())
+    c.resident_shared32 = resident_shared32
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -358,6 +375,7 @@ def build(
         + (BRANCH_OPS if divergent else ())
         + (LOOP_OPS if looping else ())
         + ((ADD32I_OP,) if resident_add32 else ())
+        + (SHARED32_OPS if resident_shared32 else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -372,6 +390,7 @@ def build(
                         divergent=divergent,
                         looping=looping,
                         resident_add32=resident_add32,
+                        resident_shared32=resident_shared32,
                     )
                     >> bit
                 )
@@ -621,7 +640,11 @@ def build(
     old_indices = []
     grants = []
     indexed_values = []
+    load_high = ops.get(LOAD_INDEX_HI, Expr())
+    store_high = ops.get(STORE_INDEX_HI, Expr())
     if indexed:
+        load_index = ops["LOAD_INDEX"] + load_high
+        store_index = ops["STORE_INDEX"] + store_high
         prior_addresses = []
         for lane in range(8):
             address = [
@@ -632,13 +655,22 @@ def build(
                 )[:width]
             ]
             old_indices.extend(address)
+            # Both limbs share the saved base. The high limb toggles its low bit.
+            gather_address = address
+            if resident_shared32:
+                paired_bit = c.node(
+                    c.t_and([address[0], one - load_high])
+                    + c.t_and([one - address[0], load_high]),
+                    f"gather.pair.{lane}",
+                )
+                gather_address = [paired_bit, *address[1:]]
             queries = [
                 c.and_(
                     [
-                        ops["LOAD_INDEX"],
+                        load_index,
                         *[
                             value if word >> bit & 1 else one - value
-                            for bit, value in enumerate(address)
+                            for bit, value in enumerate(gather_address)
                         ],
                     ],
                     f"gather.{lane}.{word}",
@@ -681,7 +713,7 @@ def build(
             grants.append(
                 c.and_(
                     [
-                        ops["STORE_INDEX"],
+                        store_index,
                         *([active[lane]] if masked else []),
                         *[one - equal for equal in earlier],
                     ],
@@ -716,9 +748,18 @@ def build(
             )
             updated.extend(word[:16])
             enabled = c.and_([ops[ADD32I_OP], active[lane]], f"wide.active.{lane}")
+            high_sources = [([enabled], word[16:])]
+            preserve = one - enabled
+            if resident_shared32:
+                gather_high = c.and_([load_high, active[lane]], f"wide.gather.{lane}")
+                high_sources.append(
+                    ([gather_high], indexed_values[16 * lane : 16 * (lane + 1)])
+                )
+                preserve -= gather_high
+            high_sources.append(([preserve], upper))
             next_high.extend(
                 c.select_bits(
-                    [([enabled], word[16:]), ([one - enabled], upper)],
+                    high_sources,
                     16,
                     f"wide.next.{lane}",
                 )
@@ -779,6 +820,8 @@ def build(
         # This layout preserves the high limb until it has a writing opcode.
         if resident_wide and not resident_add32:
             bits.extend(Expr() for _ in range(HIGH_NIBBLES))
+    if resident_shared32:
+        bits.append(store_high)
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -885,23 +928,41 @@ def build(
                     terms += c.t_and([read, index_bit], 2 * KAPPA)
                 elif state_tag(INDEX_REGISTER, nib) >> bit & 1:
                     terms += c.t_and([read], 2 * KAPPA)
+            scatter_terms = [] if resident_shared32 else terms
             for nib, write in enumerate(writes):
                 lane, digit = divmod(nib, 4)
                 index_start = SNAPSHOT_BITS + 7 * lane
                 address = saved[index_start : index_start + 7]
                 gate = [write, saved[SNAPSHOT_BITS + 56 + lane]]
                 if bit < 4:
-                    terms += c.t_and([*gate, saved[4 * nib + bit]], 2 * KAPPA)
+                    low_value = saved[4 * nib + bit]
+                    if resident_shared32:
+                        high = saved[-1]
+                        high_value = saved[WARP_DIRTY_OFFSET + 4 * nib + bit]
+                        scatter_terms += c.t_and(
+                            [*gate, one - high, low_value], 2 * KAPPA
+                        )
+                        scatter_terms += c.t_and([*gate, high, high_value], 2 * KAPPA)
+                    else:
+                        scatter_terms += c.t_and([*gate, low_value], 2 * KAPPA)
                 elif bit < 6:
                     if digit >> (bit - 4) & 1:
-                        terms += c.t_and(gate, 2 * KAPPA)
+                        scatter_terms += c.t_and(gate, 2 * KAPPA)
+                elif bit == 6 and resident_shared32:
+                    high = saved[-1]
+                    scatter_terms += c.t_and([*gate, one - high, address[0]], 2 * KAPPA)
+                    scatter_terms += c.t_and([*gate, high, one - address[0]], 2 * KAPPA)
                 elif bit < 12:
-                    terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
+                    scatter_terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
                 else:
                     if INDEX_OPERAND >> bit & 1:
-                        terms += c.t_and([*gate, one - address[6]], 2 * KAPPA)
+                        scatter_terms += c.t_and([*gate, one - address[6]], 2 * KAPPA)
                     if C_MEMORY >> bit & 1:
-                        terms += c.t_and([*gate, address[6]], 2 * KAPPA)
+                        scatter_terms += c.t_and([*gate, address[6]], 2 * KAPPA)
+            if resident_shared32 and scatter_terms:
+                c.ffn(
+                    scatter_terms, f"exit.scatter.{bit}", into=expr, min_level=floor + 1
+                )
         for nib, read in enumerate(mask_reads):
             if bit < 4:
                 terms += c.t_and([read, saved[MASK_OFFSET + 4 * nib + bit]], 2 * KAPPA)
@@ -989,6 +1050,7 @@ def build_standalone(
     resident_grid: bool = False,
     resident_wide: bool = False,
     resident_add32: bool = False,
+    resident_shared32: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1006,6 +1068,7 @@ def build_standalone(
         resident_grid=resident_grid,
         resident_wide=resident_wide,
         resident_add32=resident_add32,
+        resident_shared32=resident_shared32,
     )
     return build_qwen(
         circuit,

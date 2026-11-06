@@ -1219,3 +1219,34 @@ The checker compares both pass matrices with the scalar reference
 and all eight traces with the fixed-transport launcher. The reports
 record the operand and C tokens sent to each model forward, including
 the C tokens relayed for stores.
+
+## Qualify 32-bit indexed exchange between warps
+
+The shared32 checkpoint extends resident ADD32 with `LOAD_INDEX_HI`
+and `STORE_INDEX_HI`. The instructions access the word at the
+lane's saved index XOR 1. The low half uses the existing indexed
+operations at the saved index. Use an even base for consecutive
+low-then-high storage. Each half is a separate instruction.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+fixture=eval/frozen/resident_shared32_gate_v1/cooperative_shared32.json
+"$QWENGPU_PYTHON" -m qwengpu.run_resident "$fixture" \
+  --resident-shared32 --device mps --trace
+bash scripts/qualify_resident_add32.sh --resident-shared32 --device mps \
+  --out results/resident_shared32_full_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+model=/path/to/Qwen3.5-9B-qwengpu-resident-shared32
+"$QWENGPU_PYTHON" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-shared32 --out "$model"
+bash scripts/qualify_resident_add32.sh --resident-shared32 "$model" --device cuda \
+  --out results/resident_shared32_full_9b_cuda_fla.json
+python3 scripts/check_resident_shared32.py
+```
+
+The handoff fixture includes two lanes that target the same pair
+with different results. The lowest active lane wins both stores.
+The consumer reads after a barrier. The checker compares the final
+registers, all 128 shared words, both store grants, and all 23
+inherited ADD32 case records.

@@ -11,7 +11,7 @@ import torch
 import transformers
 
 from qwengpu.eval_tile8 import (
-    RESIDENT_ADD32_LAYOUT,
+    RESIDENT_ADD32_LAYOUTS,
     launch_cached_tile,
     load_tile_model,
     oracle,
@@ -58,7 +58,7 @@ def main() -> None:
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
-    if meta and meta["layout"] != RESIDENT_ADD32_LAYOUT:
+    if meta and meta["layout"] not in RESIDENT_ADD32_LAYOUTS:
         parser.error("expected a resident ADD32 checkpoint")
     offset = meta["chip_token_offset"] if meta else 0
     model, circuit = load_tile_model(args.model, args.device, resident_add32=True)

@@ -37,6 +37,7 @@ from qwengpu.compiled_tile8 import (
     INDEX_OPS,
     INDEX_REGISTER,
     INDEX_WORDS,
+    LOAD_INDEX_HI,
     LOOP_NIBBLES,
     LOOP_OFFSET,
     LOOP_OPS,
@@ -57,10 +58,13 @@ from qwengpu.compiled_tile8 import (
     READ_REG,
     READ_STORE,
     REGISTER,
+    RESIDENT_SHARED32_LAYOUT,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
     ROW_PAIRS,
+    SHARED32_OPS,
     SNAPSHOT_BITS,
+    STORE_INDEX_HI,
     WARP_BANKS,
     WARP_DIRTY_OFFSET,
     WARP_TAGS,
@@ -85,6 +89,7 @@ LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
 GRID_FIXTURES = FIXTURES.with_name("grid_gate_v1")
 WIDE_FIXTURES = FIXTURES.with_name("wide_gate_v1")
 ADD32I_FIXTURES = FIXTURES.with_name("resident_add32_gate_v1")
+SHARED32_FIXTURES = FIXTURES.with_name("resident_shared32_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
@@ -94,6 +99,7 @@ RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
+RESIDENT_ADD32_LAYOUTS = (RESIDENT_ADD32_LAYOUT, RESIDENT_SHARED32_LAYOUT)
 RESIDENT_TRANSPORTS = {
     "fixed": {"resident_delta": True},
     "state_plan": {"resident_plan": True},
@@ -168,7 +174,10 @@ def parse_launch(
     resident_grid: bool = False,
     resident_wide: bool = False,
     resident_add32: bool = False,
+    resident_shared32: bool = False,
 ) -> dict:
+    resident_add32 = resident_add32 or resident_shared32
+    looping = looping or resident_shared32
     divergent = divergent or looping
     masked = masked or divergent
     if not isinstance(data, dict):
@@ -205,6 +214,7 @@ def parse_launch(
             + (BRANCH_OPS if divergent else ())
             + (LOOP_OPS if looping else ())
             + ((ADD32I_OP,) if resident_add32 else ())
+            + (SHARED32_OPS if resident_shared32 else ())
         )
         for warp, program in enumerate(raw):
             if not isinstance(program, list) or not 1 <= len(program) <= 16:
@@ -254,6 +264,7 @@ def _parse_case(
     resident_grid: bool = False,
     resident_wide: bool = False,
     resident_add32: bool = False,
+    resident_shared32: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -264,6 +275,7 @@ def _parse_case(
         resident_grid=resident_grid,
         resident_wide=resident_wide,
         resident_add32=resident_add32,
+        resident_shared32=resident_shared32,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -345,6 +357,8 @@ def execute(
     refresh_operands: bool = False,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
+    resident_shared32 = circuit.resident_shared32
+    resident_add32 = resident_add32 or resident_shared32
     if refresh_operands and resident_cache is None:
         raise ValueError("refresh_operands requires a retained cache")
     if resident_cache is not None and not resident_add32:
@@ -554,7 +568,8 @@ def execute(
         _check_control(control, warp)
         observed_bits = snapshot(cache, circuit, 0)
         if resident_plan and (
-            observed_bits is None or plan_bits != observed_bits[dirty_offset:]
+            observed_bits is None
+            or plan_bits != observed_bits[dirty_offset : dirty_offset + len(warp_tags)]
         ):
             raise ValueError("state read plan does not match the model snapshot")
         if resident_io:
@@ -691,6 +706,7 @@ def execute(
                 divergent=True,
                 looping=True,
                 resident_add32=resident_add32,
+                resident_shared32=resident_shared32,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -931,13 +947,21 @@ def oracle(
                 v % INDEX_WORDS if active >> lane & 1 else indices[warp][lane]
                 for lane, v in enumerate(acc[warp])
             ]
-        elif op == "LOAD_INDEX":
-            candidate = [
+        elif op in ("LOAD_INDEX", LOAD_INDEX_HI):
+            addresses = [addr ^ int(op == LOAD_INDEX_HI) for addr in indices[warp]]
+            loaded = [
                 int.from_bytes(operands[2 * addr : 2 * addr + 2], "little")
                 if addr < 64
                 else c[addr - 64]
-                for addr in indices[warp]
+                for addr in addresses
             ]
+            if op == LOAD_INDEX_HI:
+                high[warp] = [
+                    value if active >> lane & 1 else high[warp][lane]
+                    for lane, value in enumerate(loaded)
+                ]
+            else:
+                candidate = loaded
         elif op == "MASK_ALL":
             masks[warp] = 255
         elif op == "MASK_BIT":
@@ -974,11 +998,12 @@ def oracle(
                     base = C_MEMORY + 512 * row + 64 * lane
                     patch[4 * lane : 4 * lane + 4] = nibbles(base, _digits([value], 16))
         grants = 0
-        if op == "STORE_INDEX":
+        if op in ("STORE_INDEX", STORE_INDEX_HI):
+            high_store = op == STORE_INDEX_HI
+            words = high[warp] if high_store else acc[warp]
             claimed = set()
-            for lane, (addr, word) in enumerate(
-                zip(indices[warp], acc[warp], strict=True)
-            ):
+            for lane, (addr, word) in enumerate(zip(indices[warp], words, strict=True)):
+                addr ^= int(high_store)
                 if not active >> lane & 1 or addr in claimed:
                     continue
                 claimed.add(addr)
@@ -1096,7 +1121,11 @@ def load_tile_model(
     resident_grid: bool = False,
     resident_wide: bool = False,
     resident_add32: bool = False,
+    resident_shared32: bool = False,
 ):
+    if checkpoint is not None and resident_add32:
+        layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
+        resident_shared32 = layout == RESIDENT_SHARED32_LAYOUT
     if checkpoint is None:
         model, circuit = build_standalone(
             resident=resident,
@@ -1112,6 +1141,7 @@ def load_tile_model(
             resident_grid=resident_grid,
             resident_wide=resident_wide,
             resident_add32=resident_add32,
+            resident_shared32=resident_shared32,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1137,6 +1167,7 @@ def load_tile_model(
             resident_grid=resident_grid,
             resident_wide=resident_wide,
             resident_add32=resident_add32,
+            resident_shared32=resident_shared32,
         )
     return model.to(device).eval(), circuit
 
@@ -1159,6 +1190,7 @@ def main() -> None:
     variants.add_argument("--resident-grid", action="store_true")
     variants.add_argument("--resident-wide", action="store_true")
     variants.add_argument("--resident-add32", action="store_true")
+    variants.add_argument("--resident-shared32", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1168,7 +1200,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_add32 = args.resident_add32
+    resident_shared32 = args.resident_shared32
+    resident_add32 = args.resident_add32 or resident_shared32
     resident_wide = args.resident_wide or resident_add32
     resident_grid = args.resident_grid or resident_wide
     resident_io = args.resident_io or resident_grid
@@ -1198,10 +1231,11 @@ def main() -> None:
             RESIDENT_IO_LAYOUT,
             RESIDENT_GRID_LAYOUT,
             RESIDENT_WIDE_LAYOUT,
-            RESIDENT_ADD32_LAYOUT,
+            *RESIDENT_ADD32_LAYOUTS,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_add32 = layout == RESIDENT_ADD32_LAYOUT
+        resident_shared32 = layout == RESIDENT_SHARED32_LAYOUT
+        resident_add32 = layout in RESIDENT_ADD32_LAYOUTS
         resident_wide = resident_add32 or layout == RESIDENT_WIDE_LAYOUT
         resident_grid = resident_wide or layout == RESIDENT_GRID_LAYOUT
         resident_io = resident_grid or layout == RESIDENT_IO_LAYOUT
@@ -1240,6 +1274,8 @@ def main() -> None:
             raise ValueError("--resident-wide requires a resident wide checkpoint")
         if args.resident_add32 and not resident_add32:
             raise ValueError("--resident-add32 requires a resident ADD32 checkpoint")
+        if args.resident_shared32 and not resident_shared32:
+            raise ValueError("--resident-shared32 requires a shared32 checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1257,6 +1293,8 @@ def main() -> None:
         paths.extend(sorted(WIDE_FIXTURES.glob("*.json")))
     if resident_add32 and not args.kernel:
         paths.extend(sorted(ADD32I_FIXTURES.glob("*.json")))
+    if resident_shared32 and not args.kernel:
+        paths.extend(sorted(SHARED32_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -1273,6 +1311,7 @@ def main() -> None:
                     resident_grid=resident_grid,
                     resident_wide=resident_wide,
                     resident_add32=resident_add32,
+                    resident_shared32=resident_shared32,
                 ),
             )
         )
@@ -1296,6 +1335,7 @@ def main() -> None:
         resident_grid=resident_grid,
         resident_wide=resident_wide,
         resident_add32=resident_add32,
+        resident_shared32=resident_shared32,
     )
     report = {
         "device": args.device,

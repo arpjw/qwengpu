@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "eval/frozen/matmul16_gate_v1/dense_seeded.json"
 RESULTS = ROOT / "results"
+SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
 
 
 def check_report(report: dict, inputs: dict, digest: str) -> None:
@@ -78,13 +79,20 @@ def check_grid_parity(report: dict) -> None:
             }
 
 
-def check_retained_parity(report: dict) -> None:
+def check_retained_parity(report: dict, *, shared32: bool) -> None:
     backend = "9b_cuda_fla" if report["merge"] else "mps"
     baseline = json.loads(
         (RESULTS / f"resident_add32_matmul16_{backend}.json").read_text()
     )
-    for key in ("input_sha256", "merge", "checkpoint"):
-        assert report[key] == baseline[key]
+    assert report["input_sha256"] == baseline["input_sha256"]
+    if shared32:
+        old_retained = json.loads(
+            (RESULTS / f"resident_add32_matmul16_retained_{backend}.json").read_text()
+        )
+        assert report["passes"] == old_retained["passes"]
+    else:
+        for key in ("merge", "checkpoint"):
+            assert report[key] == baseline[key]
     for step, old in zip(report["passes"], baseline["passes"], strict=True):
         assert step["matrix"] == old["matrix"]
         for tile, old_tile in zip(step["launches"], old["launches"], strict=True):
@@ -109,7 +117,11 @@ def main() -> None:
         check_report(report, inputs, digest)
         retain_c = report.get("retain_c", False)
         add32 = "checkpoint" in report
-        if report["merge"]:
+        shared32 = report.get("checkpoint") in (
+            SHARED32_LAYOUT,
+            "standalone-resident-shared32",
+        )
+        if report["merge"] and not shared32:
             baseline = "resident_add32" if add32 else "resident_grid"
             prior = json.loads((RESULTS / f"{baseline}_9b_cuda_fla.json").read_text())
             assert report["merge"] == prior["merge"]
@@ -117,16 +129,18 @@ def main() -> None:
             expected_layout = (
                 report["merge"]["layout"]
                 if report["merge"]
+                else "standalone-resident-shared32"
+                if shared32
                 else "standalone-resident-add32"
             )
             assert report["checkpoint"] == expected_layout
             if retain_c:
-                check_retained_parity(report)
+                check_retained_parity(report, shared32=shared32)
             else:
                 check_grid_parity(report)
         else:
             assert not retain_c
-        group = (add32, retain_c)
+        group = (add32, retain_c, shared32)
         if group in previous:
             assert report["passes"] == previous[group]["passes"]
         previous[group] = report
