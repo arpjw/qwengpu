@@ -52,6 +52,8 @@ from qwengpu.compiled_tile8 import (
     ROM_BANK,
     ROM_PAYLOAD_BITS,
     SNAPSHOT_BITS,
+    WARP_BANKS,
+    WARP_TAGS,
     build,
     build_standalone,
     nibbles,
@@ -70,6 +72,7 @@ DIVERGENT_FIXTURES = FIXTURES.with_name("divergent_gate_v1")
 LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
+RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -246,7 +249,9 @@ def execute(
     divergent: bool = False,
     looping: bool = False,
     resident_rom: bool = False,
+    resident_state: bool = False,
 ) -> dict:
+    resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
     divergent = divergent or looping
     masked = masked or divergent
@@ -263,6 +268,19 @@ def execute(
     masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
     branches = [nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(2)]
     loops = [nibbles(LOOP_REGISTER, [0] * LOOP_NIBBLES) for _ in range(2)]
+
+    def state_packet(warp: int) -> list[int]:
+        packet = registers[warp][:]
+        if indexed:
+            packet.extend(indices[warp])
+        if masked:
+            packet.extend(masks[warp])
+        if divergent:
+            packet.extend(branches[warp])
+        if looping:
+            packet.extend(loops[warp])
+        return packet
+
     reads = list(range(READ_REG, READ_REG + 32))
     if indexed:
         reads.extend(range(READ_INDEX, READ_INDEX + 16))
@@ -289,6 +307,16 @@ def execute(
             pending.extend([ROM_BANK + warp, *tokens])
         transport["rom_program_tokens"] = sum(len(tokens) for tokens in rom)
         transport["rom_select_tokens"] = len(rom)
+
+    if resident_state:
+        initial_state = [
+            bank + 16 * nib + (token & 15)
+            for warp, bank in enumerate(WARP_BANKS)
+            for nib, token in enumerate(state_packet(warp))
+        ]
+        pending.extend(initial_state)
+        transport["warp_initial_tokens"] = len(initial_state)
+        transport["warp_update_tokens"] = 0
 
     def feed(tokens: list[int], count: int):
         nonlocal cache
@@ -332,19 +360,25 @@ def execute(
         else:
             prefix = [*operands, *memory, controls[warp]]
             transport["matrix_initial_tokens"] += len(operands) + len(memory)
-        state = registers[warp] + (indices[warp] if indexed else [])
-        if masked:
-            state += masks[warp]
-        if divergent:
-            state += branches[warp]
-        if looping:
-            state += loops[warp]
+        state = [] if resident_state else state_packet(warp)
         program = [] if resident_rom else rom[warp]
         emitted = feed(
             [*program, *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
         )
         control, *packet = emitted
         _check_control(control, warp)
+        tagged_state = []
+        if resident_state:
+            tagged_state = packet[:-32]
+            canonical = []
+            for nib, (token, tag) in enumerate(
+                zip(tagged_state, WARP_TAGS, strict=True)
+            ):
+                start = WARP_BANKS[warp] + 16 * nib
+                if not start <= token < start + 16:
+                    raise ValueError(f"invalid banked warp packet at nibble {nib}")
+                canonical.append(tag + (token & 15))
+            packet = canonical + packet[-32:]
         next_registers, patch = packet[:32], packet[-32:]
         for nib, token in enumerate(next_registers):
             if not REGISTER + 16 * nib <= token < REGISTER + 16 * (nib + 1):
@@ -386,8 +420,10 @@ def execute(
             else:
                 raise ValueError("invalid tagged shared-memory write")
         if resident:
-            pending = [control, *updates]
+            pending = [control, *tagged_state, *updates]
             transport["matrix_patch_tokens"] += len(updates)
+            if resident_state:
+                transport["warp_update_tokens"] += len(tagged_state)
         controls = controls[:]
         controls[warp] = control
         registers[warp] = next_registers
@@ -416,6 +452,19 @@ def execute(
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
+        )
+    if resident_state:
+        heads = [
+            *(f"register.{nib}" for nib in range(32)),
+            *(f"index.{lane}.{nib}" for lane in range(8) for nib in range(2)),
+            *(f"mask.{nib}" for nib in range(2)),
+            *(f"branch.{nib}" for nib in range(BRANCH_NIBBLES)),
+            *(f"loop.{nib}" for nib in range(LOOP_NIBBLES)),
+        ]
+        transport["resident_state_exact"] = all(
+            head_row(cache, circuit, head, warp, 4) == token & 15
+            for warp in range(2)
+            for head, token in zip(heads, state_packet(warp), strict=True)
         )
     return {
         "transport": transport,
@@ -676,6 +725,7 @@ def load_tile_model(
     divergent: bool = False,
     looping: bool = False,
     resident_rom: bool = False,
+    resident_state: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -685,6 +735,7 @@ def load_tile_model(
             divergent=divergent,
             looping=looping,
             resident_rom=resident_rom,
+            resident_state=resident_state,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -703,6 +754,7 @@ def load_tile_model(
             divergent=divergent,
             looping=looping,
             resident_rom=resident_rom,
+            resident_state=resident_state,
         )
     return model.to(device).eval(), circuit
 
@@ -718,6 +770,7 @@ def main() -> None:
     variants.add_argument("--divergent", action="store_true")
     variants.add_argument("--looping", action="store_true")
     variants.add_argument("--resident-rom", action="store_true")
+    variants.add_argument("--resident-state", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -727,7 +780,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_rom = args.resident_rom
+    resident_state = args.resident_state
+    resident_rom = args.resident_rom or resident_state
     looping = args.looping or resident_rom
     divergent = args.divergent or looping
     masked = args.masked or divergent
@@ -744,9 +798,11 @@ def main() -> None:
             "qwengpu-divergent9b-v1",
             LOOP_LAYOUT,
             RESIDENT_ROM_LAYOUT,
+            RESIDENT_STATE_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_rom = layout == RESIDENT_ROM_LAYOUT
+        resident_state = layout == RESIDENT_STATE_LAYOUT
+        resident_rom = resident_state or layout == RESIDENT_ROM_LAYOUT
         looping = resident_rom or layout == LOOP_LAYOUT
         divergent = looping or layout == "qwengpu-divergent9b-v1"
         masked = divergent or layout == "qwengpu-masked9b-v1"
@@ -764,6 +820,8 @@ def main() -> None:
             raise ValueError("--looping requires a looping checkpoint")
         if args.resident_rom and not resident_rom:
             raise ValueError("--resident-rom requires a resident ROM checkpoint")
+        if args.resident_state and not resident_state:
+            raise ValueError("--resident-state requires a resident state checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -804,6 +862,7 @@ def main() -> None:
         divergent=divergent,
         looping=looping,
         resident_rom=resident_rom,
+        resident_state=resident_state,
     )
     report = {
         "device": args.device,
@@ -835,6 +894,7 @@ def main() -> None:
             divergent=divergent,
             looping=looping,
             resident_rom=resident_rom,
+            resident_state=resident_state,
         )
         transport = observed.pop("transport")
         exact = (
@@ -847,6 +907,7 @@ def main() -> None:
                 )
             )
             and (not resident_rom or transport["resident_rom_exact"])
+            and (not resident_state or transport["resident_state_exact"])
             and observed["outcome"] == case["expected_outcome"]
             and (
                 case["expected_matrix"] is None

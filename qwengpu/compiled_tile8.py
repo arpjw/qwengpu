@@ -49,6 +49,18 @@ READ_LOOP = READ_BRANCH + BRANCH_NIBBLES
 LOOP_NIBBLES = 5
 ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
+WARP_BANKS = (0xB000, 0xC000)
+WARP_TAGS = tuple(
+    base + 16 * nib
+    for base, count in (
+        (REGISTER, 32),
+        (INDEX_REGISTER, 16),
+        (MASK_REGISTER, 2),
+        (BRANCH_REGISTER, BRANCH_NIBBLES),
+        (LOOP_REGISTER, LOOP_NIBBLES),
+    )
+    for nib in range(count)
+)
 NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
@@ -140,7 +152,9 @@ def build(
     divergent: bool = False,
     looping: bool = False,
     resident_rom: bool = False,
+    resident_state: bool = False,
 ) -> Circ:
+    resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
     divergent = divergent or looping
     masked = masked or divergent
@@ -360,6 +374,23 @@ def build(
             name, keys, dict(enumerate(selects)), raw_nibble, sum(keys.values(), Expr())
         )
 
+    state_queries = (
+        [
+            c.and_([tick, one - warp_bit], "state.query.0"),
+            c.and_([tick, warp_bit], "state.query.1"),
+        ]
+        if resident_state
+        else [tick]
+    )
+
+    def state_lookup(name: str, base: int, nib: int) -> list[Expr]:
+        if resident_state:
+            offset = WARP_TAGS.index(base) + nib
+            return lookup(
+                name, 0, [bank // 16 + offset for bank in WARP_BANKS], state_queries
+            )
+        return lookup(name, base, [nib], state_queries)
+
     # Two A heads select the two nibbles of one row element. Each B column
     # has its own pair of heads, all addressed by the same K index.
     a_queries = [
@@ -394,7 +425,7 @@ def build(
     old = [
         bit
         for nib in range(32)
-        for bit in lookup(f"register.{nib}", REGISTER, [nib], [tick])
+        for bit in state_lookup(f"register.{nib}", REGISTER, nib)
     ]
     c_row = [
         bit
@@ -412,7 +443,7 @@ def build(
         active = [
             bit
             for nib in range(2)
-            for bit in lookup(f"mask.{nib}", MASK_REGISTER, [nib], [tick])
+            for bit in state_lookup(f"mask.{nib}", MASK_REGISTER, nib)
         ]
         selectors = c.onehot_of_bits(arg[:4], "mask.bit", 16)
 
@@ -436,7 +467,7 @@ def build(
             stack = [
                 bit
                 for nib in range(BRANCH_NIBBLES)
-                for bit in lookup(f"branch.{nib}", BRANCH_REGISTER, [nib], [tick])
+                for bit in state_lookup(f"branch.{nib}", BRANCH_REGISTER, nib)
             ]
             then_mask = [
                 c.and_([enabled, test], f"branch.then.{lane}")
@@ -479,7 +510,7 @@ def build(
                 loop = [
                     bit
                     for nib in range(LOOP_NIBBLES)
-                    for bit in lookup(f"loop.{nib}", LOOP_REGISTER, [nib], [tick])
+                    for bit in state_lookup(f"loop.{nib}", LOOP_REGISTER, nib)
                 ]
                 any_lane = c.node(c.t_ge(sum(then_mask, Expr()), 1, 0, 8), "loop.any")
                 enter = c.and_([ops["WHILE_BIT"], any_lane], "loop.enter")
@@ -520,8 +551,8 @@ def build(
             address = [
                 bit
                 for nib, width in enumerate((4, 3))
-                for bit in lookup(
-                    f"index.{lane}.{nib}", INDEX_REGISTER, [2 * lane + nib], [tick]
+                for bit in state_lookup(
+                    f"index.{lane}.{nib}", INDEX_REGISTER, 2 * lane + nib
                 )[:width]
             ]
             queries = [
@@ -662,6 +693,15 @@ def build(
     pc_sources.append(([increment], _increment4(c, pc)))
     next_pc = c.select_bits(pc_sources, 4, "pc.next")
     execution = next_pc + [halted, ops["BARRIER"], warp_bit]
+
+    def state_tag(base: int, nib: int) -> int:
+        if resident_state:
+            return 16 * (WARP_TAGS.index(base) + nib)
+        return base + 16 * nib
+
+    state_reads = sum(
+        reads + index_reads + mask_reads + branch_reads + loop_reads, Expr()
+    )
     floor = max(node.level for node in c.nodes)
     for bit, expr in enumerate(code):
         terms = c.t_const(-KAPPA)
@@ -686,7 +726,7 @@ def build(
                 terms += c.t_and([read, value], 2 * KAPPA)
                 terms += c.t_and([*tile_write, value], 2 * KAPPA)
             else:
-                if (REGISTER + 16 * nib) >> bit & 1:
+                if state_tag(REGISTER, nib) >> bit & 1:
                     terms += c.t_and([read], 2 * KAPPA)
                 if 9 <= bit < 12:
                     terms += c.t_and([*tile_write, saved[129 + bit - 9]], 2 * KAPPA)
@@ -698,7 +738,7 @@ def build(
                 if bit < (4 if half == 0 else 3):
                     index_bit = saved[SNAPSHOT_BITS + 7 * lane + 4 * half + bit]
                     terms += c.t_and([read, index_bit], 2 * KAPPA)
-                elif (INDEX_REGISTER + 16 * nib) >> bit & 1:
+                elif state_tag(INDEX_REGISTER, nib) >> bit & 1:
                     terms += c.t_and([read], 2 * KAPPA)
             for nib, write in enumerate(writes):
                 lane, digit = divmod(nib, 4)
@@ -720,7 +760,7 @@ def build(
         for nib, read in enumerate(mask_reads):
             if bit < 4:
                 terms += c.t_and([read, saved[MASK_OFFSET + 4 * nib + bit]], 2 * KAPPA)
-            elif (MASK_REGISTER + 16 * nib) >> bit & 1:
+            elif state_tag(MASK_REGISTER, nib) >> bit & 1:
                 terms += c.t_and([read], 2 * KAPPA)
         if divergent:
             # Split the extra packet across FFNs to fit the standalone model's
@@ -731,19 +771,24 @@ def build(
                     branch_terms += c.t_and(
                         [read, saved[BRANCH_OFFSET + 4 * nib + bit]], 2 * KAPPA
                     )
-                elif (BRANCH_REGISTER + 16 * nib) >> bit & 1:
+                elif state_tag(BRANCH_REGISTER, nib) >> bit & 1:
                     branch_terms += c.t_and([read], 2 * KAPPA)
             for nib, read in enumerate(loop_reads):
                 if bit < 4:
                     branch_terms += c.t_and(
                         [read, saved[LOOP_OFFSET + 4 * nib + bit]], 2 * KAPPA
                     )
-                elif (LOOP_REGISTER + 16 * nib) >> bit & 1:
+                elif state_tag(LOOP_REGISTER, nib) >> bit & 1:
                     branch_terms += c.t_and([read], 2 * KAPPA)
             if branch_terms:
                 c.ffn(
                     branch_terms, f"exit.branch.{bit}", into=expr, min_level=floor + 1
                 )
+        if resident_state:
+            if WARP_BANKS[0] >> bit & 1:
+                terms += c.t_and([state_reads, one - saved[129]], 2 * KAPPA)
+            if WARP_BANKS[1] >> bit & 1:
+                terms += c.t_and([state_reads, saved[129]], 2 * KAPPA)
         c.ffn(
             terms,
             f"exit.code.{bit}",
@@ -761,6 +806,7 @@ def build_standalone(
     divergent: bool = False,
     looping: bool = False,
     resident_rom: bool = False,
+    resident_state: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -771,6 +817,7 @@ def build_standalone(
         divergent=divergent,
         looping=looping,
         resident_rom=resident_rom,
+        resident_state=resident_state,
     )
     return build_qwen(
         circuit,

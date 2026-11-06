@@ -572,3 +572,36 @@ merged checkpoint with `--model`.
   --model /path/to/Qwen3.5-9B-qwengpu-resident-rom --device cuda \
   --out "$QWENGPU_DIR/results/resident_rom_launch_9b_cuda_fla.json"
 ```
+
+## Resident warp register banks
+
+The resident-state checkpoint initializes two banks in the launch cache.
+Each bank holds eight 16-bit accumulators, eight 7-bit indices, an
+eight-bit lane mask, and the branch and loop stacks. The scheduler's
+ticket selects the bank used by the next instruction. The model emits
+state tokens tagged with that bank, and the host forwards the packet
+unchanged before the next scheduling call. The evaluator checks both
+banks directly and keeps a canonical trace for comparison.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-state --device mps --out "$QWENGPU_DIR/results/resident_state_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-state --out /path/to/Qwen3.5-9B-qwengpu-resident-state
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-state --device cuda \
+  --out "$QWENGPU_DIR/results/resident_state_9b_cuda_fla.json"
+```
+
+Use `--resident-state` for the standalone JSON launcher, or pass the
+merged resident-state directory with `--model`.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --resident-state --device mps --out "$QWENGPU_DIR/results/resident_state_launch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-state --device cuda \
+  --out "$QWENGPU_DIR/results/resident_state_launch_9b_cuda_fla.json"
+```

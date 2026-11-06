@@ -13,6 +13,7 @@ from qwengpu.compiled_tile8 import VOCAB
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
     RESIDENT_ROM_LAYOUT,
+    RESIDENT_STATE_LAYOUT,
     execute,
     load_tile_model,
     parse_launch,
@@ -28,7 +29,13 @@ def main() -> int:
     parser.add_argument(
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
-    parser.add_argument(
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-state",
+        action="store_true",
+        help="keep warp programs and register banks in the cache",
+    )
+    variants.add_argument(
         "--resident-rom",
         action="store_true",
         help="keep both programs in the launch cache",
@@ -46,8 +53,15 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_rom = args.resident_rom
-    layout = "standalone-resident-rom" if resident_rom else "standalone-looping"
+    resident_state = args.resident_state
+    resident_rom = args.resident_rom or resident_state
+    layout = (
+        "standalone-resident-state"
+        if resident_state
+        else "standalone-resident-rom"
+        if resident_rom
+        else "standalone-looping"
+    )
     try:
         payload = args.kernel.read_bytes()
         launch = parse_launch(json.loads(payload), looping=True)
@@ -57,16 +71,22 @@ def main() -> int:
             )
             if (
                 not isinstance(meta, dict)
-                or meta.get("layout") not in (LOOP_LAYOUT, RESIDENT_ROM_LAYOUT)
+                or meta.get("layout")
+                not in (LOOP_LAYOUT, RESIDENT_ROM_LAYOUT, RESIDENT_STATE_LAYOUT)
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
-            if args.resident_rom and layout != RESIDENT_ROM_LAYOUT:
+            resident_state = layout == RESIDENT_STATE_LAYOUT
+            resident_rom = resident_state or layout == RESIDENT_ROM_LAYOUT
+            if args.resident_rom and not resident_rom:
                 raise ValueError("--resident-rom requires a resident ROM checkpoint")
-            resident_rom = layout == RESIDENT_ROM_LAYOUT
+            if args.resident_state and not resident_state:
+                raise ValueError(
+                    "--resident-state requires a resident state checkpoint"
+                )
             offset = meta["chip_token_offset"]
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -81,7 +101,11 @@ def main() -> int:
             else "cpu"
         )
     model, circuit = load_tile_model(
-        args.model, device, looping=True, resident_rom=resident_rom
+        args.model,
+        device,
+        looping=True,
+        resident_rom=resident_rom,
+        resident_state=resident_state,
     )
     observed = execute(
         model,
@@ -92,6 +116,7 @@ def main() -> int:
         offset,
         looping=True,
         resident_rom=resident_rom,
+        resident_state=resident_state,
     )
     trace = observed.pop("trace")
     schedules = observed.pop("schedules")
@@ -117,6 +142,7 @@ def main() -> int:
         transport["fresh_caches"] != 1
         or not transport["resident_memory_exact"]
         or (resident_rom and not transport["resident_rom_exact"])
+        or (resident_state and not transport["resident_state_exact"])
     ):
         return 1
     return EXIT_CODES[observed["outcome"]]
