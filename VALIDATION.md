@@ -772,3 +772,27 @@ The merge uses 15 chip layers, hidden size 4,864, and 29,683,094,144
 tensor bytes. The pinned environment and source hashes are saved
 in `results/add32_host_a100.txt`. The resident integration is tracked
 separately in SCOPE.md.
+
+## High register banks in the resident grid
+
+The resident wide layout stores 32 more nibbles per warp. It uploads
+192 state tokens for the two warps and expands the state read plan
+from eight to twelve bytes. At each tick the model selects the high
+half from the scheduled warp and includes it in the snapshot. The
+current instruction set writes the low half and preserves the high
+half. Both banks are verified directly in the inference cache.
+
+MPS passed the three frozen cases, covering 274 instructions and
+277 scheduler decisions. The cases include a seeded masked kernel
+with barriers, a seeded cooperative multiply and gather with loops,
+and the dense matrix multiply. The high halves in every snapshot
+match the scheduled warp's seed. The dense and cooperative low
+halves, schedules, and shared-memory results match the prior grid
+reports. All 25 existing unit tests passed.
+
+The first two wide builds exceeded the standalone FFN limit of
+3,584 units per layer. Their exit layers required 3,776 and 3,603
+units after compiler cleanup. The final layout emits control and
+plan tokens in an earlier FFN and fits at 19 circuit layers, 189
+heads, and 4,308 dimensions. The prior grid circuit's generated
+nodes are identical to the previous build.

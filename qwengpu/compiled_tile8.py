@@ -55,6 +55,10 @@ PLAN_TAG = 0xD000
 GRID = 0xDE00
 ROW_PAIRS = 4
 PLAN_BYTES = 8
+READ_HIGH = READ_PLAN + 16
+HIGH_REGISTER = 0x9400
+HIGH_NIBBLES = 32
+WIDE_DIRTY_OFFSET = WARP_DIRTY_OFFSET + 4 * HIGH_NIBBLES
 WARP_BANKS = (0xB000, 0xC000)
 WARP_TAGS = tuple(
     base + 16 * nib
@@ -66,6 +70,9 @@ WARP_TAGS = tuple(
         (LOOP_REGISTER, LOOP_NIBBLES),
     )
     for nib in range(count)
+)
+WIDE_WARP_TAGS = WARP_TAGS + tuple(
+    HIGH_REGISTER + 16 * nib for nib in range(HIGH_NIBBLES)
 )
 NO_WRITE = 0
 DONE = TICKET + 4
@@ -163,7 +170,12 @@ def build(
     resident_plan: bool = False,
     resident_io: bool = False,
     resident_grid: bool = False,
+    resident_wide: bool = False,
 ) -> Circ:
+    resident_grid = resident_grid or resident_wide
+    warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
+    dirty_offset = WIDE_DIRTY_OFFSET if resident_wide else WARP_DIRTY_OFFSET
+    plan_bytes = len(warp_tags) // 8
     resident_io = resident_io or resident_grid
     resident_plan = resident_plan or resident_io
     resident_delta = resident_delta or resident_plan
@@ -212,10 +224,15 @@ def build(
         if looping
         else []
     )
+    high_reads = (
+        [match(f"high.read.{nib}", READ_HIGH + nib) for nib in range(HIGH_NIBBLES)]
+        if resident_wide
+        else []
+    )
     plan_reads = (
         [
             match(f"state.plan.{byte}", READ_PLAN + byte)
-            for byte in range(PLAN_BYTES + int(resident_io))
+            for byte in range(plan_bytes + int(resident_io))
         ]
         if resident_plan
         else []
@@ -419,7 +436,7 @@ def build(
 
     def state_lookup(name: str, base: int, nib: int) -> list[Expr]:
         if resident_state:
-            offset = WARP_TAGS.index(base) + nib
+            offset = warp_tags.index(base) + nib
             return lookup(
                 name, 0, [bank // 16 + offset for bank in WARP_BANKS], state_queries
             )
@@ -460,6 +477,11 @@ def build(
         bit
         for nib in range(32)
         for bit in state_lookup(f"register.{nib}", REGISTER, nib)
+    ]
+    old_high = [
+        bit
+        for nib in range(HIGH_NIBBLES if resident_wide else 0)
+        for bit in state_lookup(f"high.{nib}", HIGH_REGISTER, nib)
     ]
     c_row = [
         bit
@@ -693,6 +715,7 @@ def build(
         *next_mask,
         *next_branch,
         *next_loop,
+        *old_high,
     ]
     if resident_delta:
 
@@ -714,6 +737,8 @@ def build(
             )
             equal = c.node(c.t_eq(difference, 0, -15, 15), f"state.equal.{nib}")
             bits.append(one - equal)
+        # This layout preserves the high limb until it has a writing opcode.
+        bits.extend(Expr() for _ in range(HIGH_NIBBLES if resident_wide else 0))
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -729,6 +754,7 @@ def build(
                         + mask_reads
                         + branch_reads
                         + loop_reads
+                        + high_reads
                         + plan_reads,
                         Expr(),
                     )
@@ -754,7 +780,7 @@ def build(
     if resident_delta:
         # State output requests are in packet order. Only changed fields
         # participate in the output code. The default code is token zero.
-        dirty_reads = iter(saved[WARP_DIRTY_OFFSET:])
+        dirty_reads = iter(saved[dirty_offset:])
 
         def only_dirty(requests: list[Expr], name: str) -> list[Expr]:
             return [
@@ -767,30 +793,35 @@ def build(
         mask_reads = only_dirty(mask_reads, "mask")
         branch_reads = only_dirty(branch_reads, "branch")
         loop_reads = only_dirty(loop_reads, "loop")
+        high_reads = only_dirty(high_reads, "high")
 
     def state_tag(base: int, nib: int) -> int:
         if resident_state:
-            return 16 * (WARP_TAGS.index(base) + nib)
+            return 16 * (warp_tags.index(base) + nib)
         return base + 16 * nib
 
     state_reads = sum(
-        reads + index_reads + mask_reads + branch_reads + loop_reads, Expr()
+        reads + index_reads + mask_reads + branch_reads + loop_reads + high_reads,
+        Expr(),
     )
     floor = max(node.level for node in c.nodes)
     for bit, expr in enumerate(code):
         terms = c.t_const(-KAPPA)
+        control_terms = []
         value = execution[bit] if bit < len(execution) else (CONTROL >> bit) & 1
-        terms += c.t_and([tick, value], 2 * KAPPA)
+        control_terms += c.t_and([tick, value], 2 * KAPPA)
         value = decision[bit] if bit < len(decision) else (TICKET >> bit) & 1
-        terms += c.t_and([schedule, value], 2 * KAPPA)
+        control_terms += c.t_and([schedule, value], 2 * KAPPA)
         for warp, reset in enumerate(resets):
             if bit < 6:
                 gates = [reset, controls[warp][bit], one - advance]
                 if bit == 5:
                     gates.append(one - release)
-                terms += c.t_and(gates, 2 * KAPPA)
+                control_terms += c.t_and(gates, 2 * KAPPA)
             elif control_token(warp) >> bit & 1:
-                terms += c.t_and([reset], 2 * KAPPA)
+                control_terms += c.t_and([reset], 2 * KAPPA)
+        if not resident_wide:
+            terms += control_terms
         for nib, (read, write) in enumerate(zip(reads, writes, strict=True)):
             tile_write = [write, saved[128]]
             if masked:
@@ -854,25 +885,41 @@ def build(
                     )
                 elif state_tag(LOOP_REGISTER, nib) >> bit & 1:
                     branch_terms += c.t_and([read], 2 * KAPPA)
+            for nib, read in enumerate(high_reads):
+                if bit < 4:
+                    branch_terms += c.t_and(
+                        [read, saved[WARP_DIRTY_OFFSET + 4 * nib + bit]], 2 * KAPPA
+                    )
+                elif state_tag(HIGH_REGISTER, nib) >> bit & 1:
+                    branch_terms += c.t_and([read], 2 * KAPPA)
             if branch_terms:
                 c.ffn(
                     branch_terms, f"exit.branch.{bit}", into=expr, min_level=floor + 1
                 )
+        plan_terms = control_terms if resident_wide else []
         for byte, read in enumerate(plan_reads):
             if bit < 8:
-                if byte == PLAN_BYTES:
+                if byte == plan_bytes:
                     # Tile stores use the active mask. Indexed stores use
                     # the collision arbiter's grants.
-                    terms += c.t_and(
+                    plan_terms += c.t_and(
                         [read, saved[128], saved[MASK_OFFSET + bit]], 2 * KAPPA
                     )
-                    terms += c.t_and([read, saved[SNAPSHOT_BITS + 56 + bit]], 2 * KAPPA)
+                    plan_terms += c.t_and(
+                        [read, saved[SNAPSHOT_BITS + 56 + bit]], 2 * KAPPA
+                    )
                 else:
-                    terms += c.t_and(
-                        [read, saved[WARP_DIRTY_OFFSET + 8 * byte + bit]], 2 * KAPPA
+                    plan_terms += c.t_and(
+                        [read, saved[dirty_offset + 8 * byte + bit]], 2 * KAPPA
                     )
             elif (PLAN_TAG + 256 * byte) >> bit & 1:
-                terms += c.t_and([read], 2 * KAPPA)
+                plan_terms += c.t_and([read], 2 * KAPPA)
+        if resident_wide and plan_terms:
+            c.ffn(
+                plan_terms, f"exit.control_plan.{bit}", into=expr, min_level=floor + 3
+            )
+        else:
+            terms += plan_terms
         if resident_state:
             if WARP_BANKS[0] >> bit & 1:
                 terms += c.t_and([state_reads, one - saved[129]], 2 * KAPPA)
@@ -882,7 +929,7 @@ def build(
             terms,
             f"exit.code.{bit}",
             into=expr,
-            min_level=floor + (3 if divergent else 1),
+            min_level=floor + (5 if resident_wide else 3 if divergent else 1),
         )
     return c
 
@@ -900,6 +947,7 @@ def build_standalone(
     resident_plan: bool = False,
     resident_io: bool = False,
     resident_grid: bool = False,
+    resident_wide: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -915,6 +963,7 @@ def build_standalone(
         resident_plan=resident_plan,
         resident_io=resident_io,
         resident_grid=resident_grid,
+        resident_wide=resident_wide,
     )
     return build_qwen(
         circuit,

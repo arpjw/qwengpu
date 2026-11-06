@@ -29,6 +29,8 @@ from qwengpu.compiled_tile8 import (
     DEADLOCK,
     DONE,
     GRID,
+    HIGH_NIBBLES,
+    HIGH_REGISTER,
     INDEX_OPERAND,
     INDEX_OPS,
     INDEX_REGISTER,
@@ -43,9 +45,9 @@ from qwengpu.compiled_tile8 import (
     NO_WRITE,
     OPERAND,
     OPS,
-    PLAN_BYTES,
     PLAN_TAG,
     READ_BRANCH,
+    READ_HIGH,
     READ_INDEX,
     READ_LOOP,
     READ_MASK,
@@ -60,6 +62,8 @@ from qwengpu.compiled_tile8 import (
     WARP_BANKS,
     WARP_DIRTY_OFFSET,
     WARP_TAGS,
+    WIDE_DIRTY_OFFSET,
+    WIDE_WARP_TAGS,
     build,
     build_standalone,
     nibbles,
@@ -77,6 +81,7 @@ MASKED_FIXTURES = FIXTURES.with_name("masked_gate_v1")
 DIVERGENT_FIXTURES = FIXTURES.with_name("divergent_gate_v1")
 LOOP_FIXTURES = FIXTURES.with_name("loop_gate_v1")
 GRID_FIXTURES = FIXTURES.with_name("grid_gate_v1")
+WIDE_FIXTURES = FIXTURES.with_name("wide_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
@@ -84,6 +89,7 @@ RESIDENT_DELTA_LAYOUT = "qwengpu-resident-delta9b-v1"
 RESIDENT_PLAN_LAYOUT = "qwengpu-resident-plan9b-v1"
 RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
+RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_TRANSPORTS = {
     "fixed": {"resident_delta": True},
     "state_plan": {"resident_plan": True},
@@ -156,6 +162,7 @@ def parse_launch(
     divergent: bool = False,
     looping: bool = False,
     resident_grid: bool = False,
+    resident_wide: bool = False,
 ) -> dict:
     divergent = divergent or looping
     masked = masked or divergent
@@ -164,7 +171,19 @@ def parse_launch(
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
     b = _unsigned(data.get("b", [0] * 64), 64, 255, "b")
     initial = _unsigned(data.get("c", [0] * 64), 64, 65535, "c")
-    first_row_pair, row_pairs = _row_window(data, resident_grid=resident_grid)
+    first_row_pair, row_pairs = _row_window(
+        data, resident_grid=resident_grid or resident_wide
+    )
+    initial_registers = None
+    if resident_wide:
+        banks = data.get("initial_registers", [[0] * 8, [0] * 8])
+        if not isinstance(banks, list) or len(banks) != 2:
+            raise ValueError("initial_registers must contain two warp banks")
+        initial_registers = [
+            _unsigned(bank, 8, 0xFFFFFFFF, "initial_registers bank") for bank in banks
+        ]
+    elif "initial_registers" in data:
+        raise ValueError("initial_registers requires a resident wide checkpoint")
     raw = data.get("programs")
     links = [{}, {}]
     if raw is None:
@@ -213,6 +232,7 @@ def parse_launch(
         "links": links,
         "first_row_pair": first_row_pair,
         "row_pairs": row_pairs,
+        **({"initial_registers": initial_registers} if resident_wide else {}),
     }
 
 
@@ -224,6 +244,7 @@ def _parse_case(
     divergent: bool = False,
     looping: bool = False,
     resident_grid: bool = False,
+    resident_wide: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -232,6 +253,7 @@ def _parse_case(
         divergent=divergent,
         looping=looping,
         resident_grid=resident_grid,
+        resident_wide=resident_wide,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -307,7 +329,12 @@ def execute(
     resident_plan: bool = False,
     resident_io: bool = False,
     resident_grid: bool = False,
+    resident_wide: bool = False,
 ) -> dict:
+    resident_grid = resident_grid or resident_wide
+    warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
+    dirty_offset = WIDE_DIRTY_OFFSET if resident_wide else WARP_DIRTY_OFFSET
+    plan_bytes = len(warp_tags) // 8
     resident_plan = resident_plan or resident_io
     resident_delta = resident_delta or resident_plan or resident_grid
     resident_state = resident_state or resident_delta
@@ -324,7 +351,19 @@ def execute(
     previous = TICKET + 8 * first_row_pair + 1
     operands = nibbles(operand_base, _digits(case["a"] + case["b"], 8))
     memory = nibbles(C_MEMORY, _digits(case["c"], 16))
-    registers = [nibbles(REGISTER, [0] * 32) for _ in range(2)]
+    initial_registers = case.get("initial_registers", [[0] * 8, [0] * 8])
+    registers = [
+        nibbles(REGISTER, _digits([word & 65535 for word in bank], 16))
+        for bank in initial_registers
+    ]
+    high_registers = (
+        [
+            nibbles(HIGH_REGISTER, _digits([word >> 16 for word in bank], 16))
+            for bank in initial_registers
+        ]
+        if resident_wide
+        else []
+    )
     rom = [program_tokens(program) for program in case["programs"]]
     indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
     masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
@@ -341,6 +380,8 @@ def execute(
             packet.extend(branches[warp])
         if looping:
             packet.extend(loops[warp])
+        if resident_wide:
+            packet.extend(high_registers[warp])
         return packet
 
     reads = list(range(READ_REG, READ_REG + 32))
@@ -352,8 +393,10 @@ def execute(
         reads.extend(range(READ_BRANCH, READ_BRANCH + BRANCH_NIBBLES))
     if looping:
         reads.extend(range(READ_LOOP, READ_LOOP + LOOP_NIBBLES))
+    if resident_wide:
+        reads.extend(range(READ_HIGH, READ_HIGH + HIGH_NIBBLES))
     store_reads = list(range(READ_STORE, READ_STORE + 32))
-    plan_reads = list(range(READ_PLAN, READ_PLAN + PLAN_BYTES + int(resident_io)))
+    plan_reads = list(range(READ_PLAN, READ_PLAN + plan_bytes + int(resident_io)))
     state_reads = reads
     reads = state_reads + store_reads
     schedules = []
@@ -448,8 +491,8 @@ def execute(
                 if not base <= token < base + 256:
                     raise ValueError(f"invalid state plan byte {byte}")
                 plan_bits.extend((token >> bit) & 1 for bit in range(8))
-            store_bits = plan_bits[8 * PLAN_BYTES :]
-            plan_bits = plan_bits[: 8 * PLAN_BYTES]
+            store_bits = plan_bits[8 * plan_bytes :]
+            plan_bits = plan_bits[: 8 * plan_bytes]
             selected = [nib for nib, changed in enumerate(plan_bits) if changed]
             store_slots = (
                 [
@@ -473,7 +516,7 @@ def execute(
                     raise ValueError(f"missing planned shared store at nibble {nib}")
                 store_output[nib] = token
             packet = state_output + store_output
-            transport["state_plan_tokens"] += PLAN_BYTES
+            transport["state_plan_tokens"] += plan_bytes
             transport["state_read_tokens"] += len(selected)
             if resident_io:
                 transport["store_plan_tokens"] += 1
@@ -484,7 +527,7 @@ def execute(
         _check_control(control, warp)
         observed_bits = snapshot(cache, circuit, 0)
         if resident_plan and (
-            observed_bits is None or plan_bits != observed_bits[WARP_DIRTY_OFFSET:]
+            observed_bits is None or plan_bits != observed_bits[dirty_offset:]
         ):
             raise ValueError("state read plan does not match the model snapshot")
         if resident_io:
@@ -503,16 +546,18 @@ def execute(
             tagged_state = [token for token in state_output if token != NO_WRITE]
             prior = state_packet(warp) if resident_delta else []
             expected_digits = (
-                _state_snapshot_digits(observed_bits) if resident_delta else []
+                _state_snapshot_digits(observed_bits, dirty_offset)
+                if resident_delta
+                else []
             )
             canonical = []
             for nib, (token, tag) in enumerate(
-                zip(state_output, WARP_TAGS, strict=True)
+                zip(state_output, warp_tags, strict=True)
             ):
                 if resident_delta:
                     changed = expected_digits[nib] != prior[nib] & 15
                     if changed != (token != NO_WRITE) or changed != bool(
-                        observed_bits[WARP_DIRTY_OFFSET + nib]
+                        observed_bits[dirty_offset + nib]
                     ):
                         raise ValueError(f"incorrect warp delta at nibble {nib}")
                     if not changed:
@@ -526,7 +571,7 @@ def execute(
                 canonical.append(tag + (token & 15))
             packet = canonical + packet[-32:]
         if resident_delta:
-            observed_bits = observed_bits[:WARP_DIRTY_OFFSET]
+            observed_bits = observed_bits[:dirty_offset]
         next_registers, patch = packet[:32], packet[-32:]
         for nib, token in enumerate(next_registers):
             if not REGISTER + 16 * nib <= token < REGISTER + 16 * (nib + 1):
@@ -550,11 +595,14 @@ def execute(
                 if not start <= token < start + (3 if nib == 0 else 16):
                     raise ValueError(f"invalid branch packet at nibble {nib}")
         if looping:
-            loops[warp] = packet[50 + BRANCH_NIBBLES : -32]
+            start = 50 + BRANCH_NIBBLES
+            loops[warp] = packet[start : start + LOOP_NIBBLES]
             for nib, token in enumerate(loops[warp]):
                 start = LOOP_REGISTER + 16 * nib
                 if not start <= token < start + (3 if nib == 0 else 16):
                     raise ValueError(f"invalid loop packet at nibble {nib}")
+        if resident_wide:
+            high_registers[warp] = packet[len(WARP_TAGS) : len(warp_tags)]
         updates = [token for token in patch if token != NO_WRITE]
         if not indexed and updates and len(updates) != 32:
             raise ValueError("incomplete tagged C write")
@@ -613,6 +661,8 @@ def execute(
             *(f"branch.{nib}" for nib in range(BRANCH_NIBBLES)),
             *(f"loop.{nib}" for nib in range(LOOP_NIBBLES)),
         ]
+        if resident_wide:
+            heads.extend(f"high.{nib}" for nib in range(HIGH_NIBBLES))
         transport["resident_state_exact"] = all(
             head_row(cache, circuit, head, warp, 4) == token & 15
             for warp in range(2)
@@ -625,10 +675,23 @@ def execute(
         "outcome": outcome,
         "matrix": _matrix(memory),
         **({"shared_words": _words(operands + memory)} if indexed else {}),
+        **(
+            {
+                "warp_registers": [
+                    [
+                        low | (high << 16)
+                        for low, high in zip(_words(lows), _words(highs), strict=True)
+                    ]
+                    for lows, highs in zip(registers, high_registers, strict=True)
+                ]
+            }
+            if resident_wide
+            else {}
+        ),
     }
 
 
-def _state_snapshot_digits(bits: list[int] | None) -> list[int]:
+def _state_snapshot_digits(bits: list[int] | None, dirty_offset: int) -> list[int]:
     if bits is None:
         raise ValueError("missing warp snapshot")
     index_bits = [
@@ -636,7 +699,7 @@ def _state_snapshot_digits(bits: list[int] | None) -> list[int]:
         for start in range(SNAPSHOT_BITS, SNAPSHOT_BITS + 56, 7)
         for bit in (*bits[start : start + 7], 0)
     ]
-    state = bits[:128] + index_bits + bits[MASK_OFFSET:WARP_DIRTY_OFFSET]
+    state = bits[:128] + index_bits + bits[MASK_OFFSET:dirty_offset]
     return [
         sum(state[start + bit] << bit for bit in range(4))
         for start in range(0, len(state), 4)
@@ -688,7 +751,10 @@ def oracle(
     tile, row_pairs = _row_window(case, resident_grid=True)
     last_tile = tile + row_pairs - 1
     last = 1
-    acc = [[0] * 8 for _ in range(2)]
+    wide = "initial_registers" in case
+    initial = case.get("initial_registers", [[0] * 8, [0] * 8])
+    acc = [[word & 65535 for word in bank] for bank in initial]
+    high = [[word >> 16 for word in bank] for bank in initial]
     indices = [[0] * 8 for _ in range(2)]
     masks = [255, 255]
     branches: list[list[tuple[int, int]]] = [[], []]
@@ -843,6 +909,12 @@ def oracle(
             )
             packed |= loop_word << LOOP_OFFSET
             width = (LOOP_OFFSET + 4 * LOOP_NIBBLES) // 4
+        if wide:
+            packed |= sum(
+                word << (WARP_DIRTY_OFFSET + 16 * lane)
+                for lane, word in enumerate(high[warp])
+            )
+            width = WIDE_DIRTY_OFFSET // 4
         trace.append(
             {
                 "warp": warp,
@@ -869,6 +941,16 @@ def oracle(
         "trace": trace,
         "outcome": outcome,
         "matrix": [c[i : i + 8] for i in range(0, 64, 8)],
+        **(
+            {
+                "warp_registers": [
+                    [low | (hi << 16) for low, hi in zip(lows, highs, strict=True)]
+                    for lows, highs in zip(acc, high, strict=True)
+                ]
+            }
+            if wide
+            else {}
+        ),
         **(
             {
                 "shared_words": [
@@ -898,6 +980,7 @@ def load_tile_model(
     resident_plan: bool = False,
     resident_io: bool = False,
     resident_grid: bool = False,
+    resident_wide: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -912,6 +995,7 @@ def load_tile_model(
             resident_plan=resident_plan,
             resident_io=resident_io,
             resident_grid=resident_grid,
+            resident_wide=resident_wide,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -935,6 +1019,7 @@ def load_tile_model(
             resident_plan=resident_plan,
             resident_io=resident_io,
             resident_grid=resident_grid,
+            resident_wide=resident_wide,
         )
     return model.to(device).eval(), circuit
 
@@ -955,6 +1040,7 @@ def main() -> None:
     variants.add_argument("--resident-plan", action="store_true")
     variants.add_argument("--resident-io", action="store_true")
     variants.add_argument("--resident-grid", action="store_true")
+    variants.add_argument("--resident-wide", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -964,7 +1050,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_grid = args.resident_grid
+    resident_wide = args.resident_wide
+    resident_grid = args.resident_grid or resident_wide
     resident_io = args.resident_io or resident_grid
     resident_plan = args.resident_plan or resident_io
     resident_delta = args.resident_delta or resident_plan
@@ -991,9 +1078,11 @@ def main() -> None:
             RESIDENT_PLAN_LAYOUT,
             RESIDENT_IO_LAYOUT,
             RESIDENT_GRID_LAYOUT,
+            RESIDENT_WIDE_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_grid = layout == RESIDENT_GRID_LAYOUT
+        resident_wide = layout == RESIDENT_WIDE_LAYOUT
+        resident_grid = resident_wide or layout == RESIDENT_GRID_LAYOUT
         resident_io = resident_grid or layout == RESIDENT_IO_LAYOUT
         resident_plan = resident_io or layout == RESIDENT_PLAN_LAYOUT
         resident_delta = resident_plan or layout == RESIDENT_DELTA_LAYOUT
@@ -1026,6 +1115,8 @@ def main() -> None:
             raise ValueError("--resident-io requires a resident I/O checkpoint")
         if args.resident_grid and not resident_grid:
             raise ValueError("--resident-grid requires a resident grid checkpoint")
+        if args.resident_wide and not resident_wide:
+            raise ValueError("--resident-wide requires a resident wide checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1039,6 +1130,8 @@ def main() -> None:
         paths.extend(sorted(LOOP_FIXTURES.glob("*.json")))
     if resident_grid and not args.kernel:
         paths.extend(sorted(GRID_FIXTURES.glob("*.json")))
+    if resident_wide and not args.kernel:
+        paths.extend(sorted(WIDE_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -1053,6 +1146,7 @@ def main() -> None:
                     divergent=divergent,
                     looping=looping,
                     resident_grid=resident_grid,
+                    resident_wide=resident_wide,
                 ),
             )
         )
@@ -1074,6 +1168,7 @@ def main() -> None:
         resident_plan=resident_plan,
         resident_io=resident_io,
         resident_grid=resident_grid,
+        resident_wide=resident_wide,
     )
     report = {
         "device": args.device,
@@ -1110,6 +1205,7 @@ def main() -> None:
             resident_plan=resident_plan,
             resident_io=resident_io,
             resident_grid=resident_grid,
+            resident_wide=resident_wide,
         )
         transport = observed.pop("transport")
         exact = (

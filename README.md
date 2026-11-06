@@ -241,6 +241,13 @@ The model propagates carry between the 16-bit halves and keeps the
 left operand in inactive lanes. Run the frozen checks with
 `python3 -m qwengpu.eval_add32 --device mps --out results/add32_mps.json`.
 
+The resident wide layout adds a high 16-bit register half to every lane.
+Use `run_resident --resident-wide` or a merge built with
+`merge9b --resident-wide`. The optional `initial_registers` field contains
+two arrays of eight unsigned 32-bit words. Existing tile instructions
+operate on the low half and preserve the high half. The launcher returns
+both halves combined in `warp_registers`.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

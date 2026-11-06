@@ -901,3 +901,41 @@ dense tile regression with:
   --resident-grid --device mps --kernel eval/frozen/tile8_gate_v1/dense_seeded.json \
   --out results/add32_resident_regression_mps.json
 ```
+
+## Verify high register banks in the resident grid
+
+The wide layout uses one cache with 96 state nibbles per warp. A
+launch may seed two arrays of eight unsigned 32-bit words. The
+model snapshots the high halves for the scheduled warp at every
+instruction. The verifier checks them and reads both register
+banks directly from the cache at the end.
+
+```sh
+cd "$QWENGPU_DIR"
+QWENGPU_WIDE_MODEL=/path/to/Qwen3.5-9B-qwengpu-resident-wide
+QWENGPU_WIDE_FIXTURES=(
+  --kernel eval/frozen/wide_gate_v1/seeded_warps.json
+  --kernel eval/frozen/wide_gate_v1/seeded_cooperative.json
+  --kernel eval/frozen/tile8_gate_v1/dense_seeded.json
+)
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-wide --device mps "${QWENGPU_WIDE_FIXTURES[@]}" \
+  --out results/resident_wide_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-wide --out "$QWENGPU_WIDE_MODEL"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  "$QWENGPU_WIDE_MODEL" --device cuda "${QWENGPU_WIDE_FIXTURES[@]}" \
+  --out results/resident_wide_9b_cuda_fla.json
+for mode in fixed state-plan; do
+  "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+    eval/frozen/wide_gate_v1/seeded_warps.json --model "$QWENGPU_WIDE_MODEL" \
+    --device cuda --transport "$mode" --trace \
+    --out "results/resident_wide_launch_${mode}_9b_cuda_fla.json"
+done
+python3 scripts/check_resident_wide.py
+```
+
+The evaluator uses the state and store plan. The final checker compares
+the fixed and state-only launcher runs with that result and checks
+the dense and cooperative traces against the previous grid reports.
