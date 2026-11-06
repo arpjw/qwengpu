@@ -1,0 +1,97 @@
+{
+  "row_pairs": 1,
+  "initial_registers": [
+    [
+      2882339008,
+      2882339010,
+      2882339012,
+      2882339014,
+      2882338888,
+      2882338890,
+      2882338892,
+      2882338895
+    ],
+    [
+      2882338880,
+      2882338882,
+      2882338884,
+      2882338886,
+      2882339016,
+      2882339018,
+      2882339020,
+      2882339023
+    ]
+  ],
+  "programs": [
+    [
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "MASK_BIT",
+        "arg": 7
+      },
+      {
+        "op": "LOAD_INDEX"
+      },
+      {
+        "op": "LOAD_INDEX_HI"
+      },
+      {
+        "op": "ADD_INDEX_LO",
+        "arg": 64
+      },
+      {
+        "op": "ADD_INDEX_HI",
+        "arg": 64
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "STORE_INDEX_HI"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "MASK_BIT",
+        "arg": 7
+      },
+      {
+        "op": "LOAD_INDEX"
+      },
+      {
+        "op": "LOAD_INDEX_HI"
+      },
+      {
+        "op": "ADD_INDEX_LO",
+        "arg": 64
+      },
+      {
+        "op": "ADD_INDEX_HI",
+        "arg": 64
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "STORE_INDEX_HI"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}

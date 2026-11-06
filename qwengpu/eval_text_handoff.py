@@ -31,7 +31,12 @@ NEW_TOKENS = 16
 def launch_gpu(
     model, circuit, manifest: dict, device: str, offset: int
 ) -> tuple[Cache, dict]:
-    case = parse_launch(manifest, looping=True, resident_add32=True)
+    case = parse_launch(
+        manifest,
+        looping=True,
+        resident_add32=True,
+        resident_addmem32=circuit.resident_addmem32,
+    )
     cache = None
 
     def capture(_model, _args, output) -> None:
@@ -57,7 +62,7 @@ def launch_gpu(
     if (
         observed != expected
         or observed["outcome"] != "halted"
-        or observed["matrix"] != manifest["expected_matrix"]
+        or observed["matrix"] != manifest.get("expected_matrix", expected["matrix"])
         or transport["fresh_caches"] != 1
         or not all(
             transport[f"resident_{bank}_exact"]

@@ -1334,3 +1334,28 @@ control=/path/to/Qwen3.5-9B-qwengpu-resident-add32
   --out results/resident_add32_text_9b_cuda_h100_control.json
 python3 scripts/check_addmem32_text.py
 ```
+
+## Relaunch after full-width arithmetic
+
+The producer is the frozen addmem32 sum. The second kernel has
+two warps that load zeroed destination pairs and add the retained
+source pairs into them. Both halves are stored at the destination.
+The checker derives the source words from scalar sums, verifies
+all 128 final words, and compares with the fresh-cache control.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch --addmem32 --device mps \
+  --out results/resident_addmem32_arithmetic_relaunch_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+model=/path/to/Qwen3.5-9B-qwengpu-resident-addmem32
+"$QWENGPU_PYTHON" -m qwengpu.eval_cache_relaunch "$model" --addmem32 --device cuda \
+  --out results/resident_addmem32_arithmetic_relaunch_9b_cuda_fla.json
+python3 scripts/check_addmem32_relaunch.py
+```
+
+The MPS run relaunches the consumer immediately. The merged run
+generates text between the launches, with a fresh text context
+and a retained GPU cache. It checks text against a fresh-cache
+control and verifies the GPU cache rows before and after text.
