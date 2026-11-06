@@ -9,8 +9,9 @@ from pathlib import Path
 
 import torch
 import transformers
-from transformers.cache_utils import Cache
+from transformers.cache_utils import Cache, DynamicCache
 
+from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUT,
     execute,
@@ -75,6 +76,43 @@ def launch_gpu(
         ).hexdigest(),
         "transport": transport,
     }
+
+
+def clear_text_history(cache: Cache, config, chip_layers: int) -> None:
+    """Replace pretrained layers' cache entries while preserving the GPU prefix."""
+    if (
+        not isinstance(cache, DynamicCache)
+        or not 0 < chip_layers < len(cache.layers)
+        or any(kind != "linear_attention" for kind in config.layer_types[:chip_layers])
+        or "full_attention" not in config.layer_types[chip_layers:]
+    ):
+        raise ValueError("expected a dynamic resident cache with a linear GPU prefix")
+    fresh = DynamicCache(config=config)
+    if len(fresh.layers) != len(cache.layers):
+        raise ValueError("cache layer count does not match the model")
+    cache.layers[chip_layers:] = fresh.layers[chip_layers:]
+    if cache.get_seq_length() != 0:
+        raise ValueError("text cache did not reset to position zero")
+
+
+def persistent_gpu_rows(cache: Cache, circuit) -> dict:
+    rows = {
+        "registers": [
+            head_row(cache, circuit, f"{bank}.{nib}", warp, 4)
+            for warp in range(2)
+            for bank in ("register", "high")
+            for nib in range(32)
+        ],
+        "shared_memory": [
+            head_row(cache, circuit, f"shared.{lane}.{nib}", word, 4)
+            for lane in range(8)
+            for nib in range(4)
+            for word in range(128)
+        ],
+    }
+    if any(value is None for bank in rows.values() for value in bank):
+        raise ValueError("persistent GPU row was not initialized")
+    return rows
 
 
 @torch.no_grad()
@@ -157,6 +195,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", type=Path)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--reset-text",
+        action="store_true",
+        help="replace pretrained cache entries before appending each text prompt",
+    )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     meta = json.loads((args.model / "qwengpu9b.json").read_text())
@@ -175,29 +218,52 @@ def main() -> None:
         ids = _ids(tokenizer, corpus[index])
         fresh = measure_text(model, ids, args.device, offset, eos)
         cache, gpu = launch_gpu(model, circuit, manifest, args.device, offset)
-        reused = measure_text(model, ids, args.device, offset, eos, cache=cache)
-        del cache
-        positioned = measure_text(
-            model, ids, args.device, offset, eos, position_start=gpu["input_tokens"]
-        )
-        records.append(
-            {
-                "prompt_index": index,
-                "prompt": corpus[index],
-                "prompt_ids": ids,
-                "gpu": gpu,
-                "fresh": fresh[1],
-                "gpu_cache": reused[1],
-                "position_only": positioned[1],
-                "gpu_vs_fresh": compare(fresh, reused),
-                "position_vs_fresh": compare(fresh, positioned),
-                "gpu_vs_position": compare(positioned, reused),
-            }
-        )
-        print(
-            json.dumps({"prompt_index": index, **records[-1]["gpu_vs_fresh"]}),
-            flush=True,
-        )
+        record = {
+            "prompt_index": index,
+            "prompt": corpus[index],
+            "prompt_ids": ids,
+            "gpu": gpu,
+            "fresh": fresh[1],
+        }
+        if args.reset_text:
+            before = persistent_gpu_rows(cache, circuit)
+            clear_text_history(cache, model.config, meta["chip_layers"])
+            reset = measure_text(model, ids, args.device, offset, eos, cache=cache)
+            after = persistent_gpu_rows(cache, circuit)
+            record.update(
+                reset=reset[1],
+                reset_vs_fresh=compare(fresh, reset),
+                gpu_rows={
+                    name: {
+                        "count": len(values),
+                        "before_sha256": hashlib.sha256(
+                            json.dumps(values).encode()
+                        ).hexdigest(),
+                        "after_sha256": hashlib.sha256(
+                            json.dumps(after[name]).encode()
+                        ).hexdigest(),
+                        "exact": values == after[name],
+                    }
+                    for name, values in before.items()
+                },
+            )
+            comparison = record["reset_vs_fresh"]
+        else:
+            reused = measure_text(model, ids, args.device, offset, eos, cache=cache)
+            del cache
+            positioned = measure_text(
+                model, ids, args.device, offset, eos, position_start=gpu["input_tokens"]
+            )
+            record.update(
+                gpu_cache=reused[1],
+                position_only=positioned[1],
+                gpu_vs_fresh=compare(fresh, reused),
+                position_vs_fresh=compare(fresh, positioned),
+                gpu_vs_position=compare(positioned, reused),
+            )
+            comparison = record["gpu_vs_fresh"]
+        records.append(record)
+        print(json.dumps({"prompt_index": index, **comparison}), flush=True)
     report = {
         "device": args.device,
         "torch": torch.__version__,
@@ -208,6 +274,7 @@ def main() -> None:
         "max_new_tokens": NEW_TOKENS,
         "eos_token_ids": sorted(eos),
         "records": records,
+        **({"cache_policy": "reset_text_layers"} if args.reset_text else {}),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2) + "\n")

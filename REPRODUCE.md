@@ -1127,3 +1127,24 @@ cache history empty. Each condition uses up to 16 greedy tokens over
 the full vocabulary. The report records cache lengths, prompt IDs,
 kernel trace digests, native next-token logit differences, and generated
 token IDs.
+
+## Clear text history while keeping GPU state
+
+Run the same four-prompt experiment with the reset policy. The
+boundary replaces the pretrained layers' cache entries with fresh
+entries from the same model configuration. It keeps the GPU layers
+in the same dynamic cache and checks that text starts at position
+zero. The verifier reads all 128 register nibbles and 4,096 shared
+memory nibbles across the lane banks before and after generating text.
+
+```sh
+cd "$QWENGPU_DIR"
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_text_handoff \
+  /path/to/Qwen3.5-9B-qwengpu-resident-add32 --device cuda --reset-text \
+  --out results/resident_add32_handoff_reset_9b_cuda_fla.json
+```
+
+The report compares native next-token logits and greedy continuations
+with a fresh cache. It records hashes of the GPU rows before and after
+the text and whether every nibble matches exactly.
