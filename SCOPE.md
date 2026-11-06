@@ -166,12 +166,16 @@ match all GPU traces and all 128 shared words. Merged 9B matches
 fresh-cache text exactly and skips the initial shared-memory upload.
 
 The branch32 layout extends `IF_BIT` to bits 0 through 31.
-Its MPS fixture branches on the high bit of a 32-bit sum with
+Its fixture branches on the high bit of a 32-bit sum with
 identical low halves. The then and else masks, reconvergence,
-and the dependent warp match a scalar reference. The complete MPS
-suite matches all 25 inherited case records. Merged Qwen3.5-9B
-reproduces all 26 MPS case records. Retained 16×16 replays are in
-progress.
+and the dependent warp match a scalar reference. MPS and merged
+Qwen3.5-9B match all 26 cases and reproduce the eight retained
+16×16 tile traces.
+
+The next control-flow gate is a loop whose condition reads the
+upper half of a 32-bit register. Use lane-specific carry into
+that half to end the loop, and check iteration counts, masks,
+and the final shared result against an independent reference.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

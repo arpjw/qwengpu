@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 6, 2026 at approximately 12:55 p.m. Pacific.
+was November 6, 2026 at approximately 1:29 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -43,13 +43,14 @@ was November 6, 2026 at approximately 12:55 p.m. Pacific.
 | `spczei5clluhi2` | GPU-to-text-to-GPU cache relaunch | $0.202233 | |
 | `e7dircqgmin263` | Two K slices with resident C | $0.214874 | |
 | `ulujgufwzoo34a` | Full 16×16 multiply with resident C | $0.276951 | |
-| `q07e1z7zdcgywv` | Shared32 qualification and retained launch replays | $0.422487 | $0.31 remaining |
-| `7ag8r4iy5e2exr` | Addmem32 qualification and retained multiply | Pending | $0.70 |
+| `q07e1z7zdcgywv` | Shared32 qualification and retained launch replays | $0.705477 | |
+| `7ag8r4iy5e2exr` | Addmem32 qualification and retained multiply | $0.592164 | $0.11 remaining |
 | `30mh7vnuymrpdk` | Addmem32 text, cache handoff, and same-device control | Pending | $0.89 |
 | `bkgbc6rveup6to` | Full-width arithmetic through a text handoff | Pending | $0.25 |
+| `05o4r8o4duazn3` | Branch32 qualification and retained multiply | Pending | $1.42 |
 
-Total posted is about $13.80. With pending estimates, tracked spend is
-about $15.95. All project pods are terminated and the live pod list was
+Total posted is about $14.67. With pending estimates, tracked spend is
+about $17.34. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -231,3 +232,11 @@ passed on the pinned addmem32 merge. Elapsed compute was about
 $0.23, with $0.25 reserved including disk. The pod was terminated
 after copying results. RunPod showed an empty pod list and no
 posted record for this pod.
+
+The branch32 H100 NVL ran from about 1:02:51 p.m. to 1:29:07 p.m.
+Pacific at $3.19/hour. The merged checkpoint passed all 26 cases
+and the retained multiply. The tiled replay needed a longer
+monitoring window. Elapsed compute was about $1.40, with $1.42
+reserved including disk. The pod was terminated after copying
+results. RunPod showed an empty pod list and no posted record for
+this pod.

@@ -1165,4 +1165,8 @@ The pinned merged Qwen3.5-9B on H100 NVL reproduces every MPS
 case record, including the generated masks, register snapshots,
 scheduler decisions, and final memory. The merge uses 28 chip
 layers and hidden width 6,656, matching the addmem32 dimensions.
-Retained multiply results are pending.
+The public MPS launcher reproduces the high-bit branch trace.
+Both retained 16×16 runs match the prior ADD32 matrices, all 928
+instructions, all 936 scheduler decisions, and all memory counts.
+They use four caches and omit 1,024 C upload tokens. See
+`results/resident_branch32_*` and the H100 NVL host record.

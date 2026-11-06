@@ -1,0 +1,14 @@
+NVIDIA H100 NVL, 595.91.07, 95830 MiB
+source_commit=e8fe6f0e07a639d32f5406b2b1d07a3e23861d69
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+93e660c5d07204b610da6f52f65e1bb811276f672489e3dd2104c827f0c8fb27  qwengpu/compiled_tile8.py
+e8ca66306f8b78b239585e13e149412ea0f261359148c35cb67a2547ec5f9870  qwengpu/eval_tile8.py
+e1968cf0aca1b1e141ebeea08a602f8b0102a3cd08e42d8b5792860f3409ae8c  eval/frozen/resident_branch32_gate_v1/cooperative_branch32.json
+qualification_started_utc=2026-11-06T21:08:15Z
+qualification_finished_utc=2026-11-06T21:22:10Z
+matmul_finished_utc=2026-11-06T21:28:49Z
