@@ -537,3 +537,30 @@ unchanged. Reports are `results/resident_delta_mps.json`,
 `results/resident_delta_9b_cuda_fla.json`,
 `results/resident_delta_launch_mps.json`, and
 `results/resident_delta_launch_9b_cuda_fla.json`.
+
+## Model-generated state read plans
+
+The state read plan uses eight model-emitted bitmap bytes per
+instruction. The launcher requests exactly the changed positions
+and still requests all 32 shared-store positions. The verifier
+checks the bitmap against the recurrent snapshot and checks the
+final state, ROMs, and shared memory directly.
+
+| Fixture | Fixed-request input tokens | Planned input tokens | Fixed-request forward calls | Planned forward calls |
+| --- | ---: | ---: | ---: | ---: |
+| Seeded dense multiply | 15,052 | 10,608 | 233 | 349 |
+| Cooperative multiply and gather | 16,176 | 10,296 | 265 | 397 |
+| 256-instruction budget exhaustion | 28,150 | 14,660 | 513 | 769 |
+
+The fixed-request call counts follow from two calls per instruction
+and one terminal schedule call. The planned counts are recorded in
+the reports. These counts measure transport and model invocations.
+Wall-clock throughput was not measured. The merge adds 18 layers,
+uses width 6,400, and contains 41,942,202,112 bytes of weights.
+
+All twelve fixtures match on MPS and merged Qwen3.5-9B, covering 1,229
+instructions and 1,241 scheduler decisions. The cooperative launcher
+also matches on both platforms. All 25 local tests passed. Reports are
+`results/resident_plan_mps.json`, `results/resident_plan_9b_cuda_fla.json`,
+`results/resident_plan_launch_mps.json`, and
+`results/resident_plan_launch_9b_cuda_fla.json`.

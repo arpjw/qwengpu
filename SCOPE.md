@@ -47,10 +47,15 @@ The resident-delta checkpoint emits a tagged state update only when
 a nibble changes. The host relays those tags. All state read request
 positions still run, including the ones that emit a zero sentinel.
 
-The next gate has the model emit a read plan so the launcher can
-request only changed state positions. Check exact traces and final
-banks against the fixed-request delta checkpoint. Count the resulting
-tokens and forward calls separately.
+The resident-plan checkpoint emits a bitmap of changed state
+positions. The launcher requests those positions and all 32
+shared-store positions in a follow-up call. This saves tokens
+and adds one forward call per instruction.
+
+The next gate extends that bitmap with the lanes issuing shared
+stores. Request only the selected state and store positions, and
+skip the follow-up call when both sets are empty. Compare exact
+traces, token counts, and forward calls with the state-only plan.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
