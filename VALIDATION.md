@@ -878,3 +878,11 @@ wide cases and two ADD32I cases match their earlier full snapshots.
 The verifier also checked the transport counters and direct reads
 of grid, memory, ROM, and warp state for every launch. See
 `results/resident_add32_full_mps.json`.
+
+Merged Qwen3.5-9B on one A100 SXM 80 GB matched all 23 MPS
+case records, including schedules, register and shared-memory
+snapshots, transport counters, and terminal outcomes. The merge
+metadata matches the pinned resident ADD32 build. The CUDA report
+and host record are under `results/resident_add32_full*`. Run
+`python3 scripts/check_resident_add32_full.py` to verify the
+cross-device and inherited comparisons.

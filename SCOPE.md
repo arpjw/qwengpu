@@ -102,10 +102,14 @@ and match all eight earlier grid traces on their shared fields.
 The composed multiply and the mixed ADD32I kernel passed from the
 same merged directory.
 
-The full inherited suite passes on the unified resident ADD32
-layout on MPS. All 23 cases match the interpreter and the saved
-baselines, including row windows and terminal outcomes. The full
-merged 9B run is the remaining qualification check.
+The unified resident ADD32 layout passes all 23 frozen cases on
+MPS and merged 9B. The case records match each other, the interpreter,
+and the saved baselines, including row windows and terminal outcomes.
+
+The next integration gate compares ordinary text on the unified
+merge and base Qwen3.5-9B. Start with fresh caches and a frozen prompt
+corpus. Record next-token logit differences and greedy continuations
+before testing a GPU-to-text cache handoff.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
