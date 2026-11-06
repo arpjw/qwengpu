@@ -195,9 +195,9 @@ match both scalar matrices and all raw execution records. Both
 also match the 27 inherited tilebanks case records.
 
 The public 16×16 launcher now uses one scheduled launch per output
-tile in `--schedule-k` mode. MPS matches both scalar matrices and
-all four model-generated transitions. The merged multiply, native
-text, and cache handoff checks are in progress.
+tile in `--schedule-k` mode. MPS and merged 9B match both scalar
+matrices, all four model-generated transitions, and the upload
+audits. Native text and cache handoff checks are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

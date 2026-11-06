@@ -1257,6 +1257,9 @@ checker verifies all four transition tickets and the grid, ROM,
 warp and memory upload counts for each tile. The four launches
 execute 928 instructions and 932 scheduler decisions.
 
-The MPS run uses 60,408 input tokens, compared with 61,340 in
-the earlier eight-launch retained-C mode. Merged CUDA, native
-text and cache handoff checks are in progress.
+The MPS and merged 9B reports match both pass matrices and every
+tile record. They use 60,408 input tokens, compared with 61,340
+in the earlier eight-launch retained-C mode. The legacy
+single-tile evaluator reproduces its saved MPS report after
+the launcher change. All 25 local tests passed. Native text
+and cache handoff checks are in progress.
