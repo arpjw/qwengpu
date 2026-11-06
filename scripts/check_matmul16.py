@@ -12,9 +12,11 @@ SHARED32_CHECKPOINTS = (
     "qwengpu-resident-shared32-9b-v1",
     "qwengpu-resident-addmem32-9b-v1",
     "qwengpu-resident-branch32-9b-v1",
+    "qwengpu-resident-loop32-9b-v1",
     "standalone-resident-shared32",
     "standalone-resident-addmem32",
     "standalone-resident-branch32",
+    "standalone-resident-loop32",
 )
 
 

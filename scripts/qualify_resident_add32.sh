@@ -6,15 +6,18 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 variant=--resident-add32
 gates=(tile8 resident indexed masked divergent loop grid wide resident_add32 window)
 case "${1:-}" in
-  --resident-shared32|--resident-addmem32|--resident-branch32)
+  --resident-shared32|--resident-addmem32|--resident-branch32|--resident-loop32)
     variant="$1"
     shift
     gates+=(resident_shared32)
     if [[ "$variant" != "--resident-shared32" ]]; then
       gates+=(resident_addmem32)
     fi
-    if [[ "$variant" == "--resident-branch32" ]]; then
+    if [[ "$variant" == "--resident-branch32" || "$variant" == "--resident-loop32" ]]; then
       gates+=(resident_branch32)
+    fi
+    if [[ "$variant" == "--resident-loop32" ]]; then
+      gates+=(resident_loop32)
     fi
     ;;
 esac

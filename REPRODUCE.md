@@ -1391,3 +1391,33 @@ bash scripts/qualify_resident_add32.sh --resident-branch32 "$model" --device cud
 python3 scripts/check_resident_branch32.py
 python3 scripts/check_matmul16.py results/resident_branch32_matmul16_retained_*.json
 ```
+
+## Loop on all 32 register bits
+
+The loop32 layout keeps the original low-half loop encoding and
+adds encodings for bits 16 through 31. The frozen kernel reads
+bit 16 and increments by one until carry clears that bit.
+The checker reconstructs the trip counts, masks, and final
+shared words independently of the interpreter.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+matmul=eval/frozen/matmul16_gate_v1/dense_seeded.json
+bash scripts/qualify_resident_add32.sh --resident-loop32 --device mps \
+  --out results/resident_loop32_full_mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$matmul" \
+  --resident-loop32 --retain-c --device mps \
+  --out results/resident_loop32_matmul16_retained_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+model=/path/to/Qwen3.5-9B-qwengpu-resident-loop32
+"$QWENGPU_PYTHON" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-loop32 --out "$model"
+bash scripts/qualify_resident_add32.sh --resident-loop32 "$model" --device cuda \
+  --out results/resident_loop32_full_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$matmul" \
+  --model "$model" --retain-c --device cuda \
+  --out results/resident_loop32_matmul16_retained_9b_cuda_fla.json
+python3 scripts/check_resident_loop32.py
+python3 scripts/check_matmul16.py results/resident_loop32_matmul16_retained_*.json
+```

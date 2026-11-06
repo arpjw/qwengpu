@@ -62,6 +62,9 @@ ADDMEM32_WIRE_OFFSET = 64
 PAIR_MASK_COUNT = 64
 RESIDENT_ADDMEM32_LAYOUT = "qwengpu-resident-addmem32-9b-v1"
 RESIDENT_BRANCH32_LAYOUT = "qwengpu-resident-branch32-9b-v1"
+RESIDENT_LOOP32_LAYOUT = "qwengpu-resident-loop32-9b-v1"
+WHILE_HI_OP = "WHILE_HI_BIT"
+WHILE_HI_WIRE_OFFSET = 9
 RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
 ADD32I_ZERO_WIRE = 256 * OPS.index("MAC_K") + 8
 READ_PLAN = ROM_BANK + 2
@@ -135,6 +138,16 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
             return halt + 6
         # A validated loop exits past its ENDWHILE, so its packed argument is nonzero.
         if op == "WHILE_BIT":
+            if arg >= 16:
+                # MAC_K 0 through 7 are live and 8 encodes ADD32I 0.
+                # The first possible exit is PC 2, after WHILE and ENDWHILE.
+                return (
+                    OPS.index("MAC_K") * 256
+                    + WHILE_HI_WIRE_OFFSET
+                    + 16 * (links[address] - 2)
+                    + arg
+                    - 16
+                )
             return OPS.index("LOAD_TILE") * 256 + 16 * links[address] + arg
         if op == "ENDWHILE":
             return OPS.index("BARRIER") * 256 + 1 + links[address]
@@ -160,6 +173,7 @@ def rom_payload(
     resident_shared32: bool = False,
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
+    resident_loop32: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
@@ -185,6 +199,18 @@ def rom_payload(
         op, pair_mask = divmod(arg - ADDMEM32_WIRE_OFFSET, PAIR_MASK_COUNT)
         return (
             (1 << ROM_PAYLOAD_BITS) + 256 * (1 + len(SHARED32_OPS) + op) + 2 * pair_mask
+        )
+    if (
+        resident_loop32
+        and OPS[tag] == "MAC_K"
+        and WHILE_HI_WIRE_OFFSET <= arg < WHILE_HI_WIRE_OFFSET + 14 * 16
+    ):
+        return (
+            (1 << ROM_PAYLOAD_BITS)
+            + 256 * (1 + len(SHARED32_OPS) + len(ADDMEM32_OPS))
+            + 32
+            + arg
+            - WHILE_HI_WIRE_OFFSET
         )
     if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
         return (len(OPS) + arg - 1) * 256
@@ -231,7 +257,9 @@ def build(
     resident_shared32: bool = False,
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
+    resident_loop32: bool = False,
 ) -> Circ:
+    resident_branch32 = resident_branch32 or resident_loop32
     resident_addmem32 = resident_addmem32 or resident_branch32
     resident_shared32 = resident_shared32 or resident_addmem32
     resident_add32 = resident_add32 or resident_shared32
@@ -255,6 +283,7 @@ def build(
     c.resident_shared32 = resident_shared32
     c.resident_addmem32 = resident_addmem32
     c.resident_branch32 = resident_branch32
+    c.resident_loop32 = resident_loop32
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -410,6 +439,7 @@ def build(
         + ((ADD32I_OP,) if resident_add32 else ())
         + (SHARED32_OPS if resident_shared32 else ())
         + (ADDMEM32_OPS if resident_addmem32 else ())
+        + ((WHILE_HI_OP,) if resident_loop32 else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -427,6 +457,7 @@ def build(
                         resident_shared32=resident_shared32,
                         resident_addmem32=resident_addmem32,
                         resident_branch32=resident_branch32,
+                        resident_loop32=resident_loop32,
                     )
                     >> bit
                 )
@@ -577,11 +608,13 @@ def build(
         ]
         selectors = c.onehot_of_bits(arg[:4], "mask.bit", 16)
 
-        high_if = (
+        while_high = ops.get(WHILE_HI_OP, Expr())
+        while_op = ops.get("WHILE_BIT", Expr()) + while_high
+        high_predicate = (
             c.and_([ops["IF_BIT"], arg[4]], "branch.high")
             if resident_branch32
             else Expr()
-        )
+        ) + while_high
 
         def selected_bit(lane: int, gate: Expr) -> Expr:
             start = 16 * lane
@@ -590,7 +623,7 @@ def build(
                 for selector, value in zip(
                     selectors, old[start : start + 16], strict=True
                 )
-                for term in c.t_and([selector, value, gate - high_if])
+                for term in c.t_and([selector, value, gate - high_predicate])
             ]
             if resident_branch32:
                 terms += [
@@ -598,14 +631,12 @@ def build(
                     for selector, value in zip(
                         selectors, old_high[start : start + 16], strict=True
                     )
-                    for term in c.t_and([selector, value, high_if])
+                    for term in c.t_and([selector, value, high_predicate])
                 ]
             return c.node(terms, f"mask.selected.{lane}")
 
         if divergent:
-            predicate_op = (
-                ops["MASK_BIT"] + ops["IF_BIT"] + (ops["WHILE_BIT"] if looping else 0)
-            )
+            predicate_op = ops["MASK_BIT"] + ops["IF_BIT"] + while_op
             predicate = [selected_bit(lane, predicate_op) for lane in range(8)]
             stack = [
                 bit
@@ -656,8 +687,8 @@ def build(
                     for bit in state_lookup(f"loop.{nib}", LOOP_REGISTER, nib)
                 ]
                 any_lane = c.node(c.t_ge(sum(then_mask, Expr()), 1, 0, 8), "loop.any")
-                enter = c.and_([ops["WHILE_BIT"], any_lane], "loop.enter")
-                leave = c.and_([ops["WHILE_BIT"], one - any_lane], "loop.leave")
+                enter = c.and_([while_op, any_lane], "loop.enter")
+                leave = c.and_([while_op, one - any_lane], "loop.leave")
                 loop_top, loop_depth, loop_frames = _stack(
                     c,
                     loop[:2],
@@ -1138,6 +1169,7 @@ def build_standalone(
     resident_shared32: bool = False,
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
+    resident_loop32: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1158,6 +1190,7 @@ def build_standalone(
         resident_shared32=resident_shared32,
         resident_addmem32=resident_addmem32,
         resident_branch32=resident_branch32,
+        resident_loop32=resident_loop32,
     )
     return build_qwen(
         circuit,

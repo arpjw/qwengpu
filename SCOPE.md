@@ -172,10 +172,11 @@ and the dependent warp match a scalar reference. MPS and merged
 Qwen3.5-9B match all 26 cases and reproduce the eight retained
 16×16 tile traces.
 
-The next control-flow gate is a loop whose condition reads the
-upper half of a 32-bit register. Use lane-specific carry into
-that half to end the loop, and check iteration counts, masks,
-and the final shared result against an independent reference.
+The loop32 layout extends `WHILE_BIT` to bits 0 through 31.
+The first MPS fixture exits from carry into bit 16, with
+different trip counts per lane. Masks, wraparound, and the
+dependent warp match the scalar check. The inherited suite
+and merged checkpoint replays are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

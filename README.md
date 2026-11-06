@@ -304,6 +304,16 @@ python3 -m qwengpu.run_resident --resident-branch32 \
   eval/frozen/resident_branch32_gate_v1/cooperative_branch32.json
 ```
 
+The resident loop32 layout extends `WHILE_BIT` to all 32
+register bits. The model repeats the body for lanes whose bit
+is set, restores the parent mask at `ENDWHILE`, and checks the
+updated register on the next trip.
+
+```sh
+python3 -m qwengpu.run_resident --resident-loop32 \
+  eval/frozen/resident_loop32_gate_v1/cooperative_loop32.json
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
