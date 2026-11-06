@@ -39,11 +39,14 @@ scheduler ticket and PC select a row in the recurrent ROM table.
 Each program has sixteen slots. The looping checkpoint remains
 available for comparisons.
 
-The next gate moves each warp's accumulator, index, mask, and stack
-packets into separate banks of the launch cache. Have the model
-select the active bank and emit tagged updates. Verify that both
-warps retain distinct state through barriers, row-pair advances,
-and nested control while the host relays the update tokens.
+The resident-state checkpoint banks each warp's accumulator, index,
+mask, and stacks in the launch cache. The model selects the active
+bank and emits a tagged packet, which the host forwards unchanged.
+
+The next gate suppresses unchanged state nibbles in the model.
+Keep the canonical instruction traces and direct cache checks, and
+verify that the host can relay just the model's nonempty update tags.
+Compare the token count with the full-packet resident-state checkpoint.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

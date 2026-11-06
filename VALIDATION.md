@@ -487,3 +487,28 @@ Reports are `results/resident_rom_mps.json`,
 `results/resident_rom_9b_cuda_fla.json`,
 `results/resident_rom_launch_mps.json`, and
 `results/resident_rom_launch_9b_cuda_fla.json`.
+
+## Resident warp register banks
+
+All twelve fixtures match across standalone MPS and merged Qwen3.5-9B
+on A100, covering 1,229 instructions and 1,241 scheduler decisions.
+Each fixture preserves its complete canonical trace relative to the
+resident-ROM checkpoint. Both warp banks, both ROMs, and shared
+memory were checked directly in each launch's single cache. The JSON
+launcher reproduced the cooperative fixture on both platforms. All
+25 local tests passed, and the seven earlier compiler graphs were
+unchanged.
+
+The model tags each update with its selected bank. The host forwards
+the full 64-nibble update packet and uses a separate copy for trace
+comparison. Bank initialization adds 128 input tokens to each
+launch. The cooperative kernel uses 23,112 input tokens and relays
+8,448 state nibbles. Comparing consecutive states in its trace,
+1,512 of those nibbles change. That count is a target for the next
+optimization. The merge adds 17 layers, uses width 6,400, and contains
+41,259,716,992 bytes of weights.
+
+Reports are `results/resident_state_mps.json`,
+`results/resident_state_9b_cuda_fla.json`,
+`results/resident_state_launch_mps.json`, and
+`results/resident_state_launch_9b_cuda_fla.json`.
