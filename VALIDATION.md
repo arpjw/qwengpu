@@ -1159,4 +1159,10 @@ scalar results. All 32 encodings were checked, and the earlier
 layout accepts only bits 0 through 15. The standalone MPS run
 matches all 26 cases and all 25 inherited case records, with
 1,948 instructions and 1,974 scheduler decisions. All 25 local
-tests passed. Merged and retained multiply results are pending.
+tests passed.
+
+The pinned merged Qwen3.5-9B on H100 NVL reproduces every MPS
+case record, including the generated masks, register snapshots,
+scheduler decisions, and final memory. The merge uses 28 chip
+layers and hidden width 6,656, matching the addmem32 dimensions.
+Retained multiply results are pending.
