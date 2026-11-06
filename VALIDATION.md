@@ -717,3 +717,12 @@ preserved its initial C values everywhere else. Stitching the
 front and back windows reproduced all 64 outputs of the full tile.
 The 25 existing tests passed. The parser accepted all ten legal
 windows and rejected out-of-range, fractional, and boolean inputs.
+
+All five MPS case records are identical to the merged 9B records
+on an A100 SXM 80 GB, including schedules and recurrent cache checks.
+The final-pair launch through the JSON CLI ran 29 instructions and
+matched the evaluator with the fixed transport. Omitting the length
+resolved to one pair for that launch. The A100 environment and the
+source hashes for the unchanged compiler and merge code are in
+`results/resident_windows_host_a100.txt`. The exact reports can be
+compared with `python3 scripts/check_resident_windows.py`.

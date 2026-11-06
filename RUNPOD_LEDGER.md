@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 6:02 p.m. Pacific.
+was November 5, 2026 at approximately 6:13 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -26,13 +26,14 @@ was November 5, 2026 at approximately 6:02 p.m. Pacific.
 | `mimr8xs3ebeqeb` | Resident warp banks and launcher validation | $0.339075 | |
 | `8ntzzjatpnm2q4` | Resident changed-only state validation | $0.344076 | |
 | `yr7ft6o0sdf34z` | Model-generated state read plan validation | $0.377327 | |
-| `pyh42o27vq2rux` | Selective state and store read validation | $0.216176 | $0.16 remaining |
-| `izc2or1pmn2hyu` | Same-checkpoint transport benchmark | Pending | $0.59 |
+| `pyh42o27vq2rux` | Selective state and store read validation | $0.375245 | |
+| `izc2or1pmn2hyu` | Same-checkpoint transport benchmark | $0.086093 | $0.51 remaining |
 | `ufiwd1ajdkif9d` | Transport selector and store-reload benchmark | Pending | $0.39 |
 | `4usv1zb1tssh0w` | Programmable row-pair extent and launcher validation | Pending | $0.42 |
+| `yvpz8kd8flarzs` | Resident row windows on merged 9B | Pending | $0.24 |
 
-Total posted is about $8.28. With pending estimates, tracked spend is
-about $9.84. All project pods are terminated and the live pod list was
+Total posted is about $8.53. With pending estimates, tracked spend is
+about $10.09. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -102,3 +103,10 @@ transports passed. The elapsed compute estimate is about $0.41,
 with $0.42 reserved including disk. The pod was terminated after
 the reports were copied. RunPod showed an empty pod list and no
 posted record for this pod at teardown.
+
+The resident windows A100 ran from about 6:05:34 p.m. to 6:13:11 p.m.
+Pacific at $1.79/hour. Five evaluator cases and the fixed-transport
+launcher check passed. Elapsed compute was about $0.23, with $0.24
+reserved including disk. The pod was terminated after copying the
+reports. RunPod showed an empty pod list and no posted record for
+this pod at teardown.

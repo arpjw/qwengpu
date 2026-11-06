@@ -74,9 +74,14 @@ fixtures, including three partial launches with untouched later C rows
 and 12 unchanged full launches.
 
 The grid launcher accepts a nonzero first row pair on the same
-circuit. On MPS, four windows preserve C outside their scheduled
-rows. Two complementary windows reproduce the full tile. The
-merged 9B window check is the remaining validation for this gate.
+circuit. Four windows preserve C outside their scheduled rows on
+MPS and merged 9B. Two complementary windows reproduce the full tile.
+
+The next gate composes 8×8 tiles into a 16×16 modular matrix multiply
+using one loaded grid checkpoint. Let the launcher pack tiles and carry
+each output tile across two K slices. Let the model compute each
+multiply-accumulate. Verify the full result and both K-slice results
+against an independent scalar reference.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
