@@ -8,7 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "eval/frozen/matmul16_gate_v1/dense_seeded.json"
 RESULTS = ROOT / "results"
-SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
+SHARED32_CHECKPOINTS = (
+    "qwengpu-resident-shared32-9b-v1",
+    "qwengpu-resident-addmem32-9b-v1",
+    "standalone-resident-shared32",
+    "standalone-resident-addmem32",
+)
 
 
 def check_report(report: dict, inputs: dict, digest: str) -> None:
@@ -117,10 +122,7 @@ def main() -> None:
         check_report(report, inputs, digest)
         retain_c = report.get("retain_c", False)
         add32 = "checkpoint" in report
-        shared32 = report.get("checkpoint") in (
-            SHARED32_LAYOUT,
-            "standalone-resident-shared32",
-        )
+        shared32 = report.get("checkpoint") in SHARED32_CHECKPOINTS
         if report["merge"] and not shared32:
             baseline = "resident_add32" if add32 else "resident_grid"
             prior = json.loads((RESULTS / f"{baseline}_9b_cuda_fla.json").read_text())
@@ -129,8 +131,8 @@ def main() -> None:
             expected_layout = (
                 report["merge"]["layout"]
                 if report["merge"]
-                else "standalone-resident-shared32"
-                if shared32
+                else report["checkpoint"]
+                if shared32 and report["checkpoint"].startswith("standalone-")
                 else "standalone-resident-add32"
             )
             assert report["checkpoint"] == expected_layout

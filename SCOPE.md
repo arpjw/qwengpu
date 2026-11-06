@@ -145,11 +145,12 @@ and all 23 inherited ADD32 case records. Both reproduce all eight
 retained 16×16 tile traces. Merged 9B also reproduces the single-tile
 retention and GPU-to-text-to-GPU traces.
 
-The next arithmetic gate is to add two arbitrary 32-bit operands
-from shared memory. Compare carries, full-width wrap, inactive
-lanes, and a dependent consumer against an independent reference.
-Requalify the shared32 handoff and tiled workloads on the extended
-checkpoint.
+The addmem32 layout adds two arbitrary 32-bit operands from
+indexed shared memory. Its low instruction adds with carry into
+the upper half, and its high instruction completes the sum. The
+first MPS case matches a scalar result through a dependent consumer.
+The full inherited suite and retained 16×16 multiply still need
+requalification on MPS and merged 9B.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

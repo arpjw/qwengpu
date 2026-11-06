@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.compiled_tile8 import RESIDENT_SHARED32_LAYOUT, VOCAB
+from qwengpu.compiled_tile8 import RESIDENT_ADDMEM32_LAYOUT, VOCAB
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
     RESIDENT_ADD32_LAYOUTS,
@@ -18,6 +18,7 @@ from qwengpu.eval_tile8 import (
     RESIDENT_IO_LAYOUT,
     RESIDENT_PLAN_LAYOUT,
     RESIDENT_ROM_LAYOUT,
+    RESIDENT_SHARED32_LAYOUTS,
     RESIDENT_STATE_LAYOUT,
     RESIDENT_TRANSPORTS,
     RESIDENT_WIDE_LAYOUT,
@@ -37,6 +38,11 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-addmem32",
+        action="store_true",
+        help="enable 32-bit addition from two indexed shared-memory pairs",
+    )
     variants.add_argument(
         "--resident-shared32",
         action="store_true",
@@ -100,7 +106,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_shared32 = args.resident_shared32
+    resident_addmem32 = args.resident_addmem32
+    resident_shared32 = args.resident_shared32 or resident_addmem32
     resident_add32 = args.resident_add32 or resident_shared32
     resident_wide = args.resident_wide or resident_add32
     resident_grid = args.resident_grid or resident_wide
@@ -110,7 +117,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-shared32"
+        "standalone-resident-addmem32"
+        if resident_addmem32
+        else "standalone-resident-shared32"
         if resident_shared32
         else "standalone-resident-add32"
         if resident_add32
@@ -156,7 +165,8 @@ def main() -> int:
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
-            resident_shared32 = layout == RESIDENT_SHARED32_LAYOUT
+            resident_addmem32 = layout == RESIDENT_ADDMEM32_LAYOUT
+            resident_shared32 = layout in RESIDENT_SHARED32_LAYOUTS
             resident_add32 = layout in RESIDENT_ADD32_LAYOUTS
             resident_wide = resident_add32 or layout == RESIDENT_WIDE_LAYOUT
             resident_grid = resident_wide or layout == RESIDENT_GRID_LAYOUT
@@ -189,6 +199,8 @@ def main() -> int:
                 )
             if args.resident_shared32 and not resident_shared32:
                 raise ValueError("--resident-shared32 requires a shared32 checkpoint")
+            if args.resident_addmem32 and not resident_addmem32:
+                raise ValueError("--resident-addmem32 requires an addmem32 checkpoint")
             offset = meta["chip_token_offset"]
         if args.transport and not resident_io:
             raise ValueError("--transport requires a resident I/O checkpoint")
@@ -199,6 +211,7 @@ def main() -> int:
             resident_wide=resident_wide,
             resident_add32=resident_add32,
             resident_shared32=resident_shared32,
+            resident_addmem32=resident_addmem32,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -225,6 +238,7 @@ def main() -> int:
         resident_wide=resident_wide,
         resident_add32=resident_add32,
         resident_shared32=resident_shared32,
+        resident_addmem32=resident_addmem32,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]

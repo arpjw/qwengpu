@@ -1268,3 +1268,33 @@ matmul=eval/frozen/matmul16_gate_v1/dense_seeded.json
 python3 scripts/check_matmul16.py results/resident_shared32_matmul16_retained_*.json
 python3 scripts/check_resident_shared32.py --cache-replays
 ```
+
+## Add two full-width shared-memory operands
+
+The addmem32 layout first loads the left word pair with the shared32
+instructions. `ADD_INDEX_LO` adds the low right word and carries
+into the high register. `ADD_INDEX_HI` adds the high right word.
+Both use the saved index XOR the same even immediate to locate the
+right pair. The high instruction toggles bit zero of that address.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+matmul=eval/frozen/matmul16_gate_v1/dense_seeded.json
+bash scripts/qualify_resident_add32.sh --resident-addmem32 --device mps \
+  --out results/resident_addmem32_full_mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$matmul" \
+  --resident-addmem32 --retain-c --device mps \
+  --out results/resident_addmem32_matmul16_retained_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+model=/path/to/Qwen3.5-9B-qwengpu-resident-addmem32
+"$QWENGPU_PYTHON" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-addmem32 --out "$model"
+bash scripts/qualify_resident_add32.sh --resident-addmem32 "$model" --device cuda \
+  --out results/resident_addmem32_full_9b_cuda_fla.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$matmul" \
+  --model "$model" --retain-c --device cuda \
+  --out results/resident_addmem32_matmul16_retained_9b_cuda_fla.json
+python3 scripts/check_resident_addmem32.py
+python3 scripts/check_matmul16.py results/resident_addmem32_matmul16_retained_*.json
+```

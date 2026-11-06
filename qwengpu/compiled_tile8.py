@@ -55,6 +55,12 @@ LOAD_INDEX_HI = "LOAD_INDEX_HI"
 STORE_INDEX_HI = "STORE_INDEX_HI"
 SHARED32_OPS = (LOAD_INDEX_HI, STORE_INDEX_HI)
 SHARED32_WIRE_OFFSET = 7
+ADD_INDEX_LO = "ADD_INDEX_LO"
+ADD_INDEX_HI = "ADD_INDEX_HI"
+ADDMEM32_OPS = (ADD_INDEX_LO, ADD_INDEX_HI)
+ADDMEM32_WIRE_OFFSET = 64
+PAIR_MASK_COUNT = 64
+RESIDENT_ADDMEM32_LAYOUT = "qwengpu-resident-addmem32-9b-v1"
 RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
 ADD32I_ZERO_WIRE = 256 * OPS.index("MAC_K") + 8
 READ_PLAN = ROM_BANK + 2
@@ -109,6 +115,13 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
             return halt + 1 + INDEX_OPS.index(op)
         if op in SHARED32_OPS:
             return halt + SHARED32_WIRE_OFFSET + SHARED32_OPS.index(op)
+        if op in ADDMEM32_OPS:
+            return (
+                halt
+                + ADDMEM32_WIRE_OFFSET
+                + PAIR_MASK_COUNT * ADDMEM32_OPS.index(op)
+                + arg // 2
+            )
         if op == "MASK_ALL":
             return halt + 4
         if op == "MASK_BIT":
@@ -144,6 +157,7 @@ def rom_payload(
     looping: bool,
     resident_add32: bool = False,
     resident_shared32: bool = False,
+    resident_addmem32: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
@@ -159,6 +173,17 @@ def rom_payload(
         and SHARED32_WIRE_OFFSET <= arg < SHARED32_WIRE_OFFSET + len(SHARED32_OPS)
     ):
         return (1 << ROM_PAYLOAD_BITS) + 256 * (arg - SHARED32_WIRE_OFFSET + 1)
+    if (
+        resident_addmem32
+        and OPS[tag] == "HALT"
+        and ADDMEM32_WIRE_OFFSET
+        <= arg
+        < ADDMEM32_WIRE_OFFSET + PAIR_MASK_COUNT * len(ADDMEM32_OPS)
+    ):
+        op, pair_mask = divmod(arg - ADDMEM32_WIRE_OFFSET, PAIR_MASK_COUNT)
+        return (
+            (1 << ROM_PAYLOAD_BITS) + 256 * (1 + len(SHARED32_OPS) + op) + 2 * pair_mask
+        )
     if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
         return (len(OPS) + arg - 1) * 256
     if masked and OPS[tag] == "HALT":
@@ -202,7 +227,9 @@ def build(
     resident_wide: bool = False,
     resident_add32: bool = False,
     resident_shared32: bool = False,
+    resident_addmem32: bool = False,
 ) -> Circ:
+    resident_shared32 = resident_shared32 or resident_addmem32
     resident_add32 = resident_add32 or resident_shared32
     resident_wide = resident_wide or resident_add32
     resident_grid = resident_grid or resident_wide
@@ -222,6 +249,7 @@ def build(
     operand_base = INDEX_OPERAND if indexed else OPERAND
     c = Circ(target or Target())
     c.resident_shared32 = resident_shared32
+    c.resident_addmem32 = resident_addmem32
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -376,6 +404,7 @@ def build(
         + (LOOP_OPS if looping else ())
         + ((ADD32I_OP,) if resident_add32 else ())
         + (SHARED32_OPS if resident_shared32 else ())
+        + (ADDMEM32_OPS if resident_addmem32 else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -391,6 +420,7 @@ def build(
                         looping=looping,
                         resident_add32=resident_add32,
                         resident_shared32=resident_shared32,
+                        resident_addmem32=resident_addmem32,
                     )
                     >> bit
                 )
@@ -642,8 +672,19 @@ def build(
     indexed_values = []
     load_high = ops.get(LOAD_INDEX_HI, Expr())
     store_high = ops.get(STORE_INDEX_HI, Expr())
+    add_low = ops.get(ADD_INDEX_LO, Expr())
+    add_high = ops.get(ADD_INDEX_HI, Expr())
     if indexed:
-        load_index = ops["LOAD_INDEX"] + load_high
+        load_index = ops["LOAD_INDEX"] + load_high + add_low + add_high
+        read_high = load_high + add_high
+        pair_mask = (
+            [
+                c.and_([add_low + add_high, bit], f"gather.mask.{i}")
+                for i, bit in enumerate(arg[1:7], 1)
+            ]
+            if resident_addmem32
+            else []
+        )
         store_index = ops["STORE_INDEX"] + store_high
         prior_addresses = []
         for lane in range(8):
@@ -659,11 +700,21 @@ def build(
             gather_address = address
             if resident_shared32:
                 paired_bit = c.node(
-                    c.t_and([address[0], one - load_high])
-                    + c.t_and([one - address[0], load_high]),
+                    c.t_and([address[0], one - read_high])
+                    + c.t_and([one - address[0], read_high]),
                     f"gather.pair.{lane}",
                 )
                 gather_address = [paired_bit, *address[1:]]
+            if resident_addmem32:
+                gather_address[1:] = [
+                    c.node(
+                        c.t_and([addr, one - mask]) + c.t_and([one - addr, mask]),
+                        f"gather.address.{lane}.{bit}",
+                    )
+                    for bit, (addr, mask) in enumerate(
+                        zip(address[1:], pair_mask, strict=True), 1
+                    )
+                ]
             queries = [
                 c.and_(
                     [
@@ -728,6 +779,7 @@ def build(
     for lane in range(8):
         columns = []
         limits = []
+        gathered = indexed_values[16 * lane : 16 * (lane + 1)]
         for bit in range(16):
             pairs = [(i, bit - i) for i in range(8) if 0 <= bit - i < 8]
             terms = [
@@ -737,24 +789,38 @@ def build(
             ]
             if bit < 8:
                 terms += c.t_and([add_immediate, arg[bit]])
+            if resident_addmem32:
+                terms += c.t_and([add_low, gathered[bit]])
             columns.append(
                 old[16 * lane + bit] + c.node(terms, f"lane.{lane}.column.{bit}")
             )
-            limits.append(len(pairs) + 1 + int(bit < 8))
+            limits.append(
+                max(1 if resident_addmem32 else 0, len(pairs) + int(bit < 8)) + 1
+            )
         if resident_add32:
             upper = old_high[16 * lane : 16 * (lane + 1)]
+            upper_columns = upper
+            if resident_addmem32:
+                upper_columns = [
+                    bit + c.and_([add_high, rhs], f"lane.{lane}.add_high.{i}")
+                    for i, (bit, rhs) in enumerate(zip(upper, gathered, strict=True))
+                ]
             word = _word_from_columns(
-                c, columns + upper, limits + [1] * 16, f"lane.{lane}.word"
+                c,
+                columns + upper_columns,
+                limits + [1 + int(resident_addmem32)] * 16,
+                f"lane.{lane}.word",
             )
             updated.extend(word[:16])
-            enabled = c.and_([ops[ADD32I_OP], active[lane]], f"wide.active.{lane}")
+            enabled = c.and_(
+                [ops[ADD32I_OP] + add_low + add_high, active[lane]],
+                f"wide.active.{lane}",
+            )
             high_sources = [([enabled], word[16:])]
             preserve = one - enabled
             if resident_shared32:
                 gather_high = c.and_([load_high, active[lane]], f"wide.gather.{lane}")
-                high_sources.append(
-                    ([gather_high], indexed_values[16 * lane : 16 * (lane + 1)])
-                )
+                high_sources.append(([gather_high], gathered))
                 preserve -= gather_high
             high_sources.append(([preserve], upper))
             next_high.extend(
@@ -1051,6 +1117,7 @@ def build_standalone(
     resident_wide: bool = False,
     resident_add32: bool = False,
     resident_shared32: bool = False,
+    resident_addmem32: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1069,6 +1136,7 @@ def build_standalone(
         resident_wide=resident_wide,
         resident_add32=resident_add32,
         resident_shared32=resident_shared32,
+        resident_addmem32=resident_addmem32,
     )
     return build_qwen(
         circuit,

@@ -282,6 +282,19 @@ python3 -m qwengpu.run_resident --resident-shared32 \
   eval/frozen/resident_shared32_gate_v1/cooperative_shared32.json
 ```
 
+The resident addmem32 layout adds two arbitrary unsigned 32-bit
+values from shared memory. Load the left pair with the shared32
+instructions. `ADD_INDEX_LO` and `ADD_INDEX_HI` read the right pair
+at the saved index XOR an even immediate from 0 through 126.
+The low step propagates carry into the high register. The high
+step completes the sum modulo 2³². Use the same mask and immediate
+for both steps of a vector sum.
+
+```sh
+python3 -m qwengpu.run_resident --resident-addmem32 \
+  eval/frozen/resident_addmem32_gate_v1/cooperative_addmem32.json
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
