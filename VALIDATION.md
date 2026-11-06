@@ -1142,3 +1142,21 @@ All 25 local tests passed.
 
 See `results/resident_addmem32_arithmetic_relaunch_*` and
 `results/resident_addmem32_cache_relaunch_legacy_replay_9b_cuda_fla.json`.
+
+## Divergence on the high bit of a 32-bit sum
+
+The branch32 layout extends `IF_BIT` to all 32 accumulator bits
+and uses the existing branch stack. The frozen producer adds two
+32-bit operands per lane. The active lanes have identical low
+halves at the branch. Bit 31 selects the then and else masks, and
+the next instruction after reconvergence executes under the
+original parent mask. A second warp reads both halves after the
+barrier, including the original word in the inactive lane.
+
+The 21-instruction case checks the branch and reconvergence masks,
+both register banks, and all 128 shared words against independent
+scalar results. All 32 encodings were checked, and the earlier
+layout accepts only bits 0 through 15. The standalone MPS run
+matches all 26 cases and all 25 inherited case records, with
+1,948 instructions and 1,974 scheduler decisions. All 25 local
+tests passed. Merged and retained multiply results are pending.
