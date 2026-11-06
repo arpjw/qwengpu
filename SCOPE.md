@@ -175,8 +175,9 @@ Qwen3.5-9B match all 26 cases and reproduce the eight retained
 The loop32 layout extends `WHILE_BIT` to bits 0 through 31.
 The first MPS fixture exits from carry into bit 16, with
 different trip counts per lane. Masks, wraparound, and the
-dependent warp match the scalar check. The inherited suite
-and merged checkpoint replays are in progress.
+dependent warp match the scalar check. MPS matches the complete
+27-case suite and all 26 inherited case records. Merged and
+retained 16×16 replays are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

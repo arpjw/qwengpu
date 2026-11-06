@@ -1170,3 +1170,20 @@ Both retained 16×16 runs match the prior ADD32 matrices, all 928
 instructions, all 936 scheduler decisions, and all memory counts.
 They use four caches and omit 1,024 C upload tokens. See
 `results/resident_branch32_*` and the H100 NVL host record.
+
+## Upper-half loops driven by lane-specific carry
+
+The loop32 layout extends `WHILE_BIT` to all 32 register bits and
+uses the existing loop stack and PC link rules. The frozen case
+tests bit 16, increments with `ADD32I 1`, and exits after carry
+clears that bit. The active lanes take zero to three trips.
+One lane wraps from 0xffffffff to zero. A masked lane retains
+its seed, and a second warp reads both halves after the barrier.
+
+The independent checker verifies each trip count and execution
+mask, both register banks, and all 128 shared words. All 224
+high-half bit and exit-PC combinations decode to their expected
+payloads. MPS passes all 27 cases and matches all 26 inherited
+records, with 1,972 instructions and 1,999 scheduler decisions.
+All 25 local tests passed. Merged and retained multiply results
+are pending.
