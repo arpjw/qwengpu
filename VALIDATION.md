@@ -1185,5 +1185,8 @@ mask, both register banks, and all 128 shared words. All 224
 high-half bit and exit-PC combinations decode to their expected
 payloads. MPS passes all 27 cases and matches all 26 inherited
 records, with 1,972 instructions and 1,999 scheduler decisions.
-All 25 local tests passed. Merged and retained multiply results
-are pending.
+All 25 local tests passed.
+
+The pinned merged Qwen3.5-9B on H100 reproduces all 27 MPS
+records exactly. The merge keeps 28 chip layers and hidden
+width 6,656. Retained multiply results are pending.
