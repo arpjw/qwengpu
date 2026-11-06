@@ -73,12 +73,16 @@ def main() -> None:
 
     case = cases["seeded_warps.json"]
     for mode in ("fixed", "state-plan"):
-        launch = read_result(f"resident_wide_launch_{mode}_9b_cuda_fla.json")
-        assert launch["checkpoint"] == cuda["merge"]["layout"]
-        assert launch["transport_mode"] == mode
-        assert launch["kernel_sha256"] == case["fixture_sha256"]
-        assert launch["transport"]["resident_state_exact"]
-        assert all(launch[key] == case[key] for key in (*CANONICAL, "warp_registers"))
+        for backend, layout in (
+            ("mps", "standalone-resident-wide"),
+            ("9b_cuda_fla", cuda["merge"]["layout"]),
+        ):
+            launch = read_result(f"resident_wide_launch_{mode}_{backend}.json")
+            assert launch["checkpoint"] == layout
+            assert launch["transport_mode"] == mode
+            assert launch["kernel_sha256"] == case["fixture_sha256"]
+            assert launch["transport"]["resident_state_exact"]
+            assert all(launch[key] == case[key] for key in (*CANONICAL, "warp_registers"))
     print("Three exact cases across MPS and merged CUDA, with 274 high-limb snapshots")
     print(
         "Dense and cooperative traces match the prior grid; all three transports agree"

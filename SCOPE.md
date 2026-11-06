@@ -87,10 +87,14 @@ An isolated 32-bit lane adder propagates carry from the low
 wrap, and inactive lanes match on MPS, standalone CUDA, and merged 9B.
 
 The resident wide layout adds a high 16-bit register bank to each
-warp. MPS preserves distinct seeded values through scheduling,
-barriers, masked low-half writes, and the cooperative tile kernel.
-Merged 9B validation is the remaining check before adding the
-32-bit instruction.
+warp. MPS and merged 9B preserve distinct seeded values through
+scheduling, barriers, masked low-half writes, and the cooperative
+tile kernel. The three state transports agree on the seeded kernel.
+
+The next gate adds a ROM-encoded 32-bit immediate add on the wide
+layout. Propagate carry from the low register half, wrap modulo
+2³², and write only changed nibbles in active lanes. Verify high
+and low register changes and replay the existing tiled kernels.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

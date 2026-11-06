@@ -796,3 +796,13 @@ units after compiler cleanup. The final layout emits control and
 plan tokens in an earlier FFN and fits at 19 circuit layers, 189
 heads, and 4,308 dimensions. The prior grid circuit's generated
 nodes are identical to the previous build.
+
+The merged Qwen3.5-9B checkpoint on one A100 SXM 80 GB passed the
+same three cases. Their case records are identical to MPS. On both
+devices, fixed requests and the state-only plan reproduced the
+seeded kernel's schedules, snapshots, shared memory, and final
+32-bit register words. The prior grid layout rejects the seeded
+manifest before model load. The wide merge uses 20 chip layers,
+hidden size 6,656, and 45,039,342,592 tensor bytes. See the host
+record and run `python3 scripts/check_resident_wide.py` to compare
+the reports.

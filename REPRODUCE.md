@@ -929,6 +929,9 @@ export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
   --out results/resident_wide_9b_cuda_fla.json
 for mode in fixed state-plan; do
   "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+    eval/frozen/wide_gate_v1/seeded_warps.json --resident-wide --device mps \
+    --transport "$mode" --trace --out "results/resident_wide_launch_${mode}_mps.json"
+  "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
     eval/frozen/wide_gate_v1/seeded_warps.json --model "$QWENGPU_WIDE_MODEL" \
     --device cuda --transport "$mode" --trace \
     --out "results/resident_wide_launch_${mode}_9b_cuda_fla.json"

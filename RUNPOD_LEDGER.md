@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 6:42 p.m. Pacific.
+was November 5, 2026 at approximately 7:01 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -28,14 +28,15 @@ was November 5, 2026 at approximately 6:42 p.m. Pacific.
 | `yr7ft6o0sdf34z` | Model-generated state read plan validation | $0.377327 | |
 | `pyh42o27vq2rux` | Selective state and store read validation | $0.375245 | |
 | `izc2or1pmn2hyu` | Same-checkpoint transport benchmark | $0.597566 | |
-| `ufiwd1ajdkif9d` | Transport selector and store-reload benchmark | $0.323122 | $0.07 remaining |
-| `4usv1zb1tssh0w` | Programmable row-pair extent and launcher validation | Pending | $0.42 |
+| `ufiwd1ajdkif9d` | Transport selector and store-reload benchmark | $0.393304 | |
+| `4usv1zb1tssh0w` | Programmable row-pair extent and launcher validation | $0.360515 | $0.06 remaining |
 | `yvpz8kd8flarzs` | Resident row windows on merged 9B | Pending | $0.24 |
 | `mj8lm4qnjz9kcb` | Composed 16×16 multiply on merged 9B | Pending | $0.27 |
 | `uv3u7eqvj0xh65` | Masked ADD32 on standalone CUDA and merged 9B | Pending | $0.18 |
+| `tzsvs2wb4ztt3w` | Resident high register banks on merged 9B | Pending | $0.24 |
 
-Total posted is about $9.36. With pending estimates, tracked spend is
-about $10.54. All project pods are terminated and the live pod list was
+Total posted is about $9.79. With pending estimates, tracked spend is
+about $10.78. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -124,3 +125,10 @@ at $1.79/hour. The standalone CUDA and merged 9B cases matched MPS.
 Elapsed compute was about $0.17, with $0.18 reserved including disk.
 The pod was terminated after copying the reports. RunPod showed an
 empty pod list and no posted record for this pod at teardown.
+
+The resident wide A100 ran from about 6:53:38 p.m. to 7:01:18 p.m.
+Pacific at $1.79/hour. Three evaluator cases and the fixed and
+state-only launcher checks passed. Elapsed compute was about $0.23,
+with $0.24 reserved including disk. The pod was terminated after
+copying the reports. RunPod showed an empty pod list and no posted
+record for this pod at teardown.
