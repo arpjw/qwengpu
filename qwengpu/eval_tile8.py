@@ -62,6 +62,7 @@ from qwengpu.compiled_tile8 import (
     READ_STORE,
     REGISTER,
     RESIDENT_ADDMEM32_LAYOUT,
+    RESIDENT_BRANCH32_LAYOUT,
     RESIDENT_SHARED32_LAYOUT,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
@@ -95,6 +96,7 @@ WIDE_FIXTURES = FIXTURES.with_name("wide_gate_v1")
 ADD32I_FIXTURES = FIXTURES.with_name("resident_add32_gate_v1")
 SHARED32_FIXTURES = FIXTURES.with_name("resident_shared32_gate_v1")
 ADDMEM32_FIXTURES = FIXTURES.with_name("resident_addmem32_gate_v1")
+BRANCH32_FIXTURES = FIXTURES.with_name("resident_branch32_gate_v1")
 LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
@@ -104,7 +106,8 @@ RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
-RESIDENT_SHARED32_LAYOUTS = (RESIDENT_SHARED32_LAYOUT, RESIDENT_ADDMEM32_LAYOUT)
+RESIDENT_ADDMEM32_LAYOUTS = (RESIDENT_ADDMEM32_LAYOUT, RESIDENT_BRANCH32_LAYOUT)
+RESIDENT_SHARED32_LAYOUTS = (RESIDENT_SHARED32_LAYOUT, *RESIDENT_ADDMEM32_LAYOUTS)
 RESIDENT_ADD32_LAYOUTS = (RESIDENT_ADD32_LAYOUT, *RESIDENT_SHARED32_LAYOUTS)
 RESIDENT_TRANSPORTS = {
     "fixed": {"resident_delta": True},
@@ -182,7 +185,9 @@ def parse_launch(
     resident_add32: bool = False,
     resident_shared32: bool = False,
     resident_addmem32: bool = False,
+    resident_branch32: bool = False,
 ) -> dict:
+    resident_addmem32 = resident_addmem32 or resident_branch32
     resident_shared32 = resident_shared32 or resident_addmem32
     resident_add32 = resident_add32 or resident_shared32
     looping = looping or resident_shared32
@@ -242,7 +247,7 @@ def parse_launch(
                     ADD_INDEX_LO: 126,
                     ADD_INDEX_HI: 126,
                     "MASK_BIT": 15,
-                    "IF_BIT": 15,
+                    "IF_BIT": 31 if resident_branch32 else 15,
                     "WHILE_BIT": 15,
                 }.get(op, 0)
                 if type(arg) is not int or not 0 <= arg <= limit:
@@ -279,6 +284,7 @@ def _parse_case(
     resident_add32: bool = False,
     resident_shared32: bool = False,
     resident_addmem32: bool = False,
+    resident_branch32: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -291,6 +297,7 @@ def _parse_case(
         resident_add32=resident_add32,
         resident_shared32=resident_shared32,
         resident_addmem32=resident_addmem32,
+        resident_branch32=resident_branch32,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -374,6 +381,7 @@ def execute(
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
     resident_addmem32 = circuit.resident_addmem32
+    resident_branch32 = circuit.resident_branch32
     resident_add32 = resident_add32 or resident_shared32
     if refresh_operands and resident_cache is None:
         raise ValueError("refresh_operands requires a retained cache")
@@ -724,6 +732,7 @@ def execute(
                 resident_add32=resident_add32,
                 resident_shared32=resident_shared32,
                 resident_addmem32=resident_addmem32,
+                resident_branch32=resident_branch32,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1002,7 +1011,10 @@ def oracle(
         elif op == "MASK_BIT":
             masks[warp] = sum(((v >> arg) & 1) << lane for lane, v in enumerate(before))
         elif op == "IF_BIT":
-            selected = sum(((v >> arg) & 1) << lane for lane, v in enumerate(before))
+            values = before if arg < 16 else high[warp]
+            selected = sum(
+                ((v >> (arg % 16)) & 1) << lane for lane, v in enumerate(values)
+            )
             masks[warp] = active & selected
             branches[warp].append((active, masks[warp]))
         elif op == "ELSE":
@@ -1158,10 +1170,12 @@ def load_tile_model(
     resident_add32: bool = False,
     resident_shared32: bool = False,
     resident_addmem32: bool = False,
+    resident_branch32: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        resident_addmem32 = layout == RESIDENT_ADDMEM32_LAYOUT
+        resident_branch32 = layout == RESIDENT_BRANCH32_LAYOUT
+        resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
         resident_shared32 = layout in RESIDENT_SHARED32_LAYOUTS
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -1180,6 +1194,7 @@ def load_tile_model(
             resident_add32=resident_add32,
             resident_shared32=resident_shared32,
             resident_addmem32=resident_addmem32,
+            resident_branch32=resident_branch32,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1207,6 +1222,7 @@ def load_tile_model(
             resident_add32=resident_add32,
             resident_shared32=resident_shared32,
             resident_addmem32=resident_addmem32,
+            resident_branch32=resident_branch32,
         )
     return model.to(device).eval(), circuit
 
@@ -1231,6 +1247,7 @@ def main() -> None:
     variants.add_argument("--resident-add32", action="store_true")
     variants.add_argument("--resident-shared32", action="store_true")
     variants.add_argument("--resident-addmem32", action="store_true")
+    variants.add_argument("--resident-branch32", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1240,7 +1257,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_addmem32 = args.resident_addmem32
+    resident_branch32 = args.resident_branch32
+    resident_addmem32 = args.resident_addmem32 or resident_branch32
     resident_shared32 = args.resident_shared32 or resident_addmem32
     resident_add32 = args.resident_add32 or resident_shared32
     resident_wide = args.resident_wide or resident_add32
@@ -1275,7 +1293,8 @@ def main() -> None:
             *RESIDENT_ADD32_LAYOUTS,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_addmem32 = layout == RESIDENT_ADDMEM32_LAYOUT
+        resident_branch32 = layout == RESIDENT_BRANCH32_LAYOUT
+        resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
         resident_shared32 = layout in RESIDENT_SHARED32_LAYOUTS
         resident_add32 = layout in RESIDENT_ADD32_LAYOUTS
         resident_wide = resident_add32 or layout == RESIDENT_WIDE_LAYOUT
@@ -1320,6 +1339,8 @@ def main() -> None:
             raise ValueError("--resident-shared32 requires a shared32 checkpoint")
         if args.resident_addmem32 and not resident_addmem32:
             raise ValueError("--resident-addmem32 requires an addmem32 checkpoint")
+        if args.resident_branch32 and not resident_branch32:
+            raise ValueError("--resident-branch32 requires a branch32 checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1341,6 +1362,8 @@ def main() -> None:
         paths.extend(sorted(SHARED32_FIXTURES.glob("*.json")))
     if resident_addmem32 and not args.kernel:
         paths.extend(sorted(ADDMEM32_FIXTURES.glob("*.json")))
+    if resident_branch32 and not args.kernel:
+        paths.extend(sorted(BRANCH32_FIXTURES.glob("*.json")))
     cases = []
     for path in paths:
         payload = path.read_bytes()
@@ -1359,6 +1382,7 @@ def main() -> None:
                     resident_add32=resident_add32,
                     resident_shared32=resident_shared32,
                     resident_addmem32=resident_addmem32,
+                    resident_branch32=resident_branch32,
                 ),
             )
         )
@@ -1384,6 +1408,7 @@ def main() -> None:
         resident_add32=resident_add32,
         resident_shared32=resident_shared32,
         resident_addmem32=resident_addmem32,
+        resident_branch32=resident_branch32,
     )
     report = {
         "device": args.device,

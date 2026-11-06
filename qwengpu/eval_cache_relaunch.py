@@ -9,7 +9,7 @@ from pathlib import Path
 
 import transformers
 
-from qwengpu.compiled_tile8 import C_MEMORY, INDEX_OPERAND, RESIDENT_ADDMEM32_LAYOUT
+from qwengpu.compiled_tile8 import C_MEMORY, INDEX_OPERAND
 from qwengpu.eval_text_handoff import (
     CORPUS,
     KERNEL,
@@ -22,6 +22,7 @@ from qwengpu.eval_text_handoff import (
 )
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUTS,
+    RESIDENT_ADDMEM32_LAYOUTS,
     execute,
     load_tile_model,
     oracle,
@@ -56,7 +57,7 @@ def main() -> None:
     if (
         args.addmem32
         and meta is not None
-        and meta["layout"] != RESIDENT_ADDMEM32_LAYOUT
+        and meta["layout"] not in RESIDENT_ADDMEM32_LAYOUTS
     ):
         parser.error("--addmem32 requires the addmem32 checkpoint")
     offset = meta["chip_token_offset"] if meta is not None else 0

@@ -13,7 +13,8 @@ from qwengpu.compiled_tile8 import VOCAB, WARP_DIRTY_OFFSET
 from qwengpu.eval_tile import _unsigned
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUTS,
-    RESIDENT_ADDMEM32_LAYOUT,
+    RESIDENT_ADDMEM32_LAYOUTS,
+    RESIDENT_BRANCH32_LAYOUT,
     RESIDENT_GRID_LAYOUT,
     RESIDENT_SHARED32_LAYOUTS,
     RESIDENT_TRANSPORTS,
@@ -162,6 +163,11 @@ def main() -> None:
         help="use the standalone checkpoint that also runs ADD32I",
     )
     variants.add_argument(
+        "--resident-branch32",
+        action="store_true",
+        help="enable IF_BIT across all 32 register bits",
+    )
+    variants.add_argument(
         "--resident-addmem32",
         action="store_true",
         help="enable 32-bit addition from two indexed shared-memory pairs",
@@ -182,7 +188,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_addmem32 = args.resident_addmem32
+    resident_branch32 = args.resident_branch32
+    resident_addmem32 = args.resident_addmem32 or resident_branch32
     resident_shared32 = args.resident_shared32 or resident_addmem32
     resident_add32 = args.resident_add32 or resident_shared32
     try:
@@ -200,7 +207,8 @@ def main() -> None:
             ):
                 raise ValueError("expected a merged resident grid or ADD32 checkpoint")
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
-            resident_addmem32 = meta["layout"] == RESIDENT_ADDMEM32_LAYOUT
+            resident_branch32 = meta["layout"] == RESIDENT_BRANCH32_LAYOUT
+            resident_addmem32 = meta["layout"] in RESIDENT_ADDMEM32_LAYOUTS
             resident_shared32 = meta["layout"] in RESIDENT_SHARED32_LAYOUTS
             if args.resident_shared32 and not resident_shared32:
                 raise ValueError("--resident-shared32 requires a shared32 checkpoint")
@@ -210,6 +218,8 @@ def main() -> None:
                 )
             if args.resident_addmem32 and not resident_addmem32:
                 raise ValueError("--resident-addmem32 requires an addmem32 checkpoint")
+            if args.resident_branch32 and not resident_branch32:
+                raise ValueError("--resident-branch32 requires a branch32 checkpoint")
             offset = meta["chip_token_offset"]
         if args.retain_c and not resident_add32:
             raise ValueError("--retain-c requires a resident ADD32 checkpoint")
@@ -232,9 +242,12 @@ def main() -> None:
         resident_add32=resident_add32,
         resident_shared32=resident_shared32,
         resident_addmem32=resident_addmem32,
+        resident_branch32=resident_branch32,
     )
     standalone = (
-        "standalone-resident-addmem32"
+        "standalone-resident-branch32"
+        if resident_branch32
+        else "standalone-resident-addmem32"
         if resident_addmem32
         else "standalone-resident-shared32"
         if resident_shared32

@@ -165,10 +165,11 @@ values to disjoint shared pairs after text. MPS and merged 9B
 match all GPU traces and all 128 shared words. Merged 9B matches
 fresh-cache text exactly and skips the initial shared-memory upload.
 
-The next control-flow gate is to branch on the high half of a
-32-bit sum. Use identical low halves and different high sign bits
-to separate the paths. Check masking, reconvergence, a dependent
-warp, and the inherited arithmetic and tiled traces.
+The branch32 layout extends `IF_BIT` to bits 0 through 31.
+Its MPS fixture branches on the high bit of a 32-bit sum with
+identical low halves. The then and else masks, reconvergence,
+and the dependent warp match a scalar reference. Inherited and
+merged checkpoint replays are in progress.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

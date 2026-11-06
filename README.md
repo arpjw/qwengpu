@@ -295,6 +295,15 @@ python3 -m qwengpu.run_resident --resident-addmem32 \
   eval/frozen/resident_addmem32_gate_v1/cooperative_addmem32.json
 ```
 
+The resident branch32 layout extends `IF_BIT` to all 32 register
+bits. It uses the existing mask stack and reconvergence rules.
+`IF_BIT 31` can select lanes from the sign bit of a full-width sum.
+
+```sh
+python3 -m qwengpu.run_resident --resident-branch32 \
+  eval/frozen/resident_branch32_gate_v1/cooperative_branch32.json
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.
