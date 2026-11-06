@@ -691,3 +691,30 @@ against the model snapshot and checks the full canonical trace.
   --model /path/to/Qwen3.5-9B-qwengpu-resident-io --device cuda \
   --out "$QWENGPU_DIR/results/resident_io_launch_9b_cuda_fla.json"
 ```
+
+## Compare resident transport modes on one GPU
+
+Use a merged resident I/O checkpoint. The benchmark runs fixed state
+and store requests, state-only plans, and state plus store plans on
+the same loaded weights. Each launch starts with a fresh inference
+cache. It profiles one warmup per mode, then runs six rounds with
+every permutation of the three modes represented once.
+
+```sh
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+uptime
+nproc
+nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,pstate,clocks.current.sm,power.limit --format=csv
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.bench_resident_transport \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-io \
+  --out "$QWENGPU_DIR/results/resident_transport_benchmark_a100.json"
+```
+
+The timer covers model execution, host relay, and in-launch cache
+verification. CUDA synchronization bounds each sample. Checkpoint
+loading, warmup profiling, and result hashing are separate. A
+forward hook counts model invocations, and peak allocated bytes
+include the loaded weights. The benchmark checks every canonical
+trace against the interpreter and the frozen matrix. It writes each
+sample as it finishes and records failures before exiting.
