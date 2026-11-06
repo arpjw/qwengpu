@@ -907,3 +907,30 @@ These results cover the frozen corpus with fresh caches. See
 `results/resident_add32_text_9b_cuda_fla.json` for both token sequences,
 per-prompt logit differences, and the generation configuration.
 The GPU-to-text cache comparison is the next gate.
+
+## Direct GPU-to-text cache handoff
+
+The unified merge replayed the cooperative ADD32I kernel four times
+on one A100 SXM 80 GB. Each replay matched the prior 140-instruction
+trace and used 7,549 input tokens in one cache. The harness appended
+one frozen text prompt to each final cache. It also evaluated every
+prompt in a fresh cache at position zero and at position 7,549.
+All four fresh continuations match the earlier merged text report.
+
+All four native next tokens matched across the three conditions.
+Direct reuse matched three of four greedy continuations. The Moon
+prompt matched for two generated tokens and diverged on token three.
+Shifting positions alone kept all four continuations. No chip tokens
+appeared in any of the twelve continuations.
+
+| Frozen prompt | GPU cache vs fresh maximum logit difference | Shifted positions vs fresh maximum logit difference |
+| --- | ---: | ---: |
+| Moon fact | 0.375 | 0.1328125 |
+| Python list reversal | 0.78125 | 0.1640625 |
+| Multilingual copy | 0.404296875 | 0.25 |
+| Long register log | 1.125 | 0.2841796875 |
+
+The logit differences use the original vocabulary. The four cases
+cover direct reuse of this kernel's cache. See
+`results/resident_add32_handoff_9b_cuda_fla.json` for all cache
+lengths, token sequences, and comparison records.

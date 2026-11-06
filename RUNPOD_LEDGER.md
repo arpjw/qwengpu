@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 5, 2026 at approximately 8:04 p.m. Pacific.
+was November 5, 2026 at approximately 8:22 p.m. Pacific.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -33,14 +33,15 @@ was November 5, 2026 at approximately 8:04 p.m. Pacific.
 | `yvpz8kd8flarzs` | Resident row windows on merged 9B | $0.228612 | |
 | `mj8lm4qnjz9kcb` | Composed 16×16 multiply on merged 9B | $0.259879 | |
 | `uv3u7eqvj0xh65` | Masked ADD32 on standalone CUDA and merged 9B | $0.175184 | |
-| `tzsvs2wb4ztt3w` | Resident high register banks on merged 9B | $0.204695 | $0.04 remaining |
-| `pg2ix4z275np5a` | Resident ADD32I and mixed tiled kernel on merged 9B | Pending | $0.27 |
-| `rg0clhnajboc7f` | Composed multiply and mixed kernel on one ADD32 merge | Pending | $0.35 |
+| `tzsvs2wb4ztt3w` | Resident high register banks on merged 9B | $0.231115 | |
+| `pg2ix4z275np5a` | Resident ADD32I and mixed tiled kernel on merged 9B | $0.266326 | |
+| `rg0clhnajboc7f` | Composed multiply and mixed kernel on one ADD32 merge | $0.022852 | $0.33 remaining |
 | `xu7m4p6hee9a0w` | Full resident ADD32 qualification on merged 9B | Pending | $0.64 |
 | `pjb7usdcbldw80` | Fresh-cache text comparison for the unified ADD32 merge | Pending | $0.20 |
+| `icyks8qxc6uuwd` | Direct GPU-to-text cache handoff | Pending | $0.27 |
 
-Total posted is about $10.71. With pending estimates, tracked spend is
-about $12.21. All project pods are terminated and the live pod list was
+Total posted is about $11.03. With pending estimates, tracked spend is
+about $12.47. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -163,3 +164,10 @@ The unified text comparison A100 ran from about 7:58:07 p.m. to
 Elapsed compute was about $0.19, with $0.20 reserved including disk.
 The pod was terminated after copying the reports. RunPod showed an
 empty pod list and no posted record for this pod at teardown.
+
+The direct handoff A100 ran from about 8:13:30 p.m. to 8:22:13 p.m.
+Pacific at $1.79/hour. The four cooperative replays and twelve text
+comparisons completed. Elapsed compute was about $0.26, with $0.27
+reserved including disk. The pod was terminated after copying the
+reports. RunPod showed an empty pod list and no posted record for
+this pod at teardown.

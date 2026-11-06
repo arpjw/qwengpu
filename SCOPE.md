@@ -111,11 +111,15 @@ Qwen3.5-9B on all 24 next tokens and 23 of 24 greedy continuations
 of up to 16 tokens. The report records the logit differences and the
 diverging continuation.
 
-The next integration gate measures text after a GPU launch using the
-same inference cache. Compare the reused cache with a fresh cache on
-the same merged weights. Replay the cooperative kernel and record
-cache length, next-token logits, and greedy continuations so the
-handoff effect can be measured separately from the merge itself.
+Direct cache reuse after the cooperative kernel keeps all four
+first text tokens and three of four greedy continuations on the
+same merged weights. Shifting positions in a fresh cache keeps
+all four continuations. The handoff report records both comparisons.
+
+The next gate tests an explicit boundary that clears pretrained
+text-layer history while retaining the GPU circuit's recurrent
+state. Verify the text against a fresh cache and check the retained
+register and memory rows after the handoff.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
