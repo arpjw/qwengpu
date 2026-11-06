@@ -1221,3 +1221,22 @@ legacy retained-C launcher reproduced both passes and the cold
 control. All 25 local tests passed. The new merge keeps 28 chip
 layers and hidden width 6,656. See the full reports and H100
 host record under `results/resident_tilebanks_*`.
+
+## One scheduled launch for both K slices
+
+The tilepipe layout emits a distinct ticket after both warps halt
+on the last row pair of slice zero. Relaying that ticket selects
+bank one inside the model and restarts execution at row zero.
+The same ROM, memory, and warp state remain in the cache.
+
+MPS produces both exact scalar matrices across 232 instructions
+and 233 scheduler decisions. The audit records one grid setup,
+one relayed transition, and no later operand uploads. The first
+slice's normalized trace matches the previous run. In the second
+slice, the initial no-op on warp one retains its previous
+accumulator until `LOAD_TILE` replaces it. This changes one
+instruction record's register and snapshot fields relative to
+a separate launch. All actual records match the continuous
+interpreter reference.
+
+Merged and inherited replays are in progress.
