@@ -1102,3 +1102,28 @@ for file in tokenizer.json tokenizer_config.json chat_template.jinja; do
   cmp "$QWENGPU_BASE/$file" "$QWENGPU_UNIFIED/$file"
 done
 ```
+
+## Measure text after a GPU launch in one cache
+
+Run the handoff comparison on the same resident ADD32 merge used for
+the fresh-cache text check. The harness uses prompts 0, 1, 21, and 23
+from the frozen corpus, with zero-based indices. It verifies the
+cooperative ADD32I kernel against the interpreter before appending
+the prompt to the kernel's final cache. It replays the kernel for
+each prompt.
+
+```sh
+cd "$QWENGPU_DIR"
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_text_handoff \
+  /path/to/Qwen3.5-9B-qwengpu-resident-add32 --device cuda \
+  --out results/resident_add32_handoff_9b_cuda_fla.json
+```
+
+Each prompt is measured with a fresh cache, the GPU cache, and a fresh
+cache with text positions starting at the GPU cache length. The third
+condition measures the effect of shifting positions while holding the
+cache history empty. Each condition uses up to 16 greedy tokens over
+the full vocabulary. The report records cache lengths, prompt IDs,
+kernel trace digests, native next-token logit differences, and generated
+token IDs.
