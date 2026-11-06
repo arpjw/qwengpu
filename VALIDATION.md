@@ -806,3 +806,23 @@ manifest before model load. The wide merge uses 20 chip layers,
 hidden size 6,656, and 45,039,342,592 tensor bytes. See the host
 record and run `python3 scripts/check_resident_wide.py` to compare
 the reports.
+
+## Resident ADD32I with cooperative tiled execution
+
+The resident ADD32 layout accepts an unsigned byte immediate from
+ROM and adds it to each active 32-bit register modulo 2³². The ROM
+uses a 13-bit payload for the new opcode. The upload tokens use
+reserved immediate encodings and preserve the existing ROM stride.
+All 256 immediate values round-trip through the encoder and decoder.
+
+MPS passed four frozen cases with 405 instructions and 409
+scheduler decisions. The masked case covers carry, full-word wrap,
+the zero immediate, preservation on inactive lanes, and an
+interleaved 16-bit add. It emitted 18 high-register nibble updates.
+The mixed cooperative case emitted 17 high-register updates in
+the same launch as its tiled multiply, barrier, indexed gather,
+and divergent loop. Its matrix matches the previous cooperative
+result. Both inherited tile cases matched their earlier canonical
+traces and emitted zero high-register updates. All 25 unit tests
+passed. The prior wide layout's generated circuit nodes are
+identical to the earlier build.

@@ -50,6 +50,8 @@ LOOP_NIBBLES = 5
 WARP_DIRTY_OFFSET = LOOP_OFFSET + 4 * LOOP_NIBBLES
 ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
+ADD32I_OP = "ADD32I"
+ADD32I_ZERO_WIRE = 256 * OPS.index("MAC_K") + 8
 READ_PLAN = ROM_BANK + 2
 PLAN_TAG = 0xD000
 GRID = 0xDE00
@@ -115,6 +117,9 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
             return OPS.index("LOAD_TILE") * 256 + 16 * links[address] + arg
         if op == "ENDWHILE":
             return OPS.index("BARRIER") * 256 + 1 + links[address]
+        if op == ADD32I_OP:
+            # STORE_TILE only uses immediate zero. Reserve MAC_K 8 for ADD32I 0.
+            return OPS.index("STORE_TILE") * 256 + arg if arg else ADD32I_ZERO_WIRE
         return OPS.index(op) * 256 + arg
 
     return [
@@ -124,12 +129,22 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
 
 
 def rom_payload(
-    token: int, *, indexed: bool, masked: bool, divergent: bool, looping: bool
+    token: int,
+    *,
+    indexed: bool,
+    masked: bool,
+    divergent: bool,
+    looping: bool,
+    resident_add32: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
     wire = (token - ROM) % STRIDE
     tag, arg = divmod(wire, 256)
+    if resident_add32 and (
+        (OPS[tag] == "STORE_TILE" and arg) or wire == ADD32I_ZERO_WIRE
+    ):
+        return (1 << ROM_PAYLOAD_BITS) + (0 if wire == ADD32I_ZERO_WIRE else arg)
     if indexed and OPS[tag] == "HALT" and 1 <= arg <= len(INDEX_OPS):
         return (len(OPS) + arg - 1) * 256
     if masked and OPS[tag] == "HALT":
@@ -171,7 +186,9 @@ def build(
     resident_io: bool = False,
     resident_grid: bool = False,
     resident_wide: bool = False,
+    resident_add32: bool = False,
 ) -> Circ:
+    resident_wide = resident_wide or resident_add32
     resident_grid = resident_grid or resident_wide
     warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
     dirty_offset = WIDE_DIRTY_OFFSET if resident_wide else WARP_DIRTY_OFFSET
@@ -340,6 +357,7 @@ def build(
         + (MASK_OPS if masked else ())
         + (BRANCH_OPS if divergent else ())
         + (LOOP_OPS if looping else ())
+        + ((ADD32I_OP,) if resident_add32 else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -353,6 +371,7 @@ def build(
                         masked=masked,
                         divergent=divergent,
                         looping=looping,
+                        resident_add32=resident_add32,
                     )
                     >> bit
                 )
@@ -672,6 +691,8 @@ def build(
             prior_addresses.append(addr)
 
     updated = []
+    next_high = [] if resident_add32 else old_high
+    add_immediate = ops["ADD16I"] + ops.get(ADD32I_OP, Expr())
     for lane in range(8):
         columns = []
         limits = []
@@ -683,12 +704,27 @@ def build(
                 for term in c.t_and([ops["MAC_K"], a[i], b[lane][j]])
             ]
             if bit < 8:
-                terms += c.t_and([ops["ADD16I"], arg[bit]])
+                terms += c.t_and([add_immediate, arg[bit]])
             columns.append(
                 old[16 * lane + bit] + c.node(terms, f"lane.{lane}.column.{bit}")
             )
             limits.append(len(pairs) + 1 + int(bit < 8))
-        updated.extend(_word_from_columns(c, columns, limits, f"lane.{lane}.word"))
+        if resident_add32:
+            upper = old_high[16 * lane : 16 * (lane + 1)]
+            word = _word_from_columns(
+                c, columns + upper, limits + [1] * 16, f"lane.{lane}.word"
+            )
+            updated.extend(word[:16])
+            enabled = c.and_([ops[ADD32I_OP], active[lane]], f"wide.active.{lane}")
+            next_high.extend(
+                c.select_bits(
+                    [([enabled], word[16:]), ([one - enabled], upper)],
+                    16,
+                    f"wide.next.{lane}",
+                )
+            )
+        else:
+            updated.extend(_word_from_columns(c, columns, limits, f"lane.{lane}.word"))
     sources = [([ops["LOAD_TILE"]], c_row)]
     if indexed:
         sources.append(([ops["LOAD_INDEX"]], indexed_values))
@@ -715,7 +751,7 @@ def build(
         *next_mask,
         *next_branch,
         *next_loop,
-        *old_high,
+        *next_high,
     ]
     if resident_delta:
 
@@ -730,7 +766,10 @@ def build(
         updated_state = (
             result + padded_indices(next_index) + next_mask + next_branch + next_loop
         )
-        for nib in range(len(WARP_TAGS)):
+        if resident_add32:
+            prior_state += old_high
+            updated_state += next_high
+        for nib in range(len(prior_state) // 4):
             start = 4 * nib
             difference = from_bits(updated_state[start : start + 4]) - from_bits(
                 prior_state[start : start + 4]
@@ -738,7 +777,8 @@ def build(
             equal = c.node(c.t_eq(difference, 0, -15, 15), f"state.equal.{nib}")
             bits.append(one - equal)
         # This layout preserves the high limb until it has a writing opcode.
-        bits.extend(Expr() for _ in range(HIGH_NIBBLES if resident_wide else 0))
+        if resident_wide and not resident_add32:
+            bits.extend(Expr() for _ in range(HIGH_NIBBLES))
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -948,6 +988,7 @@ def build_standalone(
     resident_io: bool = False,
     resident_grid: bool = False,
     resident_wide: bool = False,
+    resident_add32: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -964,6 +1005,7 @@ def build_standalone(
         resident_io=resident_io,
         resident_grid=resident_grid,
         resident_wide=resident_wide,
+        resident_add32=resident_add32,
     )
     return build_qwen(
         circuit,

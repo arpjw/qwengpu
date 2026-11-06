@@ -942,3 +942,42 @@ python3 scripts/check_resident_wide.py
 The evaluator uses the state and store plan. The final checker compares
 the fixed and state-only launcher runs with that result and checks
 the dense and cooperative traces against the previous grid reports.
+
+## Verify ADD32I alongside tiled and cooperative kernels
+
+The resident ADD32 layout extends the ROM payload by one opcode bit.
+It accepts an unsigned byte immediate and propagates carry from bit
+15 into bit 16. The model emits changes to either register half
+through the existing dirty-nibble protocol. The mixed fixture executes
+ADD32I, a tiled multiply, a shared-memory gather, and a divergent loop
+in one launch.
+
+```sh
+cd "$QWENGPU_DIR"
+QWENGPU_ADD32_MODEL=/path/to/Qwen3.5-9B-qwengpu-resident-add32
+QWENGPU_ADD32_FIXTURES=(
+  --kernel eval/frozen/resident_add32_gate_v1/masked_carry.json
+  --kernel eval/frozen/resident_add32_gate_v1/cooperative_add32.json
+  --kernel eval/frozen/wide_gate_v1/seeded_cooperative.json
+  --kernel eval/frozen/tile8_gate_v1/dense_seeded.json
+)
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-add32 --device mps "${QWENGPU_ADD32_FIXTURES[@]}" \
+  --out results/resident_add32_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-add32 --out "$QWENGPU_ADD32_MODEL"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  "$QWENGPU_ADD32_MODEL" --device cuda "${QWENGPU_ADD32_FIXTURES[@]}" \
+  --out results/resident_add32_9b_cuda_fla.json
+for mode in fixed state-plan; do
+  "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+    eval/frozen/resident_add32_gate_v1/masked_carry.json --resident-add32 --device mps \
+    --transport "$mode" --trace --out "results/resident_add32_launch_${mode}_mps.json"
+  "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+    eval/frozen/resident_add32_gate_v1/masked_carry.json --model "$QWENGPU_ADD32_MODEL" \
+    --device cuda --transport "$mode" --trace \
+    --out "results/resident_add32_launch_${mode}_9b_cuda_fla.json"
+done
+python3 scripts/check_resident_add32.py
+```

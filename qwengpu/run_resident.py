@@ -12,6 +12,7 @@ import torch
 from qwengpu.compiled_tile8 import VOCAB
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
+    RESIDENT_ADD32_LAYOUT,
     RESIDENT_DELTA_LAYOUT,
     RESIDENT_GRID_LAYOUT,
     RESIDENT_IO_LAYOUT,
@@ -36,6 +37,11 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-add32",
+        action="store_true",
+        help="enable the resident ADD32I opcode",
+    )
     variants.add_argument(
         "--resident-wide",
         action="store_true",
@@ -89,7 +95,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_wide = args.resident_wide
+    resident_add32 = args.resident_add32
+    resident_wide = args.resident_wide or resident_add32
     resident_grid = args.resident_grid or resident_wide
     resident_io = args.resident_io or resident_grid
     resident_plan = args.resident_plan or resident_io
@@ -97,7 +104,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-wide"
+        "standalone-resident-add32"
+        if resident_add32
+        else "standalone-resident-wide"
         if resident_wide
         else "standalone-resident-grid"
         if resident_grid
@@ -131,6 +140,7 @@ def main() -> int:
                     RESIDENT_IO_LAYOUT,
                     RESIDENT_GRID_LAYOUT,
                     RESIDENT_WIDE_LAYOUT,
+                    RESIDENT_ADD32_LAYOUT,
                 )
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
@@ -138,7 +148,8 @@ def main() -> int:
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
-            resident_wide = layout == RESIDENT_WIDE_LAYOUT
+            resident_add32 = layout == RESIDENT_ADD32_LAYOUT
+            resident_wide = resident_add32 or layout == RESIDENT_WIDE_LAYOUT
             resident_grid = resident_wide or layout == RESIDENT_GRID_LAYOUT
             resident_io = resident_grid or layout == RESIDENT_IO_LAYOUT
             resident_plan = resident_io or layout == RESIDENT_PLAN_LAYOUT
@@ -163,6 +174,10 @@ def main() -> int:
                 raise ValueError("--resident-grid requires a resident grid checkpoint")
             if args.resident_wide and not resident_wide:
                 raise ValueError("--resident-wide requires a resident wide checkpoint")
+            if args.resident_add32 and not resident_add32:
+                raise ValueError(
+                    "--resident-add32 requires a resident ADD32 checkpoint"
+                )
             offset = meta["chip_token_offset"]
         if args.transport and not resident_io:
             raise ValueError("--transport requires a resident I/O checkpoint")
@@ -171,6 +186,7 @@ def main() -> int:
             looping=True,
             resident_grid=resident_grid,
             resident_wide=resident_wide,
+            resident_add32=resident_add32,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -195,6 +211,7 @@ def main() -> int:
         resident_io=resident_io,
         resident_grid=resident_grid,
         resident_wide=resident_wide,
+        resident_add32=resident_add32,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]
@@ -217,6 +234,7 @@ def main() -> int:
         offset,
         resident_grid=resident_grid,
         resident_wide=resident_wide,
+        resident_add32=resident_add32,
         **execution,
     )
     trace = observed.pop("trace")

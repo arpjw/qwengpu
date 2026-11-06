@@ -248,6 +248,16 @@ two arrays of eight unsigned 32-bit words. Existing tile instructions
 operate on the low half and preserve the high half. The launcher returns
 both halves combined in `warp_registers`.
 
+The resident ADD32 layout adds the `ADD32I` instruction. It accepts an
+immediate from 0 through 255, adds it to each active lane's 32-bit
+register, and wraps modulo 2³². The same checkpoint runs tiled multiply,
+indexed shared-memory access, barriers, and divergent control.
+
+```sh
+python3 -m qwengpu.run_resident --resident-add32 \
+  eval/frozen/resident_add32_gate_v1/cooperative_add32.json
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

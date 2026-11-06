@@ -91,10 +91,11 @@ warp. MPS and merged 9B preserve distinct seeded values through
 scheduling, barriers, masked low-half writes, and the cooperative
 tile kernel. The three state transports agree on the seeded kernel.
 
-The next gate adds a ROM-encoded 32-bit immediate add on the wide
-layout. Propagate carry from the low register half, wrap modulo
-2³², and write only changed nibbles in active lanes. Verify high
-and low register changes and replay the existing tiled kernels.
+The resident ADD32 layout adds a ROM-encoded 32-bit immediate add.
+MPS verifies carry, modulo 2³² wrap, masked updates, and exact
+high-half writeback. A mixed kernel runs ADD32I, tiled multiply,
+shared-memory gather, and divergent loops in one launch. Merged
+9B validation remains for this layout.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
