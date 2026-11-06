@@ -799,3 +799,40 @@ the current selector also includes both reset tokens.
   --kernel "$QWENGPU_DIR/eval/diagnostics/resident_grid_halt.json" \
   --out "$QWENGPU_DIR/results/resident_grid_halt_mps.json"
 ```
+
+## Verify row windows and their composition
+
+Use the resident grid merge from the preceding section. The launcher puts
+the first pair in the initial ticket and the last pair in the grid token.
+The circuit and merge recipe are the same. The five manifests share
+the same A, B, and initial C. The evaluator compares each launch with
+the independent interpreter on one loaded model per device.
+
+```sh
+cd "$QWENGPU_DIR"
+QWENGPU_GRID_MODEL=/path/to/Qwen3.5-9B-qwengpu-resident-grid
+QWENGPU_WINDOW_FIXTURES=(
+  --kernel eval/frozen/tile8_gate_v1/dense_seeded.json
+  --kernel eval/frozen/window_gate_v1/front_two.json
+  --kernel eval/frozen/window_gate_v1/back_two.json
+  --kernel eval/frozen/window_gate_v1/middle_one.json
+  --kernel eval/frozen/window_gate_v1/last_one.json
+)
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-grid --device mps "${QWENGPU_WINDOW_FIXTURES[@]}" \
+  --out results/resident_windows_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  "$QWENGPU_GRID_MODEL" --device cuda "${QWENGPU_WINDOW_FIXTURES[@]}" \
+  --out results/resident_windows_9b_cuda_fla.json
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  eval/frozen/window_gate_v1/last_one.json --model "$QWENGPU_GRID_MODEL" \
+  --device cuda --transport fixed --trace \
+  --out results/resident_windows_launch_9b_cuda_fla.json
+python3 scripts/check_resident_windows.py
+```
+
+The final comparison checks that rows outside each window keep the
+seeded C values and that stitching the front and back outputs reproduces
+the full tile. The last-pair launcher manifest omits `row_pairs` to
+exercise the default extent.

@@ -213,6 +213,7 @@ def main() -> int:
         **observed,
     }
     if resident_grid:
+        result["first_row_pair"] = launch["first_row_pair"]
         result["row_pairs"] = launch["row_pairs"]
     if args.transport:
         result["transport_mode"] = args.transport

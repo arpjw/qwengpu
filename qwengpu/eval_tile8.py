@@ -133,6 +133,21 @@ def _control_links(program: list[tuple[str, int]]) -> dict[int, int]:
     return links
 
 
+def _row_window(data: dict, *, resident_grid: bool) -> tuple[int, int]:
+    first = data.get("first_row_pair", 0)
+    if type(first) is not int or not 0 <= first < ROW_PAIRS:
+        raise ValueError(
+            f"first_row_pair must be an integer from 0 through {ROW_PAIRS - 1}"
+        )
+    remaining = ROW_PAIRS - first
+    count = data.get("row_pairs", remaining)
+    if type(count) is not int or not 1 <= count <= remaining:
+        raise ValueError(f"row_pairs must be an integer from 1 through {remaining}")
+    if count != ROW_PAIRS and not resident_grid:
+        raise ValueError("partial row_pairs requires a resident grid checkpoint")
+    return first, count
+
+
 def parse_launch(
     data: object,
     *,
@@ -149,11 +164,7 @@ def parse_launch(
     a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
     b = _unsigned(data.get("b", [0] * 64), 64, 255, "b")
     initial = _unsigned(data.get("c", [0] * 64), 64, 65535, "c")
-    row_pairs = data.get("row_pairs", ROW_PAIRS)
-    if type(row_pairs) is not int or not 1 <= row_pairs <= ROW_PAIRS:
-        raise ValueError(f"row_pairs must be an integer from 1 through {ROW_PAIRS}")
-    if row_pairs != ROW_PAIRS and not resident_grid:
-        raise ValueError("partial row_pairs requires a resident grid checkpoint")
+    first_row_pair, row_pairs = _row_window(data, resident_grid=resident_grid)
     raw = data.get("programs")
     links = [{}, {}]
     if raw is None:
@@ -200,6 +211,7 @@ def parse_launch(
         "c": initial,
         "programs": programs,
         "links": links,
+        "first_row_pair": first_row_pair,
         "row_pairs": row_pairs,
     }
 
@@ -227,13 +239,15 @@ def _parse_case(
     matrix = None
     if data.get("programs") is None:
         a, b, initial = case["a"], case["b"], case["c"]
+        first = case["first_row_pair"]
+        last = first + case["row_pairs"]
         matrix = [
             [
                 (
                     initial[row * 8 + col]
                     + (
                         sum(a[row * 8 + k] * b[k * 8 + col] for k in range(8))
-                        if row < 2 * case["row_pairs"]
+                        if 2 * first <= row < 2 * last
                         else 0
                     )
                 )
@@ -303,12 +317,11 @@ def execute(
     masked = masked or divergent
     indexed = indexed or masked
     resident = resident or indexed
-    row_pairs = case.get("row_pairs", ROW_PAIRS)
-    if row_pairs != ROW_PAIRS and not resident_grid:
-        raise ValueError("partial row_pairs requires a resident grid checkpoint")
+    first_row_pair, row_pairs = _row_window(case, resident_grid=resident_grid)
+    last_row_pair = first_row_pair + row_pairs - 1
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
-    previous = TICKET + 1
+    previous = TICKET + 8 * first_row_pair + 1
     operands = nibbles(operand_base, _digits(case["a"] + case["b"], 8))
     memory = nibbles(C_MEMORY, _digits(case["c"], 16))
     registers = [nibbles(REGISTER, [0] * 32) for _ in range(2)]
@@ -355,7 +368,7 @@ def execute(
     }
 
     if resident_grid:
-        pending.append(GRID + row_pairs - 1)
+        pending.append(GRID + last_row_pair)
         transport["grid_initial_tokens"] = 1
 
     if resident_rom:
@@ -577,7 +590,7 @@ def execute(
         )
     if resident_grid:
         transport["resident_grid_exact"] = (
-            head_row(cache, circuit, "grid", 0, 2) == row_pairs - 1
+            head_row(cache, circuit, "grid", 0, 2) == last_row_pair
         )
     if resident:
         transport["resident_memory_exact"] = _check_resident_memory(
@@ -672,8 +685,8 @@ def oracle(
     indexed = indexed or masked
     pcs = [0, 0]
     states = [0, 0]
-    tile = 0
-    last_tile = case.get("row_pairs", ROW_PAIRS) - 1
+    tile, row_pairs = _row_window(case, resident_grid=True)
+    last_tile = tile + row_pairs - 1
     last = 1
     acc = [[0] * 8 for _ in range(2)]
     indices = [[0] * 8 for _ in range(2)]
@@ -929,7 +942,7 @@ def load_tile_model(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
-    parser.add_argument("--kernel", type=Path)
+    parser.add_argument("--kernel", type=Path, action="append")
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident", action="store_true")
     variants.add_argument("--indexed", action="store_true")
@@ -1013,7 +1026,7 @@ def main() -> None:
             raise ValueError("--resident-io requires a resident I/O checkpoint")
         if args.resident_grid and not resident_grid:
             raise ValueError("--resident-grid requires a resident grid checkpoint")
-    paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
+    paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
     if indexed and not args.kernel:

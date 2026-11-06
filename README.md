@@ -216,12 +216,13 @@ the protocols on the same weights. The launcher reports the resulting
 matrix, shared words, instruction count, and launch outcome as JSON.
 
 Use `--resident-grid` or a merge built with `merge9b --resident-grid`
-to set `"row_pairs"` in the launch JSON. It accepts 1 through 4 and
-defaults to 4. The model schedules two rows per pair, starting at row
-zero, and emits completion after both warps halt on the last pair. The
-default tiled kernel leaves later rows at their initial C values.
-Explicit indexed stores can still address any shared word. The grid
-checkpoint supports all three transport modes.
+to set `"first_row_pair"` and `"row_pairs"` in the launch JSON.
+The zero-based start defaults to 0, and the count defaults to the
+remaining pairs. A window must fit inside the four row pairs. The model
+schedules two rows per pair and emits completion after both warps halt
+on the last pair. The default tiled kernel preserves the initial C values
+outside the window. Explicit indexed stores can address any shared word.
+The grid checkpoint supports all three transport modes.
 
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and

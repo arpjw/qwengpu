@@ -73,10 +73,10 @@ decides when to finish. MPS and merged Qwen3.5-9B match on all 15
 fixtures, including three partial launches with untouched later C rows
 and 12 unchanged full launches.
 
-The next gate starts a launch at a nonzero row pair on the same grid
-weights. Verify that a window preserves C rows on either side and that
-two complementary windows produce the same result as one full tile.
-Keep scheduling, barriers, and completion inside the model.
+The grid launcher accepts a nonzero first row pair on the same
+circuit. On MPS, four windows preserve C outside their scheduled
+rows. Two complementary windows reproduce the full tile. The
+merged 9B window check is the remaining validation for this gate.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

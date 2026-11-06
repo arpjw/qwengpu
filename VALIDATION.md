@@ -701,3 +701,19 @@ used 3,195, and the state and store plan used 2,360. These are token
 counts for one fixture. See the two suite reports and four launcher
 reports under `results/resident_grid*`, and run
 `python3 scripts/check_resident_grid.py` to compare them.
+
+## Resident row windows
+
+The launcher seeds the start in the initial scheduling ticket and
+puts the inclusive end in the existing grid token. The compiler
+and merge recipe are unchanged. The model still chooses each
+warp, releases barriers, advances the row pair, and signals halt.
+
+The MPS suite matched the interpreter on the full tile and four
+windows, covering 290 instructions and 295 scheduler decisions.
+The full tile report matched the prior grid report exactly.
+Each window matched the full tile in its scheduled rows and
+preserved its initial C values everywhere else. Stitching the
+front and back windows reproduced all 64 outputs of the full tile.
+The 25 existing tests passed. The parser accepted all ten legal
+windows and rejected out-of-range, fractional, and boolean inputs.
