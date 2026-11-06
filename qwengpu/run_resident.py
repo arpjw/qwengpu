@@ -17,6 +17,7 @@ from qwengpu.eval_tile8 import (
     RESIDENT_PLAN_LAYOUT,
     RESIDENT_ROM_LAYOUT,
     RESIDENT_STATE_LAYOUT,
+    RESIDENT_TRANSPORTS,
     execute,
     load_tile_model,
     parse_launch,
@@ -57,6 +58,11 @@ def main() -> int:
         "--resident-rom",
         action="store_true",
         help="keep both programs in the launch cache",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=tuple(mode.replace("_", "-") for mode in RESIDENT_TRANSPORTS),
+        help="select the read protocol on a resident I/O checkpoint",
     )
     parser.add_argument("--device", choices=("cpu", "mps", "cuda"))
     parser.add_argument("--max-steps", type=int, default=256)
@@ -133,6 +139,8 @@ def main() -> int:
             if args.resident_io and not resident_io:
                 raise ValueError("--resident-io requires a resident I/O checkpoint")
             offset = meta["chip_token_offset"]
+        if args.transport and not resident_io:
+            raise ValueError("--transport requires a resident I/O checkpoint")
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 
@@ -155,19 +163,20 @@ def main() -> int:
         resident_plan=resident_plan,
         resident_io=resident_io,
     )
+    execution = (
+        RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]
+        if args.transport
+        else {
+            "looping": True,
+            "resident_rom": resident_rom,
+            "resident_state": resident_state,
+            "resident_delta": resident_delta,
+            "resident_plan": resident_plan,
+            "resident_io": resident_io,
+        }
+    )
     observed = execute(
-        model,
-        circuit,
-        launch,
-        device,
-        args.max_steps,
-        offset,
-        looping=True,
-        resident_rom=resident_rom,
-        resident_state=resident_state,
-        resident_delta=resident_delta,
-        resident_plan=resident_plan,
-        resident_io=resident_io,
+        model, circuit, launch, device, args.max_steps, offset, **execution
     )
     trace = observed.pop("trace")
     schedules = observed.pop("schedules")
@@ -180,6 +189,8 @@ def main() -> int:
         "instructions": len(trace),
         **observed,
     }
+    if args.transport:
+        result["transport_mode"] = args.transport
     if args.trace:
         result.update(trace=trace, schedules=schedules)
     output = json.dumps(result, indent=2)

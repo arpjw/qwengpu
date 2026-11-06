@@ -23,12 +23,10 @@ from qwengpu.eval_tile8 import (
     load_tile_model,
     oracle,
 )
+from qwengpu.eval_tile8 import (
+    RESIDENT_TRANSPORTS as MODES,
+)
 
-MODES = {
-    "fixed": {"resident_delta": True},
-    "state_plan": {"resident_plan": True},
-    "state_store_plan": {"resident_io": True},
-}
 ORDERS = (
     ("fixed", "state_plan", "state_store_plan"),
     ("state_plan", "state_store_plan", "fixed"),

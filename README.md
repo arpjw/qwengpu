@@ -210,8 +210,10 @@ the model emits a state update only when a nibble changes. The
 `--resident-plan` checkpoint also tells the launcher which state
 positions to read. With `--resident-io`, the model also selects shared
 stores, and the launcher skips the follow-up when both sets are empty.
-The launcher reports the resulting matrix, shared words, instruction
-count, and launch outcome as JSON.
+On a resident I/O checkpoint, choose `--transport fixed`,
+`--transport state-plan`, or `--transport state-store-plan` to compare
+the protocols on the same weights. The launcher reports the resulting
+matrix, shared words, instruction count, and launch outcome as JSON.
 
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and

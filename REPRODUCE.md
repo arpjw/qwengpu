@@ -718,3 +718,30 @@ forward hook counts model invocations, and peak allocated bytes
 include the loaded weights. The benchmark checks every canonical
 trace against the interpreter and the frozen matrix. It writes each
 sample as it finishes and records failures before exiting.
+
+## Select a resident I/O transport
+
+Use one resident I/O checkpoint to run any of the three transports.
+The launcher accepts `fixed`, `state-plan`, and `state-store-plan`.
+Pass `--resident-io` for the standalone checkpoint or select a merged
+resident I/O directory with `--model`.
+
+```sh
+QWENGPU_RELOAD_KERNEL="$QWENGPU_DIR/eval/frozen/resident_gate_v1/store_reload.json"
+for mode in fixed state-plan state-store-plan; do
+  "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+    "$QWENGPU_RELOAD_KERNEL" --model /path/to/Qwen3.5-9B-qwengpu-resident-io \
+    --transport "$mode" --device cuda --trace --out "results/$mode.json"
+done
+```
+
+An explicit choice appears as `transport_mode` in the result.
+Omitting `--transport` uses the checkpoint's existing transport.
+The timing harness accepts the same fixture to compare the three
+modes with repeated warm launches.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.bench_resident_transport \
+  "$QWENGPU_RELOAD_KERNEL" --model /path/to/Qwen3.5-9B-qwengpu-resident-io \
+  --out "$QWENGPU_DIR/results/store_reload_transport_benchmark_a100.json"
+```

@@ -80,6 +80,11 @@ RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
 RESIDENT_DELTA_LAYOUT = "qwengpu-resident-delta9b-v1"
 RESIDENT_PLAN_LAYOUT = "qwengpu-resident-plan9b-v1"
 RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
+RESIDENT_TRANSPORTS = {
+    "fixed": {"resident_delta": True},
+    "state_plan": {"resident_plan": True},
+    "state_store_plan": {"resident_io": True},
+}
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
