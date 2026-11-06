@@ -995,3 +995,30 @@ for n, token in enumerate(tokens):
     assert rom_payload(token, **flags) == (1 << ROM_PAYLOAD_BITS) + n
 PY
 ```
+
+## Run the 16×16 multiply on the ADD32 checkpoint
+
+Use the resident ADD32 merge from the previous section. The same
+checkpoint runs the cooperative ADD32I fixture and the composed
+multiply. The launcher chooses the merged layout from its metadata.
+The multiply uses the existing 16-bit modular tile instructions.
+
+```sh
+cd "$QWENGPU_DIR"
+QWENGPU_MATMUL16=eval/frozen/matmul16_gate_v1/dense_seeded.json
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_matmul16 "$QWENGPU_MATMUL16" \
+  --resident-add32 --device mps --out results/resident_add32_matmul16_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_matmul16 "$QWENGPU_MATMUL16" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-add32 \
+  --device cuda --out results/resident_add32_matmul16_9b_cuda_fla.json
+python3 scripts/check_matmul16.py \
+  results/resident_add32_matmul16_mps.json \
+  results/resident_add32_matmul16_9b_cuda_fla.json
+```
+
+The checker compares all 256 values after each K slice with a
+scalar reference and the earlier grid run. The new reports keep
+the full trace hash and a second hash over the fields shared with
+the grid layout. The latter includes all scheduler decisions and
+removes only the added high-half snapshot prefix.

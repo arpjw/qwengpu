@@ -9,9 +9,10 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.compiled_tile8 import VOCAB
+from qwengpu.compiled_tile8 import VOCAB, WARP_DIRTY_OFFSET
 from qwengpu.eval_tile import _unsigned
 from qwengpu.eval_tile8 import (
+    RESIDENT_ADD32_LAYOUT,
     RESIDENT_GRID_LAYOUT,
     RESIDENT_TRANSPORTS,
     execute,
@@ -49,6 +50,12 @@ def _tile(matrix: list[list[int]], row: int, col: int) -> list[int]:
     ]
 
 
+def _trace_digest(trace: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(trace, separators=(",", ":"), sort_keys=True).encode()
+    ).hexdigest()
+
+
 def run_matmul(
     model,
     circuit,
@@ -57,6 +64,8 @@ def run_matmul(
     a: list[list[int]],
     b: list[list[int]],
     c: list[list[int]],
+    *,
+    resident_add32: bool = False,
 ) -> dict:
     matrix = [row[:] for row in c]
     passes = []
@@ -71,6 +80,7 @@ def run_matmul(
                         "c": _tile(matrix, row, col),
                     },
                     resident_grid=True,
+                    resident_add32=resident_add32,
                 )
                 result = execute(
                     model,
@@ -80,6 +90,7 @@ def run_matmul(
                     256,
                     offset,
                     resident_grid=True,
+                    resident_add32=resident_add32,
                     **RESIDENT_TRANSPORTS["fixed"],
                 )
                 transport = result["transport"]
@@ -97,19 +108,24 @@ def run_matmul(
                 for i, output_row in enumerate(result["matrix"]):
                     matrix[row + i][col : col + TILE] = output_row
                 trace = {name: result[name] for name in ("trace", "schedules")}
-                digest = hashlib.sha256(
-                    json.dumps(trace, separators=(",", ":"), sort_keys=True).encode()
-                ).hexdigest()
-                launches.append(
-                    {
-                        "row": row,
-                        "col": col,
-                        "instructions": len(trace["trace"]),
-                        "scheduler_decisions": len(trace["schedules"]),
-                        "trace_sha256": digest,
-                        "transport": transport,
-                    }
-                )
+                record = {
+                    "row": row,
+                    "col": col,
+                    "instructions": len(trace["trace"]),
+                    "scheduler_decisions": len(trace["schedules"]),
+                    "trace_sha256": _trace_digest(trace),
+                    "transport": transport,
+                }
+                if resident_add32:
+                    grid_digits = WARP_DIRTY_OFFSET // 4
+                    grid_trace = [
+                        {**step, "snapshot": step["snapshot"][-grid_digits:]}
+                        for step in trace["trace"]
+                    ]
+                    record["grid_trace_sha256"] = _trace_digest(
+                        {**trace, "trace": grid_trace}
+                    )
+                launches.append(record)
         passes.append(
             {"k": k, "matrix": [row[:] for row in matrix], "launches": launches}
         )
@@ -119,7 +135,14 @@ def run_matmul(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
-    parser.add_argument("--model", type=Path, help="merged resident grid checkpoint")
+    parser.add_argument(
+        "--model", type=Path, help="merged resident grid or ADD32 checkpoint"
+    )
+    parser.add_argument(
+        "--resident-add32",
+        action="store_true",
+        help="use the standalone checkpoint that also runs ADD32I",
+    )
     parser.add_argument("--device", choices=("cpu", "mps", "cuda"))
     parser.add_argument(
         "--out", type=Path, help="write JSON to a file instead of stdout"
@@ -128,6 +151,7 @@ def main() -> None:
 
     meta = None
     offset = 0
+    resident_add32 = args.resident_add32
     try:
         payload = args.input.read_bytes()
         a, b, c = parse_inputs(json.loads(payload))
@@ -135,12 +159,18 @@ def main() -> None:
             meta = json.loads((args.model / "qwengpu9b.json").read_text())
             if (
                 not isinstance(meta, dict)
-                or meta.get("layout") != RESIDENT_GRID_LAYOUT
+                or meta.get("layout")
+                not in (RESIDENT_GRID_LAYOUT, RESIDENT_ADD32_LAYOUT)
                 or meta.get("chip_vocab") != VOCAB
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
-                raise ValueError("expected a merged resident grid checkpoint")
+                raise ValueError("expected a merged resident grid or ADD32 checkpoint")
+            resident_add32 = meta["layout"] == RESIDENT_ADD32_LAYOUT
+            if args.resident_add32 and not resident_add32:
+                raise ValueError(
+                    "--resident-add32 requires a resident ADD32 checkpoint"
+                )
             offset = meta["chip_token_offset"]
     except (OSError, TypeError, ValueError) as exc:
         parser.error(str(exc))
@@ -154,7 +184,9 @@ def main() -> None:
             if torch.backends.mps.is_available()
             else "cpu"
         )
-    model, circuit = load_tile_model(args.model, device, resident_grid=True)
+    model, circuit = load_tile_model(
+        args.model, device, resident_grid=True, resident_add32=resident_add32
+    )
     result = {
         "format": FORMAT,
         "input_sha256": hashlib.sha256(payload).hexdigest(),
@@ -162,7 +194,14 @@ def main() -> None:
         "torch": torch.__version__,
         "merge": meta,
         "transport_mode": "fixed",
-        **run_matmul(model, circuit, device, offset, a, b, c),
+        **(
+            {"checkpoint": meta["layout"] if meta else "standalone-resident-add32"}
+            if resident_add32
+            else {}
+        ),
+        **run_matmul(
+            model, circuit, device, offset, a, b, c, resident_add32=resident_add32
+        ),
     }
     output = json.dumps(result, indent=2) + "\n"
     if args.out:

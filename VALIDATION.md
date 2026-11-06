@@ -837,3 +837,19 @@ earlier wide layout rejects ADD32I before model load. The new merge
 uses 22 chip layers, hidden size 6,656, and 46,458,906,368 tensor bytes.
 Run `python3 scripts/check_resident_add32.py` to compare the saved
 evidence.
+
+## Composed 16×16 multiply on the resident ADD32 checkpoint
+
+The 16×16 runner now accepts the resident ADD32 layout. On MPS,
+both accumulation passes matched all 256 scalar outputs and the
+earlier grid run. All eight tile traces matched the grid traces
+after projecting the snapshots onto the shared fields. The report
+also retains the full ADD32 trace digests and direct cache checks.
+The eight launches ran 928 instructions and 936 scheduler decisions
+with zero high-half writes. The multiply uses the existing modulo
+65536 tile arithmetic.
+
+Fixed requests on the ADD32 layout add 64 seed tokens and 32
+high-half read requests per instruction, for 3,776 extra input
+tokens per tile. All 25 existing tests passed. The CLI rejected an
+explicit ADD32 request with grid-only metadata before model load.

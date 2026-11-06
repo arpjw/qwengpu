@@ -233,8 +233,10 @@ python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json
 The runner packs four output tiles and carries each tile through two
 accumulation passes. It accepts 16×16 byte matrices A and B and an
 optional 16×16 unsigned 16-bit C. It returns both intermediate and final
-matrices. Add `--model /path/to/Qwen3.5-9B-qwengpu-resident-grid --device cuda`
-to run the merged checkpoint.
+matrices. Add `--resident-add32` to use the standalone checkpoint with
+ADD32I. For CUDA, pass the path to either merged checkpoint with
+`--model` and set `--device cuda`. The multiply accumulates modulo
+65536 on both layouts.
 
 The isolated ADD32 prototype adds two unsigned 32-bit words per lane.
 The model propagates carry between the 16-bit halves and keeps the

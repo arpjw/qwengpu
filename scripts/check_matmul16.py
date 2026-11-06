@@ -45,6 +45,28 @@ def check_report(report: dict, inputs: dict, digest: str) -> None:
     assert report["matrix"] == report["passes"][-1]["matrix"]
 
 
+def check_grid_parity(report: dict) -> None:
+    grid = json.loads((RESULTS / "resident_matmul16_mps.json").read_text())
+    assert report["input_sha256"] == grid["input_sha256"]
+    for wide_pass, grid_pass in zip(report["passes"], grid["passes"], strict=True):
+        assert wide_pass["matrix"] == grid_pass["matrix"]
+        for wide, old in zip(wide_pass["launches"], grid_pass["launches"], strict=True):
+            assert wide["grid_trace_sha256"] == old["trace_sha256"]
+            assert all(
+                wide[key] == old[key]
+                for key in ("row", "col", "instructions", "scheduler_decisions")
+            )
+            transport = old["transport"]
+            assert wide["transport"] == {
+                **transport,
+                "warp_initial_tokens": transport["warp_initial_tokens"] + 64,
+                "input_tokens": transport["input_tokens"]
+                + 64
+                + 32 * wide["instructions"],
+                "high_register_updates": 0,
+            }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="*")
@@ -56,17 +78,32 @@ def main() -> None:
     payload = FIXTURE.read_bytes()
     inputs = json.loads(payload)
     digest = hashlib.sha256(payload).hexdigest()
-    previous = None
+    previous = {}
     for path in paths:
         report = json.loads(path.read_text())
         check_report(report, inputs, digest)
+        add32 = "checkpoint" in report
         if report["merge"]:
-            prior = json.loads((RESULTS / "resident_grid_9b_cuda_fla.json").read_text())
+            baseline = "resident_add32" if add32 else "resident_grid"
+            prior = json.loads((RESULTS / f"{baseline}_9b_cuda_fla.json").read_text())
             assert report["merge"] == prior["merge"]
-        if previous is not None:
-            assert report["passes"] == previous["passes"]
-        previous = report
-        print(f"{path.name}: both passes match the scalar reference, 928 instructions")
+        if add32:
+            expected_layout = (
+                report["merge"]["layout"]
+                if report["merge"]
+                else "standalone-resident-add32"
+            )
+            assert report["checkpoint"] == expected_layout
+            check_grid_parity(report)
+        if add32 in previous:
+            assert report["passes"] == previous[add32]["passes"]
+        previous[add32] = report
+        message = (
+            f"{path.name}: both passes match the scalar reference, 928 instructions"
+        )
+        if add32:
+            message += ", all eight projected traces match the grid"
+        print(message)
 
 
 if __name__ == "__main__":
