@@ -77,11 +77,11 @@ The grid launcher accepts a nonzero first row pair on the same
 circuit. Four windows preserve C outside their scheduled rows on
 MPS and merged 9B. Two complementary windows reproduce the full tile.
 
-The next gate composes 8×8 tiles into a 16×16 modular matrix multiply
-using one loaded grid checkpoint. Let the launcher pack tiles and carry
-each output tile across two K slices. Let the model compute each
-multiply-accumulate. Verify the full result and both K-slice results
-against an independent scalar reference.
+The 16×16 modular multiply uses one loaded grid checkpoint. The
+launcher packs four 8×8 output tiles and carries each output tile
+across two K slices. The model computes the multiply-accumulates.
+MPS matches the scalar reference at both K slices. Merged 9B
+validation is the remaining check for this gate.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

@@ -726,3 +726,19 @@ resolved to one pair for that launch. The A100 environment and the
 source hashes for the unchanged compiler and merge code are in
 `results/resident_windows_host_a100.txt`. The exact reports can be
 compared with `python3 scripts/check_resident_windows.py`.
+
+## Composed 16×16 modular matrix multiply
+
+The launcher uses one loaded grid checkpoint and eight separate
+launch caches. It packs four 8×8 output tiles for each of two K slices
+and uses the first slice's model outputs as C for the second.
+The model performs all multiply-accumulates modulo 65536.
+
+The MPS run matched all 256 scalar results after each slice.
+In the frozen input, 256 entries cross the modular boundary in
+the first pass and 253 in the second. Each tile ran 116 instructions
+and 117 scheduler decisions, for 928 instructions and 936 decisions
+in total. Each launch passed direct checks of its grid, shared
+memory, program ROM, and warp state. The 25 existing tests passed.
+The report stores both full matrices and the exact trace digest
+and transport counters for each launch.

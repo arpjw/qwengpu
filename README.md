@@ -224,6 +224,18 @@ on the last pair. The default tiled kernel preserves the initial C values
 outside the window. Explicit indexed stores can address any shared word.
 The grid checkpoint supports all three transport modes.
 
+Run the 16×16 modular matrix multiply on the same grid checkpoint:
+
+```sh
+python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json
+```
+
+The runner packs four output tiles and carries each tile through two
+accumulation passes. It accepts 16×16 byte matrices A and B and an
+optional 16×16 unsigned 16-bit C. It returns both intermediate and final
+matrices. Add `--model /path/to/Qwen3.5-9B-qwengpu-resident-grid --device cuda`
+to run the merged checkpoint.
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

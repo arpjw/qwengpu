@@ -836,3 +836,27 @@ The final comparison checks that rows outside each window keep the
 seeded C values and that stitching the front and back outputs reproduces
 the full tile. The last-pair launcher manifest omits `row_pairs` to
 exercise the default extent.
+
+## Compose a 16×16 matrix multiply on one checkpoint
+
+Each of the eight launches uses the resident grid circuit and a fresh
+cache. The runner loads one model and uses fixed read requests. The
+launcher feeds each 8×8 output tile back as C for the second K slice.
+The model computes the multiply-accumulates modulo 65536.
+
+```sh
+cd "$QWENGPU_DIR"
+QWENGPU_MATMUL16=eval/frozen/matmul16_gate_v1/dense_seeded.json
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_matmul16 "$QWENGPU_MATMUL16" \
+  --device mps --out results/resident_matmul16_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_matmul16 "$QWENGPU_MATMUL16" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-grid \
+  --device cuda --out results/resident_matmul16_9b_cuda_fla.json
+python3 scripts/check_matmul16.py
+```
+
+The checker computes both partial products independently from the original
+inputs. It compares all 256 entries after each K slice and checks that the
+MPS and CUDA reports have identical per-tile trace hashes and transport
+records. Pass a single report path to check one device.
