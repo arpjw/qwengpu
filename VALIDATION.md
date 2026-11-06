@@ -742,3 +742,11 @@ in total. Each launch passed direct checks of its grid, shared
 memory, program ROM, and warp state. The 25 existing tests passed.
 The report stores both full matrices and the exact trace digest
 and transport counters for each launch.
+
+Merged Qwen3.5-9B on one A100 SXM 80 GB matched every entry after
+each K slice. The two reports have identical per-tile trace digests
+and transport records for all eight launches. The merge metadata
+matches the earlier resident grid checkpoint. The model and compiler
+revisions, host details, and source hashes are saved in
+`results/resident_matmul16_host_a100.txt`. Run
+`python3 scripts/check_matmul16.py` to reproduce the comparisons.

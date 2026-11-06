@@ -80,8 +80,12 @@ MPS and merged 9B. Two complementary windows reproduce the full tile.
 The 16×16 modular multiply uses one loaded grid checkpoint. The
 launcher packs four 8×8 output tiles and carries each output tile
 across two K slices. The model computes the multiply-accumulates.
-MPS matches the scalar reference at both K slices. Merged 9B
-validation is the remaining check for this gate.
+MPS and merged 9B match the scalar reference at both K slices.
+
+The next gate prototypes 32-bit lane addition with two 16-bit limbs.
+Have the model propagate the low limb carry into the high limb.
+Check carry, modular wrap, and masked lanes before integrating
+the wider arithmetic into the resident tile engine.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
