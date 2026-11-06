@@ -77,11 +77,12 @@ def main() -> None:
     second_schedule[0] = {**second_schedule[0], "ticket": TICKET}
     passes = []
     c = first["c"]
+    registers = first["initial_registers"]
     for index, (trace, schedule) in enumerate(
         ((first_trace, first_schedule), (second_trace, second_schedule))
     ):
         reference = oracle(
-            {**first, "c": c},
+            {**first, "c": c, "initial_registers": registers},
             256,
             looping=True,
             alternate_operands=alternate,
@@ -103,9 +104,37 @@ def main() -> None:
         ]
         matrix = transition["matrix"] if index == 0 else observed["matrix"]
         if trace != reference["trace"] or schedule != reference["schedules"]:
-            raise ValueError(f"slice {index} differs from the separate execution trace")
+            differences = [
+                (i, [key for key in actual if actual[key] != expected[key]])
+                for i, (actual, expected) in enumerate(zip(trace, reference["trace"]))
+                if actual != expected
+            ]
+            raise ValueError(
+                f"slice {index} differs from the reference: {differences[:4]}"
+            )
         if matrix != reference["matrix"] or matrix != scalar:
             raise ValueError(f"slice {index} differs from the scalar result")
+        separate = (
+            oracle(
+                {**first, "c": c},
+                256,
+                looping=True,
+                alternate_operands=alternate,
+                operand_bank=index,
+            )
+            if index
+            else reference
+        )
+        differences = [
+            {
+                "instruction": i,
+                "fields": sorted(key for key in actual if actual[key] != old[key]),
+            }
+            for i, (actual, old) in enumerate(
+                zip(trace, separate["trace"], strict=True)
+            )
+            if actual != old
+        ]
         passes.append(
             {
                 "k": index * TILE,
@@ -113,9 +142,14 @@ def main() -> None:
                 "instructions": len(trace),
                 "scheduler_decisions": len(schedule),
                 "trace_sha256": _trace_digest({"trace": trace, "schedules": schedule}),
+                "separate_trace_sha256": _trace_digest(
+                    {"trace": separate["trace"], "schedules": separate["schedules"]}
+                ),
+                "register_carry_differences": differences,
             }
         )
         c = [word for row in scalar for word in row]
+        registers = reference["warp_registers"]
 
     report = {
         "device": args.device,

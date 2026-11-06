@@ -28,7 +28,15 @@ def check_launch(report: dict) -> None:
     assert tickets.count(NEXT_BANK) == 1 and tickets[116] == NEXT_BANK
     assert report["schedules"][116]["controls"] == [1024, 1088]
     for actual, old in zip(report["passes"], baseline["passes"], strict=True):
-        assert actual == {key: old[key] for key in actual}
+        for key in ("k", "matrix", "instructions", "scheduler_decisions"):
+            assert actual[key] == old[key]
+        assert actual["separate_trace_sha256"] == old["trace_sha256"]
+    first, second = report["passes"]
+    assert first["trace_sha256"] == first["separate_trace_sha256"]
+    assert first["register_carry_differences"] == []
+    assert second["register_carry_differences"] == [
+        {"instruction": 1, "fields": ["registers", "snapshot"]}
+    ]
     assert report["matrix"] == baseline["passes"][1]["matrix"]
 
     transport = report["transport"]
