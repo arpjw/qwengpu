@@ -1065,3 +1065,25 @@ also reproduced the two-slice tile and GPU-to-text-to-GPU cache
 replays. The reset text output matched that checkpoint's own
 fresh-cache control in the relaunch fixture. See the saved
 `results/resident_shared32_*` reports and A100 host record.
+
+## Full-width addition from indexed shared memory
+
+The addmem32 layout uses the same shared words, warps and register
+banks as shared32. The left pair is loaded at the saved index. The
+two new instructions add the right pair at the saved index XOR an
+even immediate. Carry from the low addition increments the high
+register before the high addition. The high addition wraps modulo
+2¹⁶, completing the sum modulo 2³².
+
+The 15-instruction fixture uses arbitrary full-width operands,
+a pair mask of 126, an odd base, and an inactive producer lane.
+It checks both register banks and all 128 shared words against
+independent scalar sums. The consumer loads the result after the
+producer's barrier, including the original value in the masked
+lane. All 128 valid opcode/immediate encodings checked out, and
+five invalid mask values were rejected.
+
+On MPS the 25-case run matches the interpreter, with 1,927
+instructions and 1,952 scheduler decisions. All 24 inherited
+records match the shared32 baseline. All 25 local tests passed.
+Merged 9B and retained 16×16 replay results are pending.
