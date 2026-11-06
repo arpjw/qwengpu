@@ -765,3 +765,10 @@ The existing carry decoder now handles any whole number of nibbles.
 All 25 unit tests passed. The dense resident 8×8 regression matched
 the prior circuit statistics and its exact 116-instruction trace and
 117 scheduler decisions. See `results/add32_resident_regression_mps.json`.
+
+Standalone CUDA and merged Qwen3.5-9B on one A100 SXM 80 GB passed
+all 12 cases. Case records are identical across the three runs.
+The merge uses 15 chip layers, hidden size 4,864, and 29,683,094,144
+tensor bytes. The pinned environment and source hashes are saved
+in `results/add32_host_a100.txt`. The resident integration is tracked
+separately in SCOPE.md.

@@ -83,9 +83,13 @@ across two K slices. The model computes the multiply-accumulates.
 MPS and merged 9B match the scalar reference at both K slices.
 
 An isolated 32-bit lane adder propagates carry from the low
-16-bit limb to the high limb. Twelve MPS cases cover carries, modular
-wrap, and inactive lanes. Standalone CUDA and merged 9B validation
-are the remaining checks before resident integration.
+16-bit limb to the high limb. Twelve frozen cases for carry, modular
+wrap, and inactive lanes match on MPS, standalone CUDA, and merged 9B.
+
+The next gate adds a high 16-bit register bank to each resident
+warp. Seed distinct words and verify that scheduling and state
+transport preserve both limbs and keep the warps isolated. Use that
+layout to integrate the 32-bit instruction in the following gate.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
