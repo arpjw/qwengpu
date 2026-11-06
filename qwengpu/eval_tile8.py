@@ -79,6 +79,7 @@ RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
 RESIDENT_DELTA_LAYOUT = "qwengpu-resident-delta9b-v1"
 RESIDENT_PLAN_LAYOUT = "qwengpu-resident-plan9b-v1"
+RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -258,7 +259,9 @@ def execute(
     resident_state: bool = False,
     resident_delta: bool = False,
     resident_plan: bool = False,
+    resident_io: bool = False,
 ) -> dict:
+    resident_plan = resident_plan or resident_io
     resident_delta = resident_delta or resident_plan
     resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
@@ -301,7 +304,7 @@ def execute(
     if looping:
         reads.extend(range(READ_LOOP, READ_LOOP + LOOP_NIBBLES))
     store_reads = list(range(READ_STORE, READ_STORE + 32))
-    plan_reads = list(range(READ_PLAN, READ_PLAN + PLAN_BYTES))
+    plan_reads = list(range(READ_PLAN, READ_PLAN + PLAN_BYTES + int(resident_io)))
     state_reads = reads
     reads = state_reads + store_reads
     schedules = []
@@ -333,6 +336,9 @@ def execute(
 
     if resident_plan:
         transport.update(forward_calls=0, state_plan_tokens=0, state_read_tokens=0)
+
+    if resident_io:
+        transport.update(store_plan_tokens=0, store_read_tokens=0, skipped_read_calls=0)
 
     def feed(tokens: list[int], count: int):
         nonlocal cache
@@ -389,15 +395,37 @@ def execute(
                 if not base <= token < base + 256:
                     raise ValueError(f"invalid state plan byte {byte}")
                 plan_bits.extend((token >> bit) & 1 for bit in range(8))
+            store_bits = plan_bits[8 * PLAN_BYTES :]
+            plan_bits = plan_bits[: 8 * PLAN_BYTES]
             selected = [nib for nib, changed in enumerate(plan_bits) if changed]
+            store_slots = (
+                [
+                    4 * lane + digit
+                    for lane, writes in enumerate(store_bits)
+                    if writes
+                    for digit in range(4)
+                ]
+                if resident_io
+                else list(range(len(store_reads)))
+            )
             requested = [state_reads[nib] for nib in selected]
-            output = feed([*requested, *store_reads], len(requested) + len(store_reads))
+            requested.extend(store_reads[nib] for nib in store_slots)
+            output = feed(requested, len(requested)) if requested else []
             state_output = [NO_WRITE] * len(state_reads)
             for nib, token in zip(selected, output[: len(selected)], strict=True):
                 state_output[nib] = token
-            packet = state_output + output[len(selected) :]
-            transport["state_plan_tokens"] += len(plan_reads)
-            transport["state_read_tokens"] += len(requested)
+            store_output = [NO_WRITE] * len(store_reads)
+            for nib, token in zip(store_slots, output[len(selected) :], strict=True):
+                if resident_io and token == NO_WRITE:
+                    raise ValueError(f"missing planned shared store at nibble {nib}")
+                store_output[nib] = token
+            packet = state_output + store_output
+            transport["state_plan_tokens"] += PLAN_BYTES
+            transport["state_read_tokens"] += len(selected)
+            if resident_io:
+                transport["store_plan_tokens"] += 1
+                transport["store_read_tokens"] += len(store_slots)
+                transport["skipped_read_calls"] += int(not requested)
         else:
             control, *packet = feed([*tick_input, *reads], 1 + len(reads))
         _check_control(control, warp)
@@ -406,6 +434,16 @@ def execute(
             observed_bits is None or plan_bits != observed_bits[WARP_DIRTY_OFFSET:]
         ):
             raise ValueError("state read plan does not match the model snapshot")
+        if resident_io:
+            expected_stores = [
+                int(
+                    bool(observed_bits[128] and observed_bits[MASK_OFFSET + lane])
+                    or bool(observed_bits[SNAPSHOT_BITS + 56 + lane])
+                )
+                for lane in range(8)
+            ]
+            if store_bits != expected_stores:
+                raise ValueError("shared store plan does not match the model snapshot")
         tagged_state = []
         if resident_state:
             state_output = packet[:-32]
@@ -800,6 +838,7 @@ def load_tile_model(
     resident_state: bool = False,
     resident_delta: bool = False,
     resident_plan: bool = False,
+    resident_io: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -812,6 +851,7 @@ def load_tile_model(
             resident_state=resident_state,
             resident_delta=resident_delta,
             resident_plan=resident_plan,
+            resident_io=resident_io,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -833,6 +873,7 @@ def load_tile_model(
             resident_state=resident_state,
             resident_delta=resident_delta,
             resident_plan=resident_plan,
+            resident_io=resident_io,
         )
     return model.to(device).eval(), circuit
 
@@ -851,6 +892,7 @@ def main() -> None:
     variants.add_argument("--resident-state", action="store_true")
     variants.add_argument("--resident-delta", action="store_true")
     variants.add_argument("--resident-plan", action="store_true")
+    variants.add_argument("--resident-io", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -860,7 +902,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_plan = args.resident_plan
+    resident_io = args.resident_io
+    resident_plan = args.resident_plan or resident_io
     resident_delta = args.resident_delta or resident_plan
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
@@ -883,9 +926,11 @@ def main() -> None:
             RESIDENT_STATE_LAYOUT,
             RESIDENT_DELTA_LAYOUT,
             RESIDENT_PLAN_LAYOUT,
+            RESIDENT_IO_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_plan = layout == RESIDENT_PLAN_LAYOUT
+        resident_io = layout == RESIDENT_IO_LAYOUT
+        resident_plan = resident_io or layout == RESIDENT_PLAN_LAYOUT
         resident_delta = resident_plan or layout == RESIDENT_DELTA_LAYOUT
         resident_state = resident_delta or layout == RESIDENT_STATE_LAYOUT
         resident_rom = resident_state or layout == RESIDENT_ROM_LAYOUT
@@ -912,6 +957,8 @@ def main() -> None:
             raise ValueError("--resident-delta requires a resident delta checkpoint")
         if args.resident_plan and not resident_plan:
             raise ValueError("--resident-plan requires a resident plan checkpoint")
+        if args.resident_io and not resident_io:
+            raise ValueError("--resident-io requires a resident I/O checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -955,6 +1002,7 @@ def main() -> None:
         resident_state=resident_state,
         resident_delta=resident_delta,
         resident_plan=resident_plan,
+        resident_io=resident_io,
     )
     report = {
         "device": args.device,
@@ -989,6 +1037,7 @@ def main() -> None:
             resident_state=resident_state,
             resident_delta=resident_delta,
             resident_plan=resident_plan,
+            resident_io=resident_io,
         )
         transport = observed.pop("transport")
         exact = (

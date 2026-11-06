@@ -662,3 +662,32 @@ state read requests, and total forward calls separately.
   --model /path/to/Qwen3.5-9B-qwengpu-resident-plan --device cuda \
   --out "$QWENGPU_DIR/results/resident_plan_launch_9b_cuda_fla.json"
 ```
+
+## Model-generated state and store read plans
+
+The resident I/O checkpoint adds one byte to the state read plan.
+Its eight bits select the lanes that issue shared-memory writes.
+The launcher reads four store nibbles per selected lane and requests
+the state positions selected by the original bitmap. It skips the
+follow-up when both sets are empty. The verifier checks both masks
+against the model snapshot and checks the full canonical trace.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-io --device mps --out "$QWENGPU_DIR/results/resident_io_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-io --out /path/to/Qwen3.5-9B-qwengpu-resident-io
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-io --device cuda \
+  --out "$QWENGPU_DIR/results/resident_io_9b_cuda_fla.json"
+```
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --resident-io --device mps --out "$QWENGPU_DIR/results/resident_io_launch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-io --device cuda \
+  --out "$QWENGPU_DIR/results/resident_io_launch_9b_cuda_fla.json"
+```

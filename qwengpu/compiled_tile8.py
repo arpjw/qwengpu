@@ -159,7 +159,9 @@ def build(
     resident_state: bool = False,
     resident_delta: bool = False,
     resident_plan: bool = False,
+    resident_io: bool = False,
 ) -> Circ:
+    resident_plan = resident_plan or resident_io
     resident_delta = resident_delta or resident_plan
     resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
@@ -207,7 +209,10 @@ def build(
         else []
     )
     plan_reads = (
-        [match(f"state.plan.{byte}", READ_PLAN + byte) for byte in range(PLAN_BYTES)]
+        [
+            match(f"state.plan.{byte}", READ_PLAN + byte)
+            for byte in range(PLAN_BYTES + int(resident_io))
+        ]
         if resident_plan
         else []
     )
@@ -839,9 +844,17 @@ def build(
                 )
         for byte, read in enumerate(plan_reads):
             if bit < 8:
-                terms += c.t_and(
-                    [read, saved[WARP_DIRTY_OFFSET + 8 * byte + bit]], 2 * KAPPA
-                )
+                if byte == PLAN_BYTES:
+                    # Tile stores use the active mask. Indexed stores use
+                    # the collision arbiter's grants.
+                    terms += c.t_and(
+                        [read, saved[128], saved[MASK_OFFSET + bit]], 2 * KAPPA
+                    )
+                    terms += c.t_and([read, saved[SNAPSHOT_BITS + 56 + bit]], 2 * KAPPA)
+                else:
+                    terms += c.t_and(
+                        [read, saved[WARP_DIRTY_OFFSET + 8 * byte + bit]], 2 * KAPPA
+                    )
             elif (PLAN_TAG + 256 * byte) >> bit & 1:
                 terms += c.t_and([read], 2 * KAPPA)
         if resident_state:
@@ -869,6 +882,7 @@ def build_standalone(
     resident_state: bool = False,
     resident_delta: bool = False,
     resident_plan: bool = False,
+    resident_io: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -882,6 +896,7 @@ def build_standalone(
         resident_state=resident_state,
         resident_delta=resident_delta,
         resident_plan=resident_plan,
+        resident_io=resident_io,
     )
     return build_qwen(
         circuit,
