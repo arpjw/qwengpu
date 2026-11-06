@@ -1022,3 +1022,24 @@ scalar reference and the earlier grid run. The new reports keep
 the full trace hash and a second hash over the fields shared with
 the grid layout. The latter includes all scheduler decisions and
 removes only the added high-half snapshot prefix.
+
+To verify the wider arithmetic on the exact merged directory used for
+the multiply, run the mixed cooperative fixture with the same model path:
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-add32 --device cuda \
+  --kernel eval/frozen/resident_add32_gate_v1/cooperative_add32.json \
+  --out results/resident_add32_matmul16_cooperative_9b_cuda_fla.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+results = Path("results")
+mixed = json.loads((results / "resident_add32_matmul16_cooperative_9b_cuda_fla.json").read_text())
+multiply = json.loads((results / "resident_add32_matmul16_9b_cuda_fla.json").read_text())
+prior = json.loads((results / "resident_add32_9b_cuda_fla.json").read_text())
+assert mixed["all_exact"] and mixed["merge"] == multiply["merge"] == prior["merge"]
+assert mixed["cases"] == [case for case in prior["cases"] if case["fixture"] == "cooperative_add32.json"]
+PY
+```

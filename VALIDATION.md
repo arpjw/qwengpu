@@ -853,3 +853,11 @@ Fixed requests on the ADD32 layout add 64 seed tokens and 32
 high-half read requests per instruction, for 3,776 extra input
 tokens per tile. All 25 existing tests passed. The CLI rejected an
 explicit ADD32 request with grid-only metadata before model load.
+
+Merged Qwen3.5-9B on one A100 SXM 80 GB matched the same scalar
+and grid results. Its full per-tile trace hashes, cache checks,
+and transport counts are identical to MPS. The 140-instruction
+cooperative ADD32I fixture also passed on the exact merged directory
+used for the multiply, with an identical case record to the previous
+ADD32 verification. The three reports and host record are under
+`results/resident_add32_matmul16*`.

@@ -96,10 +96,16 @@ MPS and merged 9B verify carry, modulo 2³² wrap, masked updates,
 and exact high-half writeback. One mixed kernel runs ADD32I, tiled
 multiply, shared-memory gather, and divergent loops in one launch.
 
-The 16×16 runner accepts the resident ADD32 checkpoint. MPS
-matches the scalar reference after both accumulation passes and
-matches all eight earlier grid traces on their shared fields.
-Merged 9B validation remains before the full inherited fixture pass.
+The 16×16 runner accepts the resident ADD32 checkpoint. MPS and
+merged 9B match the scalar reference after both accumulation passes
+and match all eight earlier grid traces on their shared fields.
+The composed multiply and the mixed ADD32I kernel passed from the
+same merged directory.
+
+The next gate runs the full inherited fixture suite on the unified
+resident ADD32 layout. Check control, indexed addressing, masks,
+partial extents, row windows, and terminal outcomes against the
+saved grid reports and the independent interpreter.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
