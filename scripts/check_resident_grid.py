@@ -55,6 +55,10 @@ def check_grid() -> None:
         assert case["transport"]["fresh_caches"] == 1
 
     case = observed["partial_1_pair.json"]
+    launch = json.loads((RESULTS / "resident_grid_launch_mps.json").read_text())
+    assert launch["kernel_sha256"] == case["fixture_sha256"]
+    assert launch["row_pairs"] == 1 and "transport_mode" not in launch
+    assert all(launch[key] == case[key] for key in (*CANONICAL, "transport"))
     for mode in TRANSPORTS:
         path = RESULTS / f"resident_grid_launch_{mode}_9b_cuda_fla.json"
         launch = json.loads(path.read_text())

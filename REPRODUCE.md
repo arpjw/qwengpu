@@ -768,6 +768,9 @@ export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
 
 ```sh
 QWENGPU_PARTIAL_KERNEL="$QWENGPU_DIR/eval/frozen/grid_gate_v1/partial_1_pair.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_PARTIAL_KERNEL" --resident-grid --device mps --trace \
+  --out "$QWENGPU_DIR/results/resident_grid_launch_mps.json"
 for mode in fixed state-plan state-store-plan; do
   "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
     "$QWENGPU_PARTIAL_KERNEL" --model /path/to/Qwen3.5-9B-qwengpu-resident-grid \

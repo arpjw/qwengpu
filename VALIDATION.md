@@ -684,3 +684,20 @@ all eight instructions and nine scheduler decisions matched.
 Both reports and the diagnostic manifest are saved. All 25 unit
 tests passed. The launcher rejected an extent below four on the
 previous layout before loading a model.
+
+The merged Qwen3.5-9B build passed the same 15 fixtures on one
+A100 SXM 80 GB. All case records, including cache checks and
+transport counters, are identical across MPS and CUDA. The merge has
+18 chip layers, hidden size 6,400, and 41,942,202,112 tensor bytes.
+The CUDA environment used Torch 2.14.1, Transformers 5.19.0, and FLA
+0.6.0 with reference causal convolution. The model and compiler
+revisions and device details are in `results/resident_grid_host_a100.txt`.
+
+The standalone launcher matched the suite's one-pair result with its
+implicit transport. All three explicit transports matched that same
+canonical trace on merged 9B, with exact grid, memory, ROM, and state
+cache checks. Fixed requests used 4,290 input tokens, the state plan
+used 3,195, and the state and store plan used 2,360. These are token
+counts for one fixture. See the two suite reports and four launcher
+reports under `results/resident_grid*`, and run
+`python3 scripts/check_resident_grid.py` to compare them.

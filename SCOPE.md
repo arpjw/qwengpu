@@ -69,9 +69,14 @@ and peak allocation. Existing layout-based defaults remain available.
 
 The resident grid checkpoint takes a launch extent of one through four
 row pairs. The scheduler reads the final pair from the cache and
-decides when to finish. MPS passes all 15 fixtures, including three
-partial launches with untouched later C rows and 12 unchanged full
-launches. Merged 9B validation is the remaining gate for this layout.
+decides when to finish. MPS and merged Qwen3.5-9B match on all 15
+fixtures, including three partial launches with untouched later C rows
+and 12 unchanged full launches.
+
+The next gate starts a launch at a nonzero row pair on the same grid
+weights. Verify that a window preserves C rows on either side and that
+two complementary windows produce the same result as one full tile.
+Keep scheduling, barriers, and completion inside the model.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.
