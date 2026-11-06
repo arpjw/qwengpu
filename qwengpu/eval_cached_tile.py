@@ -12,7 +12,7 @@ import transformers
 
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUTS,
-    RESIDENT_TILEBANKS_LAYOUT,
+    RESIDENT_TILEBANKS_LAYOUTS,
     launch_cached_tile,
     load_tile_model,
     oracle,
@@ -90,7 +90,11 @@ def main() -> None:
     )
     if meta and meta["layout"] not in RESIDENT_ADD32_LAYOUTS:
         parser.error("expected a resident ADD32 checkpoint")
-    if args.preload_operands and meta and meta["layout"] != RESIDENT_TILEBANKS_LAYOUT:
+    if (
+        args.preload_operands
+        and meta
+        and meta["layout"] not in RESIDENT_TILEBANKS_LAYOUTS
+    ):
         parser.error("--preload-operands requires the tilebanks checkpoint")
     offset = meta["chip_token_offset"] if meta else 0
     model, circuit = load_tile_model(

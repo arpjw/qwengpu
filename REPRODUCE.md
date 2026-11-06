@@ -1448,3 +1448,33 @@ bash scripts/qualify_resident_add32.sh --resident-tilebanks "$model" --device cu
   --out results/resident_tilebanks_full_9b_cuda_fla.json
 python3 scripts/check_tilebanks.py --full
 ```
+
+## Let the model transition between preloaded K slices
+
+The tilepipe layout starts with both operand banks and one C image.
+The scheduler emits a bank-transition ticket after the final row
+pair of the first slice. The runner relays that ticket unchanged.
+The model selects bank one, resets both warp PCs, and restarts
+at row zero with the same ROM and cache.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.eval_tilepipe --device mps \
+  --out results/resident_tilepipe_mps.json
+bash scripts/qualify_resident_add32.sh --resident-tilepipe --device mps \
+  --out results/resident_tilepipe_full_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+model=/path/to/Qwen3.5-9B-qwengpu-resident-tilepipe
+"$QWENGPU_PYTHON" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-tilepipe --out "$model"
+"$QWENGPU_PYTHON" -m qwengpu.eval_tilepipe --model "$model" --device cuda \
+  --out results/resident_tilepipe_9b_cuda_fla.json
+bash scripts/qualify_resident_add32.sh --resident-tilepipe "$model" --device cuda \
+  --out results/resident_tilepipe_full_9b_cuda_fla.json
+python3 scripts/check_tilepipe.py --full
+```
+
+The evaluator compares each slice to a separate execution and
+a scalar matrix product. Its forward audit records the initial
+memory and grid setup, the relayed transition, and the C stores.

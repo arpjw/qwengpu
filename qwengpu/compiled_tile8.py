@@ -65,6 +65,7 @@ RESIDENT_ADDMEM32_LAYOUT = "qwengpu-resident-addmem32-9b-v1"
 RESIDENT_BRANCH32_LAYOUT = "qwengpu-resident-branch32-9b-v1"
 RESIDENT_LOOP32_LAYOUT = "qwengpu-resident-loop32-9b-v1"
 RESIDENT_TILEBANKS_LAYOUT = "qwengpu-resident-tilebanks-9b-v1"
+RESIDENT_TILEPIPE_LAYOUT = "qwengpu-resident-tilepipe-9b-v1"
 WHILE_HI_OP = "WHILE_HI_BIT"
 WHILE_HI_WIRE_OFFSET = 9
 RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
@@ -97,6 +98,7 @@ NO_WRITE = 0
 DONE = TICKET + 4
 DEADLOCK = TICKET + 5
 ADVANCE = 32
+NEXT_BANK = TICKET + 64 + ADVANCE
 SNAPSHOT_BITS = 132
 CHUNK_BITS = 120
 
@@ -261,7 +263,9 @@ def build(
     resident_branch32: bool = False,
     resident_loop32: bool = False,
     resident_tilebanks: bool = False,
+    resident_tilepipe: bool = False,
 ) -> Circ:
+    resident_tilebanks = resident_tilebanks or resident_tilepipe
     resident_loop32 = resident_loop32 or resident_tilebanks
     resident_branch32 = resident_branch32 or resident_loop32
     resident_addmem32 = resident_addmem32 or resident_branch32
@@ -289,6 +293,7 @@ def build(
     c.resident_branch32 = resident_branch32
     c.resident_loop32 = resident_loop32
     c.resident_tilebanks = resident_tilebanks
+    c.resident_tilepipe = resident_tilepipe
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -369,7 +374,9 @@ def build(
                 load,
             )
         )
-    load_ticket = between("ticket.load", TICKET, TICKET + 64)
+    load_ticket = between(
+        "ticket.load", TICKET, TICKET + 64 * (1 + int(resident_tilepipe))
+    )
     last, tile0, tile1 = c.slot_head(
         "ticket",
         {0: load_ticket},
@@ -378,35 +385,66 @@ def build(
         load_ticket,
     )
     both_halted = c.and_([controls[0][4], controls[1][4]], "schedule.both_halted")
+    switch = Expr()
     if resident_grid:
         load_grid = between(
-            "grid.load", GRID, GRID + ROW_PAIRS * (1 + int(resident_tilebanks))
+            "grid.load",
+            GRID,
+            GRID
+            + ROW_PAIRS * (1 << (int(resident_tilebanks) + int(resident_tilepipe))),
         )
         grid_queries = schedule + sum(resets, Expr())
         grid_value = {2: raw[0], 3: raw[1]}
         if resident_tilebanks:
             grid_queries += tick
             grid_value[4] = raw[2]
+        if resident_tilepipe:
+            grid_value[5] = raw[3]
         grid = c.slot_head(
             "grid", {0: load_grid}, {0: grid_queries}, grid_value, load_grid
         )
         difference = from_bits([tile0, tile1]) - from_bits(grid[:2])
         last_tile = c.node(c.t_eq(difference, 0, -3, 3), "schedule.last_tile")
+        if resident_tilepipe:
+            relayed_switch = match("operand.bank.advance", NEXT_BANK)
+            load_bank = load_grid + relayed_switch
+            (bank_bit,) = c.slot_head(
+                "operand.bank",
+                {0: load_bank},
+                {0: grid_queries},
+                {
+                    2: c.and_([load_grid, raw[2]], "operand.bank.initial")
+                    + relayed_switch
+                },
+                load_bank,
+            )
+            switch = c.and_(
+                [both_halted, last_tile, grid[3], one - bank_bit], "schedule.next_bank"
+            )
+        elif resident_tilebanks:
+            bank_bit = grid[2]
     else:
         last_tile = c.and_([tile0, tile1], "schedule.last_tile")
-    advance = c.and_([both_halted, one - last_tile], "schedule.advance")
+    row_advance = c.and_([both_halted, one - last_tile], "schedule.advance")
+    advance = row_advance + switch
     release = c.and_([controls[0][5], controls[1][5]], "schedule.release")
     ready = [one - ctrl[4] - ctrl[5] + advance + release for ctrl in controls]
     choose1 = c.and_([ready[1], one - ready[0]], "schedule.only1") + c.and_(
         [ready[1], ready[0], one - last], "schedule.prefer1"
     )
     stop = c.and_([one - ready[0], one - ready[1]], "schedule.stop")
-    finished = c.and_([both_halted, last_tile], "schedule.finished")
-    carry = c.and_([tile0, advance], "schedule.tile.carry")
+    finished = c.and_([both_halted, last_tile], "schedule.finished") - switch
+    carry = c.and_([tile0, row_advance], "schedule.tile.carry")
     new_tile = [
-        tile0 + advance - 2 * carry,
+        tile0 + row_advance - 2 * carry,
         tile1 + carry - 2 * c.and_([tile1, carry], "schedule.tile.wrap"),
     ]
+    if resident_tilepipe:
+        choose1 = c.and_([choose1, one - switch], "schedule.bank.first_warp")
+        new_tile = [
+            c.and_([bit, one - switch], f"schedule.bank.reset_row.{i}")
+            for i, bit in enumerate(new_tile)
+        ]
     # Terminal tickets have no row tag. Runnable tickets carry the new pair.
     decision = [
         choose1 + stop - finished,
@@ -418,6 +456,8 @@ def build(
         ],
         advance,
     ]
+    if resident_tilepipe:
+        decision.append(switch)
 
     # Resident calls retain both control rows. The emitted ticket selects the active one.
     warp_bit = last if resident else controls[1][6]
@@ -559,7 +599,7 @@ def build(
     # has its own pair of heads, addressed by the same K index.
     bank_gates = [one]
     if resident_tilebanks:
-        bank_gates = [one - grid[2], grid[2]]
+        bank_gates = [one - bank_bit, bank_bit]
     a_queries = (
         [
             c.and_([tick, gate, rows[row], k_hot[k]], f"A.query.{bank}.{row}.{k}")
@@ -1209,6 +1249,7 @@ def build_standalone(
     resident_branch32: bool = False,
     resident_loop32: bool = False,
     resident_tilebanks: bool = False,
+    resident_tilepipe: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1231,6 +1272,7 @@ def build_standalone(
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
         resident_tilebanks=resident_tilebanks,
+        resident_tilepipe=resident_tilepipe,
     )
     return build_qwen(
         circuit,

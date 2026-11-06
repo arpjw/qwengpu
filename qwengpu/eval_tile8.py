@@ -49,6 +49,7 @@ from qwengpu.compiled_tile8 import (
     MASK_OFFSET,
     MASK_OPS,
     MASK_REGISTER,
+    NEXT_BANK,
     NO_WRITE,
     OPERAND,
     OPS,
@@ -67,6 +68,7 @@ from qwengpu.compiled_tile8 import (
     RESIDENT_LOOP32_LAYOUT,
     RESIDENT_SHARED32_LAYOUT,
     RESIDENT_TILEBANKS_LAYOUT,
+    RESIDENT_TILEPIPE_LAYOUT,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
     ROW_PAIRS,
@@ -110,7 +112,8 @@ RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
-RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, RESIDENT_TILEBANKS_LAYOUT)
+RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, RESIDENT_TILEPIPE_LAYOUT)
+RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, *RESIDENT_TILEBANKS_LAYOUTS)
 RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, *RESIDENT_LOOP32_LAYOUTS)
 RESIDENT_ADDMEM32_LAYOUTS = (RESIDENT_ADDMEM32_LAYOUT, *RESIDENT_BRANCH32_LAYOUTS)
 RESIDENT_SHARED32_LAYOUTS = (RESIDENT_SHARED32_LAYOUT, *RESIDENT_ADDMEM32_LAYOUTS)
@@ -389,6 +392,7 @@ def execute(
     refresh_operands: bool = False,
     alternate_operands: list[int] | None = None,
     operand_bank: int = 0,
+    auto_operand_bank: bool = False,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
@@ -424,6 +428,16 @@ def execute(
     resident = resident or indexed
     first_row_pair, row_pairs = _row_window(case, resident_grid=resident_grid)
     last_row_pair = first_row_pair + row_pairs - 1
+    if auto_operand_bank and (
+        not circuit.resident_tilepipe
+        or alternate_operands is None
+        or first_row_pair != 0
+        or operand_bank != 0
+        or resident_cache is not None
+    ):
+        raise ValueError(
+            "automatic bank selection requires a fresh tilepipe launch from row zero"
+        )
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 8 * first_row_pair + 1
@@ -484,6 +498,7 @@ def execute(
     reads = state_reads + store_reads
     schedules = []
     trace = []
+    bank_transition = None
     cache = resident_cache
     pending = [*controls, previous] if resident else []
     uploads = []
@@ -502,7 +517,12 @@ def execute(
     }
 
     if resident_grid:
-        pending.append(GRID + last_row_pair + ROW_PAIRS * operand_bank)
+        pending.append(
+            GRID
+            + last_row_pair
+            + ROW_PAIRS * operand_bank
+            + 2 * ROW_PAIRS * int(auto_operand_bank)
+        )
         transport["grid_initial_tokens"] = 1
 
     if resident_add32:
@@ -560,8 +580,23 @@ def execute(
         if ticket in (DONE, DEADLOCK):
             outcome = "halted" if ticket == DONE else "deadlock"
             break
+        if ticket == NEXT_BANK:
+            if not auto_operand_bank or bank_transition is not None:
+                raise ValueError("unexpected operand bank transition")
+            if controls != [control_token(0), control_token(1)]:
+                raise ValueError("bank transition did not reset both PCs")
+            bank_transition = {
+                "ticket": ticket,
+                "instructions": len(trace),
+                "schedule_index": len(schedules) - 1,
+                "matrix": _matrix(memory),
+                "resident_memory_exact": _check_resident_memory(
+                    cache, circuit, operands, memory, indexed=True
+                ),
+                "bank_before": head_row(cache, circuit, "operand.bank", 0, 1),
+            }
         tag = ticket - TICKET
-        if not 0 <= tag < 64 or tag & 4:
+        if ticket != NEXT_BANK and (not 0 <= tag < 64 or tag & 4):
             raise ValueError(f"invalid tile scheduling ticket {ticket}")
         if index == max_steps:
             break
@@ -742,9 +777,16 @@ def execute(
             cache, circuit, operands, memory, indexed=indexed
         )
     if alternate:
-        transport["resident_operand_banks_exact"] = head_row(
-            cache, circuit, "grid", 0, 3
-        ) == last_row_pair + ROW_PAIRS * operand_bank and _check_tile_operands(
+        expected_grid = last_row_pair + ROW_PAIRS * operand_bank
+        bank_exact = head_row(cache, circuit, "grid", 0, 3) == expected_grid
+        if circuit.resident_tilepipe:
+            expected_bank = (
+                int(bank_transition is not None) if auto_operand_bank else operand_bank
+            )
+            bank_exact = bank_exact and (
+                head_row(cache, circuit, "operand.bank", 0, 1) == expected_bank
+            )
+        transport["resident_operand_banks_exact"] = bank_exact and _check_tile_operands(
             cache, circuit, alternate, bank=1
         )
     if resident_rom:
@@ -788,6 +830,7 @@ def execute(
         )
     return {
         "transport": transport,
+        **({"bank_transition": bank_transition} if auto_operand_bank else {}),
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
@@ -819,6 +862,7 @@ def launch_cached_tile(
     cache: Cache | None = None,
     alternate_operands: list[int] | None = None,
     operand_bank: int = 0,
+    auto_operand_bank: bool = False,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
@@ -839,6 +883,16 @@ def launch_cached_tile(
                     INDEX_OPERAND <= token < INDEX_OPERAND + 4096 for token in tokens
                 ),
                 "c": sum(C_MEMORY <= token < C_MEMORY + 4096 for token in tokens),
+                **(
+                    {
+                        "grid": sum(
+                            GRID <= token < GRID + 4 * ROW_PAIRS for token in tokens
+                        ),
+                        "transition": tokens.count(NEXT_BANK),
+                    }
+                    if auto_operand_bank
+                    else {}
+                ),
                 **(
                     {
                         "alternate_operands": sum(
@@ -867,6 +921,7 @@ def launch_cached_tile(
             refresh_operands=start is not None and not banked,
             alternate_operands=alternate_operands,
             operand_bank=operand_bank,
+            auto_operand_bank=auto_operand_bank,
         )
     finally:
         handle.remove()
@@ -874,6 +929,8 @@ def launch_cached_tile(
     initial_c = 256 if start is None else 0
     initial_operands = 0 if banked and start is not None else 256
     initial_counts = {"operands": initial_operands, "c": initial_c}
+    if auto_operand_bank:
+        initial_counts.update(grid=1, transition=0)
     if banked:
         initial_counts["alternate_operands"] = initial_operands
     if (
@@ -887,7 +944,8 @@ def launch_cached_tile(
         )
         or sum(call["c"] for call in audit)
         != initial_c + transport["matrix_patch_tokens"]
-        or transport["matrix_initial_tokens"] != sum(initial_counts.values())
+        or transport["matrix_initial_tokens"]
+        != initial_c + initial_operands * (1 + int(banked))
         or transport["fresh_caches"] != int(start is None)
     ):
         raise ValueError("tile slice memory transport audit failed")
@@ -1246,10 +1304,12 @@ def load_tile_model(
     resident_branch32: bool = False,
     resident_loop32: bool = False,
     resident_tilebanks: bool = False,
+    resident_tilepipe: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        resident_tilebanks = layout == RESIDENT_TILEBANKS_LAYOUT
+        resident_tilepipe = layout == RESIDENT_TILEPIPE_LAYOUT
+        resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
         resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
@@ -1274,6 +1334,7 @@ def load_tile_model(
             resident_branch32=resident_branch32,
             resident_loop32=resident_loop32,
             resident_tilebanks=resident_tilebanks,
+            resident_tilepipe=resident_tilepipe,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1304,6 +1365,7 @@ def load_tile_model(
             resident_branch32=resident_branch32,
             resident_loop32=resident_loop32,
             resident_tilebanks=resident_tilebanks,
+            resident_tilepipe=resident_tilepipe,
         )
     return model.to(device).eval(), circuit
 
@@ -1331,6 +1393,7 @@ def main() -> None:
     variants.add_argument("--resident-branch32", action="store_true")
     variants.add_argument("--resident-loop32", action="store_true")
     variants.add_argument("--resident-tilebanks", action="store_true")
+    variants.add_argument("--resident-tilepipe", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1340,7 +1403,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_tilebanks = args.resident_tilebanks
+    resident_tilepipe = args.resident_tilepipe
+    resident_tilebanks = args.resident_tilebanks or resident_tilepipe
     resident_loop32 = args.resident_loop32 or resident_tilebanks
     resident_branch32 = args.resident_branch32 or resident_loop32
     resident_addmem32 = args.resident_addmem32 or resident_branch32
@@ -1378,7 +1442,8 @@ def main() -> None:
             *RESIDENT_ADD32_LAYOUTS,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_tilebanks = layout == RESIDENT_TILEBANKS_LAYOUT
+        resident_tilepipe = layout == RESIDENT_TILEPIPE_LAYOUT
+        resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
         resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
@@ -1432,6 +1497,8 @@ def main() -> None:
             raise ValueError("--resident-loop32 requires a loop32 checkpoint")
         if args.resident_tilebanks and not resident_tilebanks:
             raise ValueError("--resident-tilebanks requires a tilebanks checkpoint")
+        if args.resident_tilepipe and not resident_tilepipe:
+            raise ValueError("--resident-tilepipe requires a tilepipe checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1505,6 +1572,7 @@ def main() -> None:
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
         resident_tilebanks=resident_tilebanks,
+        resident_tilepipe=resident_tilepipe,
     )
     report = {
         "device": args.device,
