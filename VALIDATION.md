@@ -1195,3 +1195,24 @@ prior ADD32 matrices, 928 instructions, 936 scheduler decisions,
 and all audited memory counts. They use four caches and omit
 1,024 C upload tokens. See `results/resident_loop32_*` and the
 H100 host record.
+
+## Two preloaded operand banks in one cache
+
+The tilebanks layout keeps both A/B operand pairs and partial C
+in one cache. Both banks are written before the first K slice.
+A bit in the launch grid record selects the bank for tile MACs.
+Indexed shared-memory accesses keep their original address map.
+
+MPS and merged Qwen3.5-9B on H100 match the scalar result and the
+prior trace digest for both slices. The physical cache check
+verifies both banks and the selector after each pass. The first
+launch uploads 768 memory tokens, 256 for each operand bank and
+256 for C. The second launch uploads zero initial memory tokens.
+Both launches still relay the model's C stores.
+
+The second launch uses 7,421 input tokens against 7,933 for the
+fresh-cache control. Preloading moves 256 operand tokens from the
+second launch to the first, so the pair uses the same total
+number of tokens as the earlier retained-C experiment. See
+`results/resident_tilebanks_cached_tile_*` for the audited calls.
+The inherited replays are in progress.
