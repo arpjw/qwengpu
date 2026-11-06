@@ -42,10 +42,13 @@ from qwengpu.compiled_tile8 import (
     NO_WRITE,
     OPERAND,
     OPS,
+    PLAN_BYTES,
+    PLAN_TAG,
     READ_BRANCH,
     READ_INDEX,
     READ_LOOP,
     READ_MASK,
+    READ_PLAN,
     READ_REG,
     READ_STORE,
     REGISTER,
@@ -75,6 +78,7 @@ LOOP_LAYOUT = "qwengpu-looping9b-v1"
 RESIDENT_ROM_LAYOUT = "qwengpu-resident-rom9b-v1"
 RESIDENT_STATE_LAYOUT = "qwengpu-resident-state9b-v1"
 RESIDENT_DELTA_LAYOUT = "qwengpu-resident-delta9b-v1"
+RESIDENT_PLAN_LAYOUT = "qwengpu-resident-plan9b-v1"
 PROGRAM = (
     ("LOAD_TILE", 0),
     ("MAC_K", 0),
@@ -253,7 +257,9 @@ def execute(
     resident_rom: bool = False,
     resident_state: bool = False,
     resident_delta: bool = False,
+    resident_plan: bool = False,
 ) -> dict:
+    resident_delta = resident_delta or resident_plan
     resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
@@ -294,7 +300,10 @@ def execute(
         reads.extend(range(READ_BRANCH, READ_BRANCH + BRANCH_NIBBLES))
     if looping:
         reads.extend(range(READ_LOOP, READ_LOOP + LOOP_NIBBLES))
-    reads.extend(range(READ_STORE, READ_STORE + 32))
+    store_reads = list(range(READ_STORE, READ_STORE + 32))
+    plan_reads = list(range(READ_PLAN, READ_PLAN + PLAN_BYTES))
+    state_reads = reads
+    reads = state_reads + store_reads
     schedules = []
     trace = []
     cache = None
@@ -322,12 +331,17 @@ def execute(
         transport["warp_initial_tokens"] = len(initial_state)
         transport["warp_update_tokens"] = 0
 
+    if resident_plan:
+        transport.update(forward_calls=0, state_plan_tokens=0, state_read_tokens=0)
+
     def feed(tokens: list[int], count: int):
         nonlocal cache
         if not resident:
             cache = None
         transport["input_tokens"] += len(tokens)
         transport["fresh_caches"] += int(cache is None)
+        if resident_plan:
+            transport["forward_calls"] += 1
         out = model(
             input_ids=torch.tensor(
                 [[token + offset for token in tokens]], device=device
@@ -366,12 +380,32 @@ def execute(
             transport["matrix_initial_tokens"] += len(operands) + len(memory)
         state = [] if resident_state else state_packet(warp)
         program = [] if resident_rom else rom[warp]
-        emitted = feed(
-            [*program, *prefix, *state, ticket, TICK, *reads], 1 + len(reads)
-        )
-        control, *packet = emitted
+        tick_input = [*program, *prefix, *state, ticket, TICK]
+        if resident_plan:
+            control, *bitmap = feed([*tick_input, *plan_reads], 1 + len(plan_reads))
+            plan_bits = []
+            for byte, token in enumerate(bitmap):
+                base = PLAN_TAG + 256 * byte
+                if not base <= token < base + 256:
+                    raise ValueError(f"invalid state plan byte {byte}")
+                plan_bits.extend((token >> bit) & 1 for bit in range(8))
+            selected = [nib for nib, changed in enumerate(plan_bits) if changed]
+            requested = [state_reads[nib] for nib in selected]
+            output = feed([*requested, *store_reads], len(requested) + len(store_reads))
+            state_output = [NO_WRITE] * len(state_reads)
+            for nib, token in zip(selected, output[: len(selected)], strict=True):
+                state_output[nib] = token
+            packet = state_output + output[len(selected) :]
+            transport["state_plan_tokens"] += len(plan_reads)
+            transport["state_read_tokens"] += len(requested)
+        else:
+            control, *packet = feed([*tick_input, *reads], 1 + len(reads))
         _check_control(control, warp)
         observed_bits = snapshot(cache, circuit, 0)
+        if resident_plan and (
+            observed_bits is None or plan_bits != observed_bits[WARP_DIRTY_OFFSET:]
+        ):
+            raise ValueError("state read plan does not match the model snapshot")
         tagged_state = []
         if resident_state:
             state_output = packet[:-32]
@@ -765,6 +799,7 @@ def load_tile_model(
     resident_rom: bool = False,
     resident_state: bool = False,
     resident_delta: bool = False,
+    resident_plan: bool = False,
 ):
     if checkpoint is None:
         model, circuit = build_standalone(
@@ -776,6 +811,7 @@ def load_tile_model(
             resident_rom=resident_rom,
             resident_state=resident_state,
             resident_delta=resident_delta,
+            resident_plan=resident_plan,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -796,6 +832,7 @@ def load_tile_model(
             resident_rom=resident_rom,
             resident_state=resident_state,
             resident_delta=resident_delta,
+            resident_plan=resident_plan,
         )
     return model.to(device).eval(), circuit
 
@@ -813,6 +850,7 @@ def main() -> None:
     variants.add_argument("--resident-rom", action="store_true")
     variants.add_argument("--resident-state", action="store_true")
     variants.add_argument("--resident-delta", action="store_true")
+    variants.add_argument("--resident-plan", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -822,7 +860,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_delta = args.resident_delta
+    resident_plan = args.resident_plan
+    resident_delta = args.resident_delta or resident_plan
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     looping = args.looping or resident_rom
@@ -843,9 +882,11 @@ def main() -> None:
             RESIDENT_ROM_LAYOUT,
             RESIDENT_STATE_LAYOUT,
             RESIDENT_DELTA_LAYOUT,
+            RESIDENT_PLAN_LAYOUT,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_delta = layout == RESIDENT_DELTA_LAYOUT
+        resident_plan = layout == RESIDENT_PLAN_LAYOUT
+        resident_delta = resident_plan or layout == RESIDENT_DELTA_LAYOUT
         resident_state = resident_delta or layout == RESIDENT_STATE_LAYOUT
         resident_rom = resident_state or layout == RESIDENT_ROM_LAYOUT
         looping = resident_rom or layout == LOOP_LAYOUT
@@ -869,6 +910,8 @@ def main() -> None:
             raise ValueError("--resident-state requires a resident state checkpoint")
         if args.resident_delta and not resident_delta:
             raise ValueError("--resident-delta requires a resident delta checkpoint")
+        if args.resident_plan and not resident_plan:
+            raise ValueError("--resident-plan requires a resident plan checkpoint")
     paths = [args.kernel] if args.kernel else sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -911,6 +954,7 @@ def main() -> None:
         resident_rom=resident_rom,
         resident_state=resident_state,
         resident_delta=resident_delta,
+        resident_plan=resident_plan,
     )
     report = {
         "device": args.device,
@@ -944,6 +988,7 @@ def main() -> None:
             resident_rom=resident_rom,
             resident_state=resident_state,
             resident_delta=resident_delta,
+            resident_plan=resident_plan,
         )
         transport = observed.pop("transport")
         exact = (

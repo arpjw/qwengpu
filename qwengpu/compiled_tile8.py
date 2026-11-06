@@ -50,6 +50,9 @@ LOOP_NIBBLES = 5
 WARP_DIRTY_OFFSET = LOOP_OFFSET + 4 * LOOP_NIBBLES
 ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
+READ_PLAN = ROM_BANK + 2
+PLAN_TAG = 0xD000
+PLAN_BYTES = 8
 WARP_BANKS = (0xB000, 0xC000)
 WARP_TAGS = tuple(
     base + 16 * nib
@@ -155,7 +158,9 @@ def build(
     resident_rom: bool = False,
     resident_state: bool = False,
     resident_delta: bool = False,
+    resident_plan: bool = False,
 ) -> Circ:
+    resident_delta = resident_delta or resident_plan
     resident_state = resident_state or resident_delta
     resident_rom = resident_rom or resident_state
     looping = looping or resident_rom
@@ -199,6 +204,11 @@ def build(
     loop_reads = (
         [match(f"loop.read.{nib}", READ_LOOP + nib) for nib in range(LOOP_NIBBLES)]
         if looping
+        else []
+    )
+    plan_reads = (
+        [match(f"state.plan.{byte}", READ_PLAN + byte) for byte in range(PLAN_BYTES)]
+        if resident_plan
         else []
     )
     code = [
@@ -697,7 +707,8 @@ def build(
                         + index_reads
                         + mask_reads
                         + branch_reads
-                        + loop_reads,
+                        + loop_reads
+                        + plan_reads,
                         Expr(),
                     )
                 },
@@ -826,6 +837,13 @@ def build(
                 c.ffn(
                     branch_terms, f"exit.branch.{bit}", into=expr, min_level=floor + 1
                 )
+        for byte, read in enumerate(plan_reads):
+            if bit < 8:
+                terms += c.t_and(
+                    [read, saved[WARP_DIRTY_OFFSET + 8 * byte + bit]], 2 * KAPPA
+                )
+            elif (PLAN_TAG + 256 * byte) >> bit & 1:
+                terms += c.t_and([read], 2 * KAPPA)
         if resident_state:
             if WARP_BANKS[0] >> bit & 1:
                 terms += c.t_and([state_reads, one - saved[129]], 2 * KAPPA)
@@ -850,6 +868,7 @@ def build_standalone(
     resident_rom: bool = False,
     resident_state: bool = False,
     resident_delta: bool = False,
+    resident_plan: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -862,6 +881,7 @@ def build_standalone(
         resident_rom=resident_rom,
         resident_state=resident_state,
         resident_delta=resident_delta,
+        resident_plan=resident_plan,
     )
     return build_qwen(
         circuit,

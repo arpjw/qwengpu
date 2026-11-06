@@ -633,3 +633,32 @@ reconstructs the canonical trace and checks the bank contents.
   --model /path/to/Qwen3.5-9B-qwengpu-resident-delta --device cuda \
   --out "$QWENGPU_DIR/results/resident_delta_launch_9b_cuda_fla.json"
 ```
+
+## Model-generated state read plans
+
+The resident-plan checkpoint emits eight tagged bytes after each tick.
+Together they form a bitmap of changed warp-state nibbles. The launcher
+requests the selected positions and forwards the model's tagged values.
+It still requests all 32 shared-store positions. The extra read phase
+adds one forward call per instruction. The report counts plan requests,
+state read requests, and total forward calls separately.
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  --resident-plan --device mps --out "$QWENGPU_DIR/results/resident_plan_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.merge9b /path/to/Qwen3.5-9B \
+  --resident-plan --out /path/to/Qwen3.5-9B-qwengpu-resident-plan
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tile8 \
+  /path/to/Qwen3.5-9B-qwengpu-resident-plan --device cuda \
+  --out "$QWENGPU_DIR/results/resident_plan_9b_cuda_fla.json"
+```
+
+```sh
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --resident-plan --device mps --out "$QWENGPU_DIR/results/resident_plan_launch_mps.json"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  "$QWENGPU_DIR/eval/frozen/loop_gate_v1/cooperative_matmul.json" \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-plan --device cuda \
+  --out "$QWENGPU_DIR/results/resident_plan_launch_9b_cuda_fla.json"
+```

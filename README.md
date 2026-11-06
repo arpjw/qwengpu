@@ -206,9 +206,10 @@ and PC. Pass `--resident-state` or use a merge built with
 `merge9b --resident-state` to keep each warp's accumulators, indices,
 mask, and stacks in its own bank in the same cache. With
 `--resident-delta`, or a merge built with `merge9b --resident-delta`,
-the model emits a state update only when a nibble changes. The launcher
-reports the resulting matrix, shared words, instruction count, and
-launch outcome as JSON.
+the model emits a state update only when a nibble changes. The
+`--resident-plan` checkpoint also tells the launcher which state
+positions to read. The launcher reports the resulting matrix, shared
+words, instruction count, and launch outcome as JSON.
 
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
