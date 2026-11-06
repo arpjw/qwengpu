@@ -126,10 +126,10 @@ The consumer copies sixteen producer-written values after text.
 Its trace matches the interpreter and a fresh-cache control with
 zero initial memory uploads.
 
-The next gate accumulates two K slices into one 8×8 output tile
-in a single cache. Upload the new A and B operands for the second
-slice and keep C in the model. Verify both scalar results and audit
-the second slice for zero C upload tokens.
+Two K slices accumulate into one 8×8 output tile in one MPS
+cache. The second slice refreshes A and B and keeps C in the model.
+Both results match the scalar reference and the prior tile traces.
+Merged 9B validation is the remaining check.
 
 Use RUNPOD_LEDGER.md to track the total approved $74 compute cap and
 reconcile pending estimates before provisioning more resources.

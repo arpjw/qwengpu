@@ -1172,3 +1172,26 @@ six and seven. The host checks the result against the interpreter
 and a fresh-cache consumer. A model forward hook audits cache identity
 and shared-memory tokens for every consumer call, including the
 tags returned for its own stores.
+
+## Accumulate two slices into one resident output tile
+
+Use the top-left output tile of the frozen 16×16 multiply. The first
+launch uploads A, B, and initial C. The second launch refreshes A and
+B in the same cache and reads the partial C from the model. A separate
+fresh-cache run serves as the second-slice control.
+
+```sh
+cd "$QWENGPU_DIR"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_cached_tile \
+  --device mps --out results/resident_add32_cached_tile_mps.json
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_cached_tile \
+  --model /path/to/Qwen3.5-9B-qwengpu-resident-add32 --device cuda \
+  --out results/resident_add32_cached_tile_9b_cuda_fla.json
+python3 scripts/check_cached_tile.py
+```
+
+The evaluator checks both scalar results and each instruction against
+the interpreter. A forward hook verifies the cache identity and counts
+the operand and C tokens actually sent to the model. The checker also
+compares the trace digests with the earlier composed multiply.

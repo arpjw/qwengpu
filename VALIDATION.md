@@ -980,3 +980,18 @@ with 1,273 for the fresh-cache control.
 
 See `results/resident_add32_cache_relaunch*` for the trace, audited
 token counts, merge metadata, and host details.
+
+## Two K slices with resident C
+
+The standalone MPS check accumulated the two K slices of the
+top-left 8×8 output tile in one cache. The first launch uploaded
+A, B, and C. The second launch reused the same cache and uploaded
+only new A and B. Both passes matched the scalar reference and
+the tile trace digests from the earlier composed 16×16 multiply.
+Each pass ran 116 instructions and 117 scheduler decisions.
+
+The forward audit counted 256 operand tokens and zero initial C
+tokens on the second pass. Its 256 C tokens were the model's own
+stores. The retained pass used 7,677 input tokens, compared with
+7,933 for the exact fresh-cache control. All 25 existing tests
+passed. The MPS report includes each forward's memory token counts.

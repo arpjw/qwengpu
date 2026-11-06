@@ -342,8 +342,11 @@ def execute(
     resident_wide: bool = False,
     resident_add32: bool = False,
     resident_cache: Cache | None = None,
+    refresh_operands: bool = False,
 ) -> dict:
-    """Run a kernel. With a retained cache, the case supplies the expected memory image."""
+    """Run a kernel with optional retained memory and fresh A and B operands."""
+    if refresh_operands and resident_cache is None:
+        raise ValueError("refresh_operands requires a retained cache")
     if resident_cache is not None and not resident_add32:
         raise ValueError("retained shared memory requires the resident ADD32 layout")
     resident_wide = resident_wide or resident_add32
@@ -419,12 +422,17 @@ def execute(
     trace = []
     cache = resident_cache
     pending = [*controls, previous] if resident else []
-    if resident and resident_cache is None:
-        pending.extend([*operands, *memory])
+    uploads = []
+    if resident:
+        if resident_cache is None or refresh_operands:
+            uploads.extend(operands)
+        if resident_cache is None:
+            uploads.extend(memory)
+    pending.extend(uploads)
     transport = {
         "input_tokens": 0,
         "fresh_caches": 0,
-        "matrix_initial_tokens": 0,
+        "matrix_initial_tokens": len(uploads),
         "matrix_patch_tokens": 0,
     }
 
@@ -476,8 +484,6 @@ def execute(
         cache = out.past_key_values
         return [token - offset for token in out.logits[0].argmax(dim=-1).tolist()]
 
-    if resident and resident_cache is None:
-        transport["matrix_initial_tokens"] = len(operands) + len(memory)
     outcome = "step_limit"
     for index in range(max_steps + 1):
         prefix = pending if resident else [*controls, previous]
