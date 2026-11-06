@@ -1189,4 +1189,9 @@ All 25 local tests passed.
 
 The pinned merged Qwen3.5-9B on H100 reproduces all 27 MPS
 records exactly. The merge keeps 28 chip layers and hidden
-width 6,656. Retained multiply results are pending.
+width 6,656. The public MPS launcher reproduces the upper-half
+loop trace. The retained 16×16 runs on both backends match the
+prior ADD32 matrices, 928 instructions, 936 scheduler decisions,
+and all audited memory counts. They use four caches and omit
+1,024 C upload tokens. See `results/resident_loop32_*` and the
+H100 host record.
