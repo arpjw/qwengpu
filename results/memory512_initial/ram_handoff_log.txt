@@ -1,0 +1,5 @@
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  51%|█████     | 466/917 [00:00<00:00, 4650.41it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 4200.25it/s]
+[transformers] The tokenizer you are loading from '/workspace/Qwen3.5-9B-qwengpu-resident-memory512' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Expanded RAM: 8192 port nibbles preserved across native text; retained reduction exact

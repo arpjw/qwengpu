@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from check_addmem32_text import check_reset
 from check_compute_bounds import check as check_bounds
 from check_globalgrid import check as check_globalgrid
 from check_resident_add32_full import cases_by_name, load_report
@@ -132,6 +133,7 @@ def main() -> None:
     parser.add_argument("--global-memory", action="store_true")
     parser.add_argument("--public", action="store_true")
     parser.add_argument("--bounds", action="store_true")
+    parser.add_argument("--ram-handoff", action="store_true")
     args = parser.parse_args()
     mps = load_report("memory512_mps")
     assert mps["device"] == "mps" and mps["merge"] is None
@@ -290,6 +292,43 @@ def main() -> None:
                 }
         print(
             "Public fixed transport: vector64 and reduction128 match all planned execution records"
+        )
+    if args.ram_handoff:
+        assert cuda is not None
+        handoff = load_report("memory512_ram_handoff_9b_cuda_fla")
+        primary = next(case for case in cuda["cases"] if case["name"] == "reduce_127")
+        assert handoff["merge"] == cuda["merge"] and handoff["exact"]
+        assert handoff["request"] == primary["request"]
+        assert handoff["manifest_sha256"] == cuda["manifest_sha256"]
+        corpus = ROOT / "eval/frozen/text_add32_gate_v1/prompts.json"
+        assert (
+            handoff["corpus_sha256"] == hashlib.sha256(corpus.read_bytes()).hexdigest()
+        )
+        assert handoff["producer"] == primary["launches"][0]
+        assert handoff["consumer"] == primary["launches"][1]
+        for run, first in (
+            (handoff["producer"], True),
+            (handoff["consumer"], False),
+            (handoff["cold_consumer"], True),
+        ):
+            check_run(run, first)
+        rows = [
+            word >> (4 * nib) & 15
+            for word in handoff["producer"]["global_words"]
+            for nib in range(4)
+            for _lane in range(8)
+        ]
+        assert len(rows) == 8192
+        assert handoff["ram_before"] == handoff["ram_after_text"] == rows
+        assert handoff["sum"] == primary["output"]
+        check_reset(handoff["text"]["comparison"])
+        assert (
+            handoff["text"]["fresh"]["chip_tokens"]
+            == handoff["text"]["after_gpu"]["chip_tokens"]
+            == 0
+        )
+        print(
+            "Native-text RAM handoff: all 8192 nibbles and retained reduction match the primary control"
         )
     if args.text:
         assert cuda is not None
