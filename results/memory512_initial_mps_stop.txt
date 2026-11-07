@@ -1,0 +1,4 @@
+stopped_utc=2026-11-07T06:52:27.732505+00:00
+Stopped the initial candidate after its 23/24 native first-token regression.
+Its complete primary MPS suite and all 27 inherited MPS cases are saved.
+The in-progress MPS tiled replay and queued follow-ups were cancelled before testing the allocation-compressed candidate.
