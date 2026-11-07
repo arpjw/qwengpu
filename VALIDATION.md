@@ -1635,3 +1635,10 @@ Full compatibility qualification remains in progress. The merged model
 already matches all 27 inherited case records; the MPS suite, long tiled
 replays, and text/cache boundary checks are still running. SCOPE.md keeps
 the earlier fully qualified baseline until those checks finish.
+
+The initial memory512 merge fails the retained first-token threshold:
+23/24 first tokens, 21/24 short greedy continuations, and zero generated
+chip tokens. Its exact frozen text report is retained as
+`results/memory512_initial_text_9b_cuda_fla.json`. The arithmetic-qualified
+candidate is not promoted; allocation compression is under investigation
+before any replacement checkpoint qualification.
