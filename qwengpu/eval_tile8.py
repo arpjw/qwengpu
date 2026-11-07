@@ -70,6 +70,7 @@ from qwengpu.compiled_tile8 import (
     RESIDENT_SHARED32_LAYOUT,
     RESIDENT_TILEBANKS_LAYOUT,
     RESIDENT_TILEPIPE_LAYOUT,
+    RIGHT_OPERANDS,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
     ROW_PAIRS,
@@ -397,6 +398,7 @@ def execute(
     auto_operand_bank: bool = False,
     auto_workgroups: bool = False,
     second_output: list[int] | None = None,
+    right_operands: tuple[list[int], list[int]] | None = None,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
@@ -452,6 +454,13 @@ def execute(
         _unsigned(second_output, 64, 65535, "second output")
         if any(op not in OPS for program in case["programs"] for op, _ in program):
             raise ValueError("separate outputs require tile-only programs")
+        if right_operands is None:
+            right_operands = (case["b"], alternate_operands[64:])
+    if right_operands is not None:
+        if second_output is None:
+            raise ValueError("right operand panels require a second output")
+        for panel in right_operands:
+            _unsigned(panel, 64, 255, "right operand panel")
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 8 * first_row_pair + 1
@@ -465,6 +474,14 @@ def execute(
     second_memory = (
         nibbles(SECOND_OUTPUT, _digits(second_output, 16))
         if second_output is not None
+        else []
+    )
+    right_tokens = (
+        [
+            nibbles(base, _digits(panel, 8))
+            for base, panel in zip(RIGHT_OPERANDS, right_operands, strict=True)
+        ]
+        if right_operands is not None
         else []
     )
     initial_registers = case.get("initial_registers", [[0] * 8, [0] * 8])
@@ -529,6 +546,8 @@ def execute(
             uploads.extend(alternate)
             uploads.extend(memory)
             uploads.extend(second_memory)
+            for panel in right_tokens:
+                uploads.extend(panel)
     pending.extend(uploads)
     transport = {
         "input_tokens": 0,
@@ -593,12 +612,21 @@ def execute(
         return [token - offset for token in out.logits[0].argmax(dim=-1).tolist()]
 
     def memory_exact() -> bool:
-        return _check_resident_memory(
-            cache, circuit, operands, memory, indexed=indexed
-        ) and all(
-            head_row(cache, circuit, f"C.{address % 32}", 8 + address // 32, 4)
-            == token & 15
-            for address, token in enumerate(second_memory)
+        return (
+            _check_resident_memory(cache, circuit, operands, memory, indexed=indexed)
+            and all(
+                head_row(cache, circuit, f"C.{address % 32}", 8 + address // 32, 4)
+                == token & 15
+                for address, token in enumerate(second_memory)
+            )
+            and all(
+                head_row(cache, circuit, f"B.{column}.{nibble}", 16 + 8 * bank + row, 4)
+                == token & 15
+                for bank, panel in enumerate(right_tokens)
+                for address, token in enumerate(panel)
+                for row, position in [divmod(address, 16)]
+                for column, nibble in [divmod(position, 2)]
+            )
         )
 
     outcome = "step_limit"
@@ -934,6 +962,7 @@ def launch_cached_tile(
     auto_operand_bank: bool = False,
     auto_workgroups: bool = False,
     second_output: list[int] | None = None,
+    right_operands: tuple[list[int], list[int]] | None = None,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
@@ -977,7 +1006,12 @@ def launch_cached_tile(
                         "second_output": sum(
                             SECOND_OUTPUT <= token < SECOND_OUTPUT + 4096
                             for token in tokens
-                        )
+                        ),
+                        "right_operands": sum(
+                            base <= token < base + 2048
+                            for token in tokens
+                            for base in RIGHT_OPERANDS
+                        ),
                     }
                     if second_output is not None
                     else {}
@@ -1013,6 +1047,7 @@ def launch_cached_tile(
             auto_operand_bank=auto_operand_bank,
             auto_workgroups=auto_workgroups,
             second_output=second_output,
+            right_operands=right_operands,
         )
     finally:
         handle.remove()
@@ -1023,6 +1058,7 @@ def launch_cached_tile(
     initial_second = 256 if second_output is not None else 0
     if second_output is not None:
         initial_counts["second_output"] = initial_second
+        initial_counts["right_operands"] = 256
     if auto_operand_bank:
         initial_counts.update(grid=1, transition=0)
     if auto_workgroups:
@@ -1040,8 +1076,9 @@ def launch_cached_tile(
         )
         or sum(call["c"] + call.get("second_output", 0) for call in audit)
         != initial_c + initial_second + transport["matrix_patch_tokens"]
+        or any(call.get("right_operands", 0) for call in audit[1:])
         or transport["matrix_initial_tokens"]
-        != initial_c + initial_second + initial_operands * (1 + int(banked))
+        != initial_c + 2 * initial_second + initial_operands * (1 + int(banked))
         or transport["fresh_caches"] != int(start is None)
     ):
         raise ValueError("tile slice memory transport audit failed")

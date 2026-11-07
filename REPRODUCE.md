@@ -1560,3 +1560,8 @@ Add `--separate-outputs` to preload two distinct initial C tiles. The
 model selects the second C tile after the workgroup transition and
 emits its store addresses. The evaluator checks both physical output
 regions and verifies that the second group leaves the first intact.
+
+Add `--right-panel` to use different B inputs as well. With
+`--row-pairs 4 --right-panel`, this runs an 8×16 output panel with
+an inner dimension of 16. The evaluator checks the combined readout
+against scalar multiplication.

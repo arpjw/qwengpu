@@ -37,6 +37,7 @@ INDEX_REGISTER = 0x9000
 INDEX_OPERAND = 0xA000
 ALT_OPERAND = 0xE000
 SECOND_OUTPUT = 0xF000
+RIGHT_OPERANDS = (0xB800, 0xC800)
 INDEX_WORDS = 128
 READ_MASK = READ_INDEX + 16
 MASK_REGISTER = 0x9100
@@ -667,6 +668,14 @@ def build(
     bank_offsets = (
         [0, (ALT_OPERAND - operand_base) // 16] if resident_tilebanks else [0]
     )
+    b_offsets = [offset + 128 for offset in bank_offsets]
+    if resident_tilegrid:
+        b_offsets.extend((base - operand_base) // 16 for base in RIGHT_OPERANDS)
+        b_queries = [
+            c.and_([query, gate], f"B.query.panel.{panel}.{slot}")
+            for panel, gate in enumerate((one - second_output, second_output))
+            for slot, query in enumerate(b_queries)
+        ]
     row_queries = [
         c.and_([tick, hot], f"C.query.{row}") for row, hot in enumerate(rows)
     ]
@@ -696,8 +705,8 @@ def build(
                 f"B.{col}.{nib}",
                 operand_base,
                 [
-                    offset + 128 + 2 * (8 * k + col) + nib
-                    for offset in bank_offsets
+                    offset + 2 * (8 * k + col) + nib
+                    for offset in b_offsets
                     for k in range(8)
                 ],
                 b_queries,

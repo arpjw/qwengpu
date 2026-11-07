@@ -31,6 +31,7 @@ def qualify(
     device: str,
     *,
     second_output: list[int] | None = None,
+    right_operands: tuple[list[int], list[int]] | None = None,
 ) -> dict:
     _, observed, audit = launch_cached_tile(
         model,
@@ -42,6 +43,7 @@ def qualify(
         auto_operand_bank=True,
         auto_workgroups=True,
         second_output=second_output,
+        right_operands=right_operands,
     )
     banks = observed["bank_transitions"]
     group = observed["workgroup_transition"]
@@ -80,9 +82,13 @@ def qualify(
     instruction_index = schedule_index = 0
     results = []
     reference_case = case.copy()
+    current_alternate = alternate
     for index, end in enumerate([*boundaries, None]):
         if index == 2 and second_output is not None:
             reference_case["c"] = second_output
+            if right_operands is not None:
+                reference_case["b"] = right_operands[0]
+                current_alternate = alternate[:64] + right_operands[1]
         trace = observed["trace"][
             instruction_index : end["instructions"] if end else None
         ]
@@ -94,7 +100,7 @@ def qualify(
             reference_case,
             256,
             looping=True,
-            alternate_operands=alternate,
+            alternate_operands=current_alternate,
             operand_bank=bank,
         )
         if index >= 2 and second_output is not None:
@@ -141,6 +147,11 @@ def qualify(
         "memory_tokens_by_call": audit,
         "instructions": len(observed["trace"]),
         "scheduler_decisions": len(observed["schedules"]),
+        **(
+            {"workgroup_outputs": observed["workgroup_outputs"]}
+            if second_output is not None
+            else {}
+        ),
         "exact": True,
     }
 
@@ -150,6 +161,11 @@ def main() -> None:
     parser.add_argument("--device", default="mps")
     parser.add_argument("--row-pairs", type=int, choices=range(1, 5), default=1)
     parser.add_argument("--separate-outputs", action="store_true")
+    parser.add_argument(
+        "--right-panel",
+        action="store_true",
+        help="select different B and C tiles for the second workgroup",
+    )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     payload = FIXTURE.read_bytes()
@@ -164,6 +180,7 @@ def main() -> None:
         resident_loop32=True,
     )
     alternate = _tile(a, 0, TILE) + _tile(b, TILE, 0)
+    right = (_tile(b, 0, TILE), _tile(b, TILE, TILE)) if args.right_panel else None
     model, circuit = build_standalone(resident_tilegrid=True)
     model.to(args.device).eval()
     result = qualify(
@@ -172,12 +189,34 @@ def main() -> None:
         case,
         alternate,
         args.device,
-        second_output=_tile(initial, 0, TILE) if args.separate_outputs else None,
+        second_output=(
+            _tile(initial, 0, TILE)
+            if args.separate_outputs or args.right_panel
+            else None
+        ),
+        right_operands=right,
     )
+    if args.right_panel:
+        left, right = result["workgroup_outputs"]
+        matrix = [l + r for l, r in zip(left, right, strict=True)]
+        expected = [
+            [
+                (initial[i][j] + sum(a[i][k] * b[k][j] for k in range(2 * TILE)))
+                & 65535
+                if i < 2 * args.row_pairs
+                else initial[i][j]
+                for j in range(2 * TILE)
+            ]
+            for i in range(TILE)
+        ]
+        if matrix != expected:
+            raise ValueError("resident panel multiply differs from the scalar matrix")
+        result["matrix"] = matrix
     report = {
         "device": args.device,
         "row_pairs": args.row_pairs,
-        "separate_outputs": args.separate_outputs,
+        "separate_outputs": args.separate_outputs or args.right_panel,
+        "right_panel": args.right_panel,
         "torch": torch.__version__,
         "transformers": transformers.__version__,
         "fixture_sha256": hashlib.sha256(payload).hexdigest(),

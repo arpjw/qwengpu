@@ -1326,3 +1326,9 @@ second workgroup loaded and wrote its own C image and left the
 first group's result unchanged. Both physical output regions
 matched the interpreter at each boundary. See
 `results/tilegrid_separate_outputs_mps.json`.
+
+With different B panels, the row-pair check matched the scalar
+2×16 active output and kept the six inactive rows intact. The
+model read both K slices from the correct panel and wrote only
+the selected output region. The host uploaded both B panels once.
+See `results/tilegrid_right_panel_row_pair_mps.json`.

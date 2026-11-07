@@ -26,8 +26,9 @@ inside tilepipe. It restarts the row scheduler and both PCs, resets
 operand selection, and keeps the ROM and accumulator memory in the
 same cache. The second workgroup can use a separately preloaded
 output tile. Its stores carry the address of that output and preserve
-the first tile. Both groups still use the same A and B inputs in
-this gate. Independent input addressing and a full 2×2 grid remain open.
+the first tile. The model can also select different B panels for each
+group, sharing the A panel across both. A second workgroup row and
+general-purpose global addressing remain open.
 
 The resident 8×8 tile engine holds its 256 shared bytes in one inference
 cache per launch. A, B, and initial C are uploaded once. The host relays
