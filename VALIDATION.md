@@ -1441,3 +1441,11 @@ launcher reproduced the two-workgroup probe on both backends.
 The new merge also matched the existing single-workgroup assembly
 trace. See `results/globalgrid_reduction_9b_cuda_fla.json`,
 the public launcher reports, and `results/globalgrid_host_a100.txt`.
+
+The full globalgrid replay now passes all 27 inherited cases on MPS and
+merged Qwen3.5-9B on A100. The complete case records match each other and
+the tilegrid MPS baseline, including raw traces, state, transport counts,
+terminal outcomes, high-bit branches and loops, and shared-memory handoffs.
+See `results/globalgrid_inherited_mps.json`,
+`results/globalgrid_inherited_9b_cuda_fla.json`, and
+`python3 scripts/check_checkpoint_full.py --cuda`.
