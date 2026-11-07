@@ -207,6 +207,21 @@ def main() -> None:
             ("memory512_matmul16_9b_cuda_fla",) if cuda else ()
         ):
             actual = load_report(name)
+            assert actual["input_sha256"] == baseline["input_sha256"]
+            inputs = json.loads(
+                (ROOT / "eval/frozen/matmul16_gate_v1/dense_seeded.json").read_bytes()
+            )
+            a, b, c = (inputs[key] for key in ("a", "b", "c"))
+            for i, k in enumerate((8, 16)):
+                scalar = [
+                    [
+                        (c[row][col] + sum(a[row][j] * b[j][col] for j in range(k)))
+                        & 65535
+                        for col in range(16)
+                    ]
+                    for row in range(16)
+                ]
+                assert actual["passes"][i]["matrix"] == scalar
             assert actual["merge"] == (cuda["merge"] if "_9b_" in name else None)
             assert actual["checkpoint"] == (
                 cuda["merge"]["layout"]
