@@ -1610,3 +1610,16 @@ The fixture sum is `0x5f049522` modulo `2^32`. Pass
 `--input` with a JSON array of 16 unsigned 32-bit values to use
 different input. Pass `--model "$model" --device cuda` to use
 the merged tilegrid checkpoint.
+
+Assemble the guarded 13-element vector add. The launch data packs
+two 16-word vectors in one workgroup's shared memory and marks the
+active lanes. The kernel should preserve the three inactive words.
+
+```sh
+"$QWENGPU_PYTHON" -m qwengpu.assemble examples/guarded_vector_add.qga \
+  --data examples/guarded_vector_add_data.json --out /tmp/qwengpu-vector.json
+"$QWENGPU_PYTHON" -m qwengpu.run_resident /tmp/qwengpu-vector.json \
+  --resident-tilegrid --device mps --check-reference --trace \
+  --out /tmp/qwengpu-tilegrid-vector-mps.json
+python3 scripts/check_tilegrid.py --kernels
+```

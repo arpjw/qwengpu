@@ -1387,3 +1387,9 @@ to `0x5f049522` modulo `2^32`. The second launch retained the cache
 and uploaded zero input or shared-memory tokens. Each partial sum,
 guard, and instruction trace matched the reference. See
 `results/tilegrid_reduction_mps.json`.
+
+An independently assembled 13-element vector add ran on the same
+standalone tilegrid circuit. All 20 instructions and the complete
+shared-memory image matched the interpreter and scalar additions.
+The right operand and three inactive output guards stayed intact.
+See `results/tilegrid_vector_mps.json`.

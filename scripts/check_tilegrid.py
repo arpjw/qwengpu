@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 
 from check_matmul16 import FIXTURE
 from check_resident_add32_full import cases_by_name, load_report
+from check_tilepipe_matmul16 import check_text
 
 LAYOUT = "qwengpu-resident-tilegrid-9b-v1"
+ROOT = FIXTURE.parents[3]
 
 
 def check(report: dict, baseline: dict) -> None:
@@ -79,11 +82,69 @@ def check(report: dict, baseline: dict) -> None:
     assert sum(call["workgroup_transition"] for call in calls) == 3
 
 
+def check_programs(layout: dict | None) -> None:
+    def words32(words: list[int]) -> list[int]:
+        return [lo | hi << 16 for lo, hi in zip(words[::2], words[1::2], strict=True)]
+
+    assembled = load_report("assembled_cooperative_pair_mps")
+    vector = load_report("tilegrid_vector_mps")
+    reduction = load_report("tilegrid_reduction_mps")
+    generated = load_report("tilegrid_generated_mps")
+    initial = json.loads((ROOT / "examples/guarded_vector_add_data.json").read_text())
+    left, right = words32(initial["c"][:32]), words32(initial["c"][32:])
+    expected = [
+        (a + b) & 0xFFFFFFFF for a, b in zip(left[:13], right[:13], strict=True)
+    ]
+    assert words32(vector["shared_words"][64:]) == expected + left[13:] + right
+    assert all(vector["reference"].values())
+    assert (
+        reduction["exact"] and reduction["sum"] == sum(reduction["input"]) & 0xFFFFFFFF
+    )
+    assert all(
+        case["decisions"] == 33 and case["instructions"] == 32
+        for case in reduction["passes"]
+    )
+    first, second = reduction["passes"]
+    assert first["transport"]["fresh_caches"] == 1
+    assert (
+        second["transport"]["fresh_caches"]
+        == second["transport"]["matrix_initial_tokens"]
+        == 0
+    )
+    assert len(cases_by_name(generated)) == 6
+    print("MPS: exact vector add, retained-cache reduction, and six seeded cases")
+    if layout is None:
+        return
+    for name, report in (("assembled", assembled), ("vector", vector)):
+        cuda = load_report(f"tilegrid_{name}_9b_cuda_fla")
+        assert cuda["checkpoint"] == LAYOUT
+        for field in (
+            "trace",
+            "schedules",
+            "warp_registers",
+            "shared_words",
+            "reference",
+        ):
+            assert cuda[field] == report[field], (name, field)
+    cuda_reduction = load_report("tilegrid_reduction_9b_cuda_fla")
+    assert cuda_reduction["merge"] == layout
+    for field in ("input_sha256", "sum", "passes", "guards"):
+        assert cuda_reduction[field] == reduction[field], field
+    cuda_generated = load_report("tilegrid_generated_9b_cuda_fla")
+    assert cuda_generated["merge"] == layout
+    assert cases_by_name(cuda_generated) == cases_by_name(generated)
+    print("Merged 9B CUDA: exact assembly, vector, reduction, and seeded traces")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cuda", action="store_true")
     parser.add_argument("--inherited", action="store_true")
+    parser.add_argument("--text", action="store_true")
+    parser.add_argument("--kernels", action="store_true")
     args = parser.parse_args()
+    if args.text and not args.cuda:
+        parser.error("--text requires --cuda")
     baseline = load_report("resident_tilepipe_matmul16_mps")
     mps = load_report("tilegrid_2x2_full_mps")
     check(mps, baseline)
@@ -114,6 +175,10 @@ def main() -> None:
         previous = cases_by_name(load_report("resident_tilepipe_full_9b_cuda_fla"))
         assert len(current) == 27 and current == previous
         print("Merged 9B CUDA: all 27 inherited records exact")
+    if args.text:
+        check_text(cuda["merge"], "tilegrid")
+    if args.kernels:
+        check_programs(cuda["merge"] if args.cuda else None)
 
 
 if __name__ == "__main__":

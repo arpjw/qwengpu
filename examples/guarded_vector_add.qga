@@ -1,0 +1,25 @@
+# Add the 32-bit pairs at index and index XOR 32 into the first pair.
+# The launch sets bit 31 of each valid lane's initial register.
+.warp 0
+SAVE_INDEX
+IF_BIT 31
+    LOAD_INDEX
+    LOAD_INDEX_HI
+    ADD_INDEX_LO 32
+    ADD_INDEX_HI 32
+    STORE_INDEX
+    STORE_INDEX_HI
+ENDIF
+HALT
+
+.warp 1
+SAVE_INDEX
+IF_BIT 31
+    LOAD_INDEX
+    LOAD_INDEX_HI
+    ADD_INDEX_LO 32
+    ADD_INDEX_HI 32
+    STORE_INDEX
+    STORE_INDEX_HI
+ENDIF
+HALT

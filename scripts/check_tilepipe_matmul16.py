@@ -108,9 +108,9 @@ def check_matmul(report: dict) -> None:
         assert report["tiles"][0][key] == sample[key]
 
 
-def check_text(layout: dict) -> None:
+def check_text(layout: dict, stem: str = "resident_tilepipe") -> None:
     fresh, reset, roundtrip = (
-        load_report(f"resident_tilepipe_{name}_9b_cuda_fla")
+        load_report(f"{stem}_{name}_9b_cuda_fla")
         for name in ("text", "handoff_reset", "arithmetic_relaunch")
     )
     assert all(report["merge"] == layout for report in (fresh, reset, roundtrip))
