@@ -164,7 +164,7 @@ def main() -> None:
         assert preflight["maximum_head_row"] == 127
         index = files["model.safetensors.index.json"]
         shards = set(index["weight_map"].values())
-        assert len(shards) == 27 and shards <= manifest["sha256"].keys()
+        assert shards and set(manifest["sha256"]) == shards | set(files)
         sizes = manifest["dtype_bytes"]
         assert sizes["F32"] == 15360
         assert sum(sizes.values()) == index["metadata"]["total_size"]
