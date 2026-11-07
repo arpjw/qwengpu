@@ -1423,3 +1423,13 @@ their computed addresses. The odd-numbered groups read values stored
 by the preceding groups. Full recurrent memory, guard words, and
 the zero-initialized warp state at each group boundary matched.
 See `results/globalgrid_ids_mps.json`.
+
+The MPS reduction summed 32 unsigned 32-bit inputs modulo
+`2^32`. Two producer workgroups executed 64 instructions and
+stored partial sums `0xadc9c3bd` and `0xddd1129b` at distinct
+global addresses. The 12-instruction consumer read both partials
+and produced `0x8b9ad658`. It reused the producer cache with zero
+global-memory uploads. The scalar reference matched the partials,
+final result, and every guard word. The interpreter matched each
+instruction and scheduling decision. See
+`results/globalgrid_reduction_mps.json`.
