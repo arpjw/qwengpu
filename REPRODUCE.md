@@ -1625,8 +1625,19 @@ python3 scripts/check_tilegrid.py --kernels
 ```
 
 Check the committed MPS and CUDA traces, text handoffs, seeded
-kernels, and inherited CUDA suite without running inference.
+kernels, and inherited suites without running inference.
 
 ```sh
 python3 scripts/check_tilegrid.py --cuda --inherited --text --kernels
+```
+
+To rerun the inherited fixtures, use the same tilegrid circuit
+for both backends.
+
+```sh
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+bash scripts/qualify_resident_add32.sh --resident-tilegrid --device mps \
+  --out /tmp/qwengpu-tilegrid-inherited-mps.json
+bash scripts/qualify_resident_add32.sh --resident-tilegrid "$model" --device cuda \
+  --out /tmp/qwengpu-tilegrid-inherited-9b.json
 ```

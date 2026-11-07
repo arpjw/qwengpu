@@ -168,13 +168,15 @@ def main() -> None:
             assert mps[field] == cuda[field], field
         print("Merged 9B CUDA: exact traces, matrices, and transport records")
     if args.inherited:
-        inherited = load_report("tilegrid_inherited_9b_cuda_fla")
-        if args.cuda:
-            assert inherited["merge"] == cuda["merge"]
-        current = cases_by_name(inherited)
-        previous = cases_by_name(load_report("resident_tilepipe_full_9b_cuda_fla"))
+        previous = cases_by_name(load_report("resident_tilepipe_full_mps"))
+        current = cases_by_name(load_report("tilegrid_inherited_mps"))
         assert len(current) == 27 and current == previous
-        print("Merged 9B CUDA: all 27 inherited records exact")
+        print("MPS: all 27 inherited records exact")
+        if args.cuda:
+            inherited = load_report("tilegrid_inherited_9b_cuda_fla")
+            assert inherited["merge"] == cuda["merge"]
+            assert cases_by_name(inherited) == current
+            print("Merged 9B CUDA: all 27 inherited records exact")
     if args.text:
         check_text(cuda["merge"], "tilegrid")
     if args.kernels:
