@@ -1579,3 +1579,55 @@ every benchmark execution digest to the independently saved primary cases.
 config, generation config, weight index, metadata, and hashes for all 25
 weight shards. The binary weights are not stored in Git. Rebuild them
 from the pinned base revision and compiler using the recorded merge command.
+
+## 512-byte primary memory and workload gate
+
+The `qwengpu-resident-memory512-9b-v1` primary gate passes on standalone
+Apple MPS and merged Qwen3.5-9B on an A100-SXM4-80GB. Each backend completes
+31 frozen common requests and seven raw memory probes. Their complete
+case and raw records match exactly, including generated tokens, schedules,
+packed snapshots, full memory, and transport audits. Independent saved-JSON
+checks recompute outputs and every guard word without loading a model.
+
+The expanded programmable bank contains 256 uint16 words, or 512 bytes.
+Vector addition supports 0 through 64 uint32 elements, and reduction
+supports 0 through 128 uint32 elements. All four larger vector lengths
+33, 47, 63, and 64 pass. Expanded reductions of 65, 79, 95, 127, and 128
+inputs pass; 128 maximum uint32 inputs produce `0xffffff80`.
+Each reduction uses two launches in one inference cache, with 1024 initial
+memory tokens and zero memory re-upload for the consumer.
+
+The raw probes cover paired addresses 0/128, 63/191, 64/192, and 127/255,
+lowest-active-lane collision priority, masked collisions, and a cross-warp
+barrier handoff using both 32-bit limbs. Every completed workgroup audits
+all 256 words in all eight indexed-port copies of the recurrent state.
+The bank-boundary handoff produces and copies the wrapped value 9.
+
+All 38 unit checks pass. The new reference checks cover every word address,
+every vector length 0 through 64, every reduction length 0 through 128,
+and all 128 extended low/high XOR-mask encodings. These exhaustive scalar
+checks are distinct from the frozen actual-inference cases above.
+
+The standalone graph has 34 layers, 8,873 dimensions, and 290 heads. Its
+merge has 35 processor layers, hidden width 7,680, and 3,383 live slots.
+Preflight preserves the previous compute graph's complete IR and ROM
+semantics and keeps every attention-head row index at or below 127.
+The initial unoptimized allocation needed hidden width 11,008; shared
+row/nibble/bank loading features avoid that expansion.
+
+`results/memory512_checkpoint_manifest.json` records the tested stock
+configuration, generation configuration, metadata, weight index, and hashes
+for all 27 shards. Actual tensor storage is 66,769,140,352 bytes, about
+62.184 GiB. This exceeds the uniform-BF16 meta estimate by 7,680 bytes
+because 3,840 pretrained attention parameters retain float32 storage.
+The binary weights are rebuilt from the pinned compiler and base revisions.
+
+Primary evidence is in `results/memory512_mps.json`,
+`results/memory512_9b_cuda_fla.json`, and
+`results/memory512_primary_check.txt`. Reproduction commands and the
+implemented ABI are in REPRODUCE.md and MEMORY512_DESIGN.md.
+
+Full compatibility qualification remains in progress. The merged model
+already matches all 27 inherited case records; the MPS suite, long tiled
+replays, and text/cache boundary checks are still running. SCOPE.md keeps
+the earlier fully qualified baseline until those checks finish.

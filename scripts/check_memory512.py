@@ -134,9 +134,11 @@ def main() -> None:
     parser.add_argument("--bounds", action="store_true")
     args = parser.parse_args()
     mps = load_report("memory512_mps")
+    assert mps["device"] == "mps" and mps["merge"] is None
     check(mps)
     cuda = load_report("memory512_9b_cuda_fla") if args.cuda else None
     if cuda:
+        assert cuda["device"] == "cuda"
         assert cuda["merge"]["layout"] == "qwengpu-resident-memory512-9b-v1"
         assert cuda["merge"]["chip_vocab"] == 147456
         check(cuda)
@@ -182,7 +184,11 @@ def main() -> None:
         for name in ("memory512_inherited_mps",) + (
             ("memory512_inherited_9b_cuda_fla",) if cuda else ()
         ):
-            assert cases_by_name(load_report(name)) == baseline
+            inherited = load_report(name)
+            assert cases_by_name(inherited) == baseline
+            source = cuda if "_9b_" in name else mps
+            assert inherited["merge"] == source["merge"]
+            assert inherited["circuit"] == source["circuit"]
         print("All 27 inherited case records match the previous checkpoint")
     if args.matrix:
         baseline = load_report("compute_matmul16_mps")
@@ -201,6 +207,12 @@ def main() -> None:
             ("memory512_matmul16_9b_cuda_fla",) if cuda else ()
         ):
             actual = load_report(name)
+            assert actual["merge"] == (cuda["merge"] if "_9b_" in name else None)
+            assert actual["checkpoint"] == (
+                cuda["merge"]["layout"]
+                if "_9b_" in name
+                else "standalone-resident-memory512"
+            )
             for field in fields:
                 assert actual[field] == baseline[field], (name, field)
         print(
@@ -213,6 +225,7 @@ def main() -> None:
         if cuda:
             other = load_report("memory512_globalgrid_9b_cuda_fla")
             check_globalgrid(other, layout, memory_words=256)
+            assert other["merge"] == cuda["merge"]
             for field in ("id_probes", "producer", "consumer", "partials", "sum"):
                 assert other[field] == grid[field], field
         print(
