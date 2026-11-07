@@ -1751,6 +1751,7 @@ def main() -> None:
     variants.add_argument("--resident-tilebanks", action="store_true")
     variants.add_argument("--resident-tilepipe", action="store_true")
     variants.add_argument("--resident-tilegrid", action="store_true")
+    variants.add_argument("--resident-globalgrid", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1760,7 +1761,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_tilegrid = args.resident_tilegrid
+    resident_globalgrid = args.resident_globalgrid
+    resident_tilegrid = args.resident_tilegrid or resident_globalgrid
     resident_tilepipe = args.resident_tilepipe or resident_tilegrid
     resident_tilebanks = args.resident_tilebanks or resident_tilepipe
     resident_loop32 = args.resident_loop32 or resident_tilebanks
@@ -1801,7 +1803,11 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_tilegrid = layout == RESIDENT_TILEGRID_LAYOUT
+        resident_globalgrid = layout == RESIDENT_GLOBALGRID_LAYOUT
+        resident_tilegrid = layout in (
+            RESIDENT_TILEGRID_LAYOUT,
+            RESIDENT_GLOBALGRID_LAYOUT,
+        )
         resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
@@ -1860,6 +1866,8 @@ def main() -> None:
             raise ValueError("--resident-tilepipe requires a tilepipe checkpoint")
         if args.resident_tilegrid and not resident_tilegrid:
             raise ValueError("--resident-tilegrid requires a tilegrid checkpoint")
+        if args.resident_globalgrid and not resident_globalgrid:
+            raise ValueError("--resident-globalgrid requires a globalgrid checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1935,6 +1943,7 @@ def main() -> None:
         resident_tilebanks=resident_tilebanks,
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
+        resident_globalgrid=resident_globalgrid,
     )
     report = {
         "device": args.device,

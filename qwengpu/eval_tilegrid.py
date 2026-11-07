@@ -14,6 +14,7 @@ from qwengpu.compiled_tile8 import (
     C_MEMORY,
     NEXT_BANK,
     OUTPUT_BANKS,
+    RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     TICKET,
     TILEGRID_VOCAB,
@@ -269,7 +270,7 @@ def main() -> None:
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
     if meta is not None and (
-        meta.get("layout") != RESIDENT_TILEGRID_LAYOUT
+        meta.get("layout") not in (RESIDENT_TILEGRID_LAYOUT, RESIDENT_GLOBALGRID_LAYOUT)
         or meta.get("chip_vocab") != TILEGRID_VOCAB
     ):
         parser.error("expected a merged tilegrid checkpoint")
