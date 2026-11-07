@@ -1011,6 +1011,7 @@ def launch_cached_tile(
     second_output: list[int] | None = None,
     right_operands: tuple[list[int], list[int]] | None = None,
     bottom: BottomRow | None = None,
+    retain_operands: bool = False,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
@@ -1109,7 +1110,7 @@ def launch_cached_tile(
             resident_add32=True,
             resident_io=True,
             resident_cache=start,
-            refresh_operands=start is not None and not banked,
+            refresh_operands=start is not None and not banked and not retain_operands,
             alternate_operands=alternate_operands,
             operand_bank=operand_bank,
             auto_operand_bank=auto_operand_bank,
@@ -1122,7 +1123,7 @@ def launch_cached_tile(
         handle.remove()
     transport = result["transport"]
     initial_c = 256 if start is None else 0
-    initial_operands = 0 if banked and start is not None else 256
+    initial_operands = 0 if start is not None and (banked or retain_operands) else 256
     initial_counts = {"operands": initial_operands, "c": initial_c}
     initial_second = 256 if second_output is not None else 0
     initial_bottom = 768 if bottom is not None else 0

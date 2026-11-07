@@ -334,8 +334,8 @@ python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
 ```
 
 The tilegrid checkpoint selects all four workgroups and both K slices
-in one cache. It uploads the full operands once and addresses four
-resident output regions.
+in one cache. The launcher uploads the full operands once. The model
+addresses four resident output regions.
 
 ```sh
 python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \

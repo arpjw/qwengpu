@@ -1369,8 +1369,8 @@ On the same tilegrid merge, the assembled two-warp example matched the
 standalone trace and final memory across all 16 instructions. The
 24-prompt corpus matched 24 first tokens and 22 greedy continuations,
 with zero chip tokens. The Moon and multiplication prompts diverged
-after the first token. Four cache resets matched their fresh-cache
-logits and continuations exactly. The 20-instruction arithmetic
+after two and three tokens, respectively. Four cache resets matched
+their fresh-cache logits and continuations exactly. The 20-instruction arithmetic
 consumer relaunched after text with zero shared-memory uploads.
 See `results/tilegrid_assembled_9b_cuda_fla.json` and the tilegrid text,
 handoff, and relaunch reports.
@@ -1380,3 +1380,10 @@ MPS, covering 70 instructions. Two carry loops, two diverging
 scatter collisions, and two deliberate barrier deadlocks agreed with
 the reference, including physical recurrent state. See
 `results/tilegrid_generated_mps.json`.
+
+The tilegrid reduction executed two assembled launches of 32
+instructions each on MPS. Two warps reduced 16 unsigned 32-bit inputs
+to `0x5f049522` modulo `2^32`. The second launch retained the cache
+and uploaded zero input or shared-memory tokens. Each partial sum,
+guard, and instruction trace matched the reference. See
+`results/tilegrid_reduction_mps.json`.

@@ -1596,3 +1596,17 @@ for case in /tmp/qwengpu-tilegrid-cases/*.json; do fixtures+=(--kernel "$case");
 "$QWENGPU_PYTHON" -m qwengpu.eval_tile8 --resident-tilegrid "${fixtures[@]}" \
   --device mps --out /tmp/qwengpu-tilegrid-generated-mps.json
 ```
+
+Run the two-pass 16-value reduction on the tilegrid checkpoint.
+Both passes use one workgroup with two cooperating warps. Pass two
+loads the first pass's partial sums from retained shared memory.
+
+```sh
+"$QWENGPU_PYTHON" -m qwengpu.eval_reduction --device mps \
+  --out /tmp/qwengpu-tilegrid-reduction-mps.json
+```
+
+The fixture sum is `0x5f049522` modulo `2^32`. Pass
+`--input` with a JSON array of 16 unsigned 32-bit values to use
+different input. Pass `--model "$model" --device cuda` to use
+the merged tilegrid checkpoint.
