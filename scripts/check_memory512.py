@@ -129,6 +129,7 @@ def main() -> None:
     parser.add_argument("--matrix", action="store_true")
     parser.add_argument("--text", action="store_true")
     parser.add_argument("--global-memory", action="store_true")
+    parser.add_argument("--public", action="store_true")
     args = parser.parse_args()
     mps = load_report("memory512_mps")
     check(mps)
@@ -137,6 +138,39 @@ def main() -> None:
         assert cuda["merge"]["layout"] == "qwengpu-resident-memory512-9b-v1"
         assert cuda["merge"]["chip_vocab"] == 147456
         check(cuda)
+        manifest = load_report("memory512_checkpoint_manifest")
+        preflight = load_report("memory512_preflight")
+        files = manifest["files"]
+        meta = files["qwengpu9b.json"]
+        assert meta == cuda["merge"]
+        assert manifest["weights_stored_in_git"] is False
+        assert manifest["compiler_commit"] == "ca13310e2f9f788d1dd3feeea8213c1b0c23913c"
+        assert manifest["base_revision"] == "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+        assert (meta["hidden"], meta["slots"], meta["circuit"]) == (
+            preflight["merged_hidden"],
+            preflight["slots"],
+            preflight["circuit"],
+        )
+        assert (
+            preflight["legacy"]["ir_identical"]
+            and preflight["legacy"]["rom_domain_identical"]
+        )
+        assert preflight["maximum_head_row"] == 127
+        index = files["model.safetensors.index.json"]
+        shards = set(index["weight_map"].values())
+        assert len(shards) == 27 and shards <= manifest["sha256"].keys()
+        sizes = manifest["dtype_bytes"]
+        assert sizes["F32"] == 15360
+        assert sum(sizes.values()) == index["metadata"]["total_size"]
+        # The meta preflight estimates every parameter at two bytes; the
+        # base retains 3840 float32 attention parameters in the actual merge.
+        assert (
+            index["metadata"]["total_size"]
+            == preflight["estimated_weight_bytes_bf16"] + sizes["F32"] // 2
+        )
+        print(
+            "Checkpoint metadata, all 27 shard hashes, and preflight allocation recorded"
+        )
         for field in ("raw", "cases", "manifest_sha256"):
             assert cuda[field] == mps[field], field
         print("Merged 9B: all raw and common-kernel records match MPS exactly")
@@ -181,6 +215,32 @@ def main() -> None:
                 assert other[field] == grid[field], field
         print(
             "Workgroup IDs and retained two-pass reduction: exact with all 256 guard words"
+        )
+    if args.public:
+        assert cuda is not None
+        cases = {case["name"]: case for case in cuda["cases"]}
+        for kind, name in (("vector", "vector_64"), ("reduce", "reduce_128")):
+            public = load_report(f"memory512_public_{kind}_9b_cuda_fla")
+            example = ROOT / "examples" / f"memory512_{name}.json"
+            assert (
+                public["input_sha256"]
+                == hashlib.sha256(example.read_bytes()).hexdigest()
+            )
+            assert public["merge"] == cuda["merge"]
+            assert public["transport_mode"] == "fixed" and public["exact"]
+            for field in ("kernel", "output", "global_words"):
+                assert public[field] == cases[name][field]
+            for i, (run, baseline) in enumerate(
+                zip(public["launches"], cases[name]["launches"], strict=True)
+            ):
+                check_run(run, i == 0)
+                assert {
+                    k: v for k, v in run.items() if k not in ("audit", "transport")
+                } == {
+                    k: v for k, v in baseline.items() if k not in ("audit", "transport")
+                }
+        print(
+            "Public fixed transport: vector64 and reduction128 match all planned execution records"
         )
     if args.text:
         assert cuda is not None
