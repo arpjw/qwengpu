@@ -1404,3 +1404,10 @@ The merged tilegrid checkpoint replayed all 27 inherited cases
 exactly. The records match the previous 9B suite, including
 1,972 instructions, 1,999 scheduling decisions, and the memory
 and transport checks. See `results/tilegrid_inherited_9b_cuda_fla.json`.
+
+The assembled vector add, two-pass reduction, and six seeded
+programs also matched on the same 9B merge. The second reduction
+pass again uploaded zero shared-memory tokens. CUDA matched the
+MPS traces, output words, guards, and physical state records.
+See the corresponding `results/tilegrid_*_9b_cuda_fla.json` reports
+and `results/tilegrid_2x2_host_a100.txt`.

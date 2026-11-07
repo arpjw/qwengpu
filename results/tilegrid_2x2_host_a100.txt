@@ -1,0 +1,38 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=e17939e9ef64a667d85606ef54f7bfa1d6e8eb14
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+8c417a21ec0c1bc3a8847cf34fd069c7bd4b321a7492f018bd4ac0d5b4db17ce  qwengpu/compiled_tile8.py
+cf2fb0e2eb01a6c6c9be794dd2fef09e872a929eecdc34daa125e17af5d9486e  qwengpu/eval_tile8.py
+94d6d44953b4a3c98047cc0c6ec4a857f9f89034e330661b141d5c66269b2851  qwengpu/eval_tilegrid.py
+efbb7e4a3cd546e3c5245ce27b4d25811d3d46f5aef8cfbecf3ec65d8a84aa59  eval/frozen/matmul16_gate_v1/dense_seeded.json
+4099813c9470c74028059826414fde262d0cdb4bfec75b0806aae45bf92b6146  eval/frozen/text_add32_gate_v1/prompts.json
+merge_started_utc=2026-11-07T01:52:28Z
+merge_finished_utc=2026-11-07T01:57:55Z
+grid_finished_utc=2026-11-07T02:04:40Z
+assembly_finished_utc=2026-11-07T02:05:15Z
+text_finished_utc=2026-11-07T02:06:41Z
+arithmetic_relaunch_finished_utc=2026-11-07T02:07:40Z
+handoff_reset_finished_utc=2026-11-07T02:11:56Z
+inherited_finished_utc=2026-11-07T02:24:47Z
+99ac227dd605b3ad251f1472604d2377f53a8ea48c9f00db1755e9bb38955fb1  qwengpu/eval_reduction.py
+e6cabfd6db57e66844bcd811618bf5f4ea8f40a2693156fb2996ac569fd490a9  qwengpu/eval_tile8.py
+b76f3f206f755fe8ebedc56cd29ee38f4202eb567374163c39346a60ff1df0b8  examples/guarded_vector_add.qga
+ac5ddd8129542d69cbd134d7b0d8628ef80ad4644544a31f208bfd3aab660bb5  examples/guarded_vector_add_data.json
+ce1ddde4820ece1bcd9a0aae470b8b79099fea777335bee8fb9f5574a45f1232  eval/frozen/tilegrid_reduction_v1/words.json
+e3e4f37bbac6258d001f6b0eb82fecaa73fffecf6f2f7dab69e3c937f7e20bd3  /workspace/seeded/112_collision.json
+5fc27dba6c4a4246afa3d7099b9f1461702d8fbd9b39b44ec9f88d92df8dd4bd  /workspace/seeded/112_deadlock.json
+80e8d10062de2b647c9cb4902839c4886895ade0f02273ccb701f5d98eff5ff0  /workspace/seeded/112_loop.json
+f5db1186a9e0498690e03abec6a7a688bc07551a49f480194222341c890eef48  /workspace/seeded/809_collision.json
+b6547da00249131a5a799d12f97869611efa500fcb2dc44f926309deade76c6c  /workspace/seeded/809_deadlock.json
+f35f868e2ef9a91fa055ebcdc3f54f4c4440bcdc8ddc1fa1ab1e7218423ca024  /workspace/seeded/809_loop.json
+vector_finished_utc=2026-11-07T02:25:29Z
+reduction_finished_utc=2026-11-07T02:26:19Z
+generated_finished_utc=2026-11-07T02:27:21Z
+[W1107 02:02:17.805806062 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 314572800 bytes (free: 253624320, total: 85094825984).
+[W1107 02:03:16.062511185 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 387973120 bytes (free: 203292672, total: 85094825984).
+[W1107 02:04:07.478715300 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 448790528 bytes (free: 228458496, total: 85094825984).

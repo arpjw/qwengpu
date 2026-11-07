@@ -1623,3 +1623,10 @@ active lanes. The kernel should preserve the three inactive words.
   --out /tmp/qwengpu-tilegrid-vector-mps.json
 python3 scripts/check_tilegrid.py --kernels
 ```
+
+Check the committed MPS and CUDA traces, text handoffs, seeded
+kernels, and inherited CUDA suite without running inference.
+
+```sh
+python3 scripts/check_tilegrid.py --cuda --inherited --text --kernels
+```

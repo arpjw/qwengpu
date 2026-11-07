@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 6, 2026 at approximately 3:14 p.m. Pacific.
+was November 7, 2026 at 02:28 UTC.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -49,12 +49,13 @@ was November 6, 2026 at approximately 3:14 p.m. Pacific.
 | `bkgbc6rveup6to` | Full-width arithmetic through a text handoff | $0.229964 | |
 | `05o4r8o4duazn3` | Branch32 qualification and retained multiply | $1.400939 | |
 | `nbqqwl22xu1sa0` | Loop32 qualification and retained multiply | $1.510754 | |
-| `v6b971ophoua68` | Preloaded operand banks and inherited suite | $0.429377 | $1.08 remaining |
-| `ev84g71gc7yn2n` | Model-selected K transition and inherited suite | Pending | $0.63 |
-| `e28q01ftnq770h` | Public tilepipe multiply, text and cache integration | Pending | $0.59 |
+| `v6b971ophoua68` | Preloaded operand banks and inherited suite | $1.474978 | |
+| `ev84g71gc7yn2n` | Model-selected K transition and inherited suite | $0.613430 | |
+| `e28q01ftnq770h` | Public tilepipe multiply, text and cache integration | $0.566842 | |
+| `d3vvbd3rvgwktg` | Merged tilegrid matrix, inherited cases, kernel and text qualification | Pending | $1.20 |
 
-Total posted is about $19.19. With pending estimates, tracked spend is
-about $21.49. All project pods are terminated and the live pod list was
+Total posted is about $21.74. With the pending estimate, tracked spend
+is about $22.94. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -272,3 +273,11 @@ native text corpus, and cache handoffs completed. Elapsed compute
 was about $0.56, with $0.59 reserved including disk. The pod was
 terminated after copying results. RunPod showed an empty pod
 list and no posted record for this pod.
+
+The tilegrid A100 SXM 80 GB ran from 01:50:18 to 02:27:50 UTC
+on November 7 at the live rate of $1.79/hour. Elapsed compute was
+about $1.12. The ledger reserves $1.20 including disk until billing
+posts. The merged 9B grid, all 27 inherited cases, the assembled,
+vector, reduction, and seeded cases, and the text and cache suites
+completed. The pod was terminated after copying reports. RunPod
+returned HTTP 204 and an empty live pod list.
