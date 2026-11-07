@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 7, 2026 at 02:56 UTC.
+was November 7, 2026 at 04:23 UTC.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -52,13 +52,15 @@ was November 7, 2026 at 02:56 UTC.
 | `v6b971ophoua68` | Preloaded operand banks and inherited suite | $1.474978 | |
 | `ev84g71gc7yn2n` | Model-selected K transition and inherited suite | $0.613430 | |
 | `e28q01ftnq770h` | Public tilepipe multiply, text and cache integration | $0.566842 | |
-| `d3vvbd3rvgwktg` | Merged tilegrid matrix, inherited cases, kernel and text qualification | $0.155222 | $1.05 remaining |
-| `mcla5c112zcnxu` | Merged globalgrid IDs, reduction, and launcher checks | Pending | $0.35 |
+| `d3vvbd3rvgwktg` | Merged tilegrid matrix, inherited cases, kernel and text qualification | $1.128544 | |
+| `mcla5c112zcnxu` | Merged globalgrid IDs, reduction, and launcher checks | $0.309297 | |
+| `lcs8xcxtr8ezrj` | Full globalgrid qualification and common compute kernels | Pending | $3.50 reserved, active |
 
-Total posted is about $21.90. With pending estimates, tracked spend
-is about $23.30. All project pods are terminated and the live pod list was
-empty at the last check. Refresh pending rows before adding another
-pod, then record the new pod's quote, timestamps, outcome, and teardown.
+Total posted is about $23.18. Including the active pod's conservative
+reserve, tracked spend is about $26.68, leaving about $47.32 under the
+approved cap. Pod `lcs8xcxtr8ezrj` started on November 7 at 03:54:49 UTC
+on the quoted A100 SXM 80 GB at $1.79/hour. Copy reports before terminating
+it and reconcile the reserve with elapsed time and posted billing.
 
 The A100 for resident and indexed validation ran from about 2:34:30 p.m.
 to 2:49:33 p.m. Pacific at $1.79/hour. Both merged Qwen3.5-9B suites

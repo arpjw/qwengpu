@@ -1449,3 +1449,34 @@ terminal outcomes, high-bit branches and loops, and shared-memory handoffs.
 See `results/globalgrid_inherited_mps.json`,
 `results/globalgrid_inherited_9b_cuda_fla.json`, and
 `python3 scripts/check_checkpoint_full.py --cuda`.
+
+## Variable-size common compute kernels
+
+The fixed compute circuit passes all eighteen frozen requests on Apple MPS.
+Vector addition and reduction cover lengths 0, 1, 7, 13, 17, 31, and 32.
+Matrix cases have shapes 1×1×1, 3×3×3, 5×4×3, and 8×4×4, with byte
+inputs and uint32 initial C. The larger matrices and vectors use two
+sequential workgroups; partial groups leave all inactive memory untouched.
+All scalar outputs, complete 128-word memory images, instruction traces,
+scheduling decisions, and resident cache audits match. Each reduction's
+second launch uses the first launch's cache and uploads zero memory tokens.
+See `results/compute_mps.json` and `python3 scripts/check_compute.py`.
+
+The circuit has 30 layers, 8,293 graph dimensions, 226 total heads, and
+21,103 total FFN units; the widest layer has 3,584 units and at most 16
+heads. These are compiler graph statistics, not pretrained model parameter
+counts. The source, compiler revision, package versions, and MPS hardware
+are pinned in `results/compute_host_mps.json`.
+
+The first matrix smoke run found a bit-130 snapshot disagreement caused
+by the independent oracle reusing its scheduler-row variable for output
+addressing. The model retained the correct scheduler row. A distinct
+`output_row` variable and snapshot assertions fixed the oracle. The full
+fresh MPS replay above includes the failing case. The diagnostic is kept
+in `results/compute_smoke_failure_mps.json`.
+
+Reference tests also cover every vector and reduction length from 0 through
+32 and 48 matrix shapes, including modular overflow. These interpreter
+checks are separate from the eighteen actual model cases. A separate
+decode/max-product/wrap manifest is frozen in `compute_decode_v1`; its
+model run and merged 9B qualification are pending at this checkpoint.
