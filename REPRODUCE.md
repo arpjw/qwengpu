@@ -1584,3 +1584,15 @@ model=/path/to/Qwen3.5-9B-qwengpu-resident-tilegrid
   --out /tmp/qwengpu-tilegrid-2x2-9b.json
 python3 scripts/check_tilegrid.py
 ```
+
+Generate and qualify the six seeded programs with the same circuit.
+
+```sh
+mkdir -p /tmp/qwengpu-tilegrid-cases
+python3 scripts/generate_tilegrid_cases.py --seed 112 --seed 809 \
+  --out /tmp/qwengpu-tilegrid-cases
+fixtures=()
+for case in /tmp/qwengpu-tilegrid-cases/*.json; do fixtures+=(--kernel "$case"); done
+"$QWENGPU_PYTHON" -m qwengpu.eval_tile8 --resident-tilegrid "${fixtures[@]}" \
+  --device mps --out /tmp/qwengpu-tilegrid-generated-mps.json
+```

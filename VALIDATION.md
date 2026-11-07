@@ -1353,3 +1353,9 @@ once and emitted its three workgroup transitions and four bank
 transitions. Inputs fell from 60,408 to 58,693 tokens and forward
 calls fell from 2,498 to 2,495. This counts work on the same fixture.
 See `results/tilegrid_2x2_full_mps.json`.
+
+The same standalone tilegrid circuit matched six seeded programs on
+MPS, covering 70 instructions. Two carry loops, two diverging
+scatter collisions, and two deliberate barrier deadlocks agreed with
+the reference, including physical recurrent state. See
+`results/tilegrid_generated_mps.json`.
