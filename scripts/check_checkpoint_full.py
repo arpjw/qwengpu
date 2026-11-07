@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 
+from check_globalgrid import check as check_globalgrid
 from check_matmul16 import FIXTURE
 from check_resident_add32_full import cases_by_name, load_report
 from check_tilegrid import check
@@ -19,8 +20,9 @@ def main() -> None:
     parser.add_argument("--cuda", action="store_true")
     parser.add_argument("--matrix", action="store_true")
     parser.add_argument("--text", action="store_true")
+    parser.add_argument("--global-memory", action="store_true")
     args = parser.parse_args()
-    if (args.matrix or args.text) and not args.cuda:
+    if (args.matrix or args.text or args.global_memory) and not args.cuda:
         parser.error("matrix and text checks require --cuda")
     stem = args.stem
     layout = f"qwengpu-resident-{stem}-9b-v1"
@@ -62,6 +64,20 @@ def main() -> None:
         )
     if args.text:
         check_text(cuda["merge"], stem)
+    if args.global_memory:
+        grid = load_report(
+            f"{stem}_globalgrid_9b_cuda_fla"
+            if stem == "compute"
+            else "globalgrid_reduction_9b_cuda_fla"
+        )
+        assert grid["merge"] == cuda["merge"]
+        check_globalgrid(grid, layout)
+        previous = load_report("globalgrid_reduction_mps")
+        for field in ("id_probes", "producer", "consumer", "partials", "sum"):
+            assert grid[field] == previous[field], field
+        print(
+            "Global memory: four workgroup ID probes and retained reduction exactly match MPS"
+        )
 
 
 if __name__ == "__main__":

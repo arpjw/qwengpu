@@ -25,7 +25,9 @@ export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
 This remains a bounded GPU experiment: two eight-lane warps per group,
 sixteen ROM slots per warp, sequential groups, 256 bytes of programmable
 global memory, and host forwarding of model-generated state and stores.
-The specialized tiled mode also has separate fixed matrix banks. There
+The specialized tiled mode also has separate fixed matrix banks and
+16-bit modular outputs. The common small-matrix runner accumulates in
+32 bits. There
 is no acceleration or complete general-purpose GPU claim.
 
 ## Original SIMT variant

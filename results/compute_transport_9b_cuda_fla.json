@@ -1,0 +1,449 @@
+{
+  "merge": {
+    "layout": "qwengpu-resident-compute-9b-v1",
+    "chip_token_offset": 248320,
+    "chip_vocab": 131072,
+    "chip_layers": 31,
+    "hidden": 7424,
+    "slots": 3238,
+    "code_dims": [
+      4271,
+      4272,
+      4273,
+      4274,
+      4275,
+      4276,
+      4277,
+      4278,
+      4279,
+      4280,
+      4281,
+      4282,
+      4283,
+      4284,
+      4285,
+      4286,
+      4287
+    ],
+    "tau_dim": 4125,
+    "mute_dim": 6578,
+    "fit_anti_sink": true,
+    "circuit": {
+      "layers": 31,
+      "dims": 8294,
+      "heads": 226,
+      "ffn_units": 21104,
+      "max_units": 5592,
+      "max_heads": 16
+    },
+    "output_head_tied": false
+  },
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "torch": "2.14.1+cu130",
+  "fixture_sha256": "f699e58b564375dc41ccd8d03605cf6647f0b22d911b79105098db3ccd3305cd",
+  "rounds": 2,
+  "records": [
+    {
+      "name": "vector_17",
+      "mode": "state_store_plan",
+      "round": -1,
+      "warmup": true,
+      "seconds": 19.82117644115351,
+      "forward_calls": 121,
+      "execution_sha256": "3fe6a21b1af7fe0d98ede2df369991f3903173e26ea5b734ac41bda073d3a84a",
+      "peak_allocated_bytes": 61162076672,
+      "transport": [
+        {
+          "input_tokens": 2775,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 136,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 132,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 416,
+          "forward_calls": 121,
+          "state_plan_tokens": 528,
+          "state_read_tokens": 416,
+          "store_plan_tokens": 44,
+          "store_read_tokens": 136,
+          "skipped_read_calls": 12,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "vector_17",
+      "mode": "fixed",
+      "round": -1,
+      "warmup": true,
+      "seconds": 15.454182781046256,
+      "forward_calls": 89,
+      "execution_sha256": "3fe6a21b1af7fe0d98ede2df369991f3903173e26ea5b734ac41bda073d3a84a",
+      "peak_allocated_bytes": 61389913600,
+      "transport": [
+        {
+          "input_tokens": 7283,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 136,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 132,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 416,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "matmul_3x3x3",
+      "mode": "state_store_plan",
+      "round": -1,
+      "warmup": true,
+      "seconds": 11.514571111882105,
+      "forward_calls": 76,
+      "execution_sha256": "20a86ca326270ee3153e7ad8a064e37cff29ebe72a1cbaf8c4c25f0bf24d9861",
+      "peak_allocated_bytes": 61162076672,
+      "transport": [
+        {
+          "input_tokens": 1981,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 72,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 59,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 273,
+          "forward_calls": 76,
+          "state_plan_tokens": 312,
+          "state_read_tokens": 273,
+          "store_plan_tokens": 26,
+          "store_read_tokens": 72,
+          "skipped_read_calls": 3,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "matmul_3x3x3",
+      "mode": "fixed",
+      "round": -1,
+      "warmup": true,
+      "seconds": 8.826958151999861,
+      "forward_calls": 53,
+      "execution_sha256": "20a86ca326270ee3153e7ad8a064e37cff29ebe72a1cbaf8c4c25f0bf24d9861",
+      "peak_allocated_bytes": 61269227008,
+      "transport": [
+        {
+          "input_tokens": 4626,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 72,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 59,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 273,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "vector_17",
+      "mode": "fixed",
+      "round": 0,
+      "warmup": false,
+      "seconds": 15.457612053025514,
+      "forward_calls": 89,
+      "execution_sha256": "3fe6a21b1af7fe0d98ede2df369991f3903173e26ea5b734ac41bda073d3a84a",
+      "peak_allocated_bytes": 61389913600,
+      "transport": [
+        {
+          "input_tokens": 7283,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 136,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 132,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 416,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "vector_17",
+      "mode": "state_store_plan",
+      "round": 0,
+      "warmup": false,
+      "seconds": 18.99019256909378,
+      "forward_calls": 121,
+      "execution_sha256": "3fe6a21b1af7fe0d98ede2df369991f3903173e26ea5b734ac41bda073d3a84a",
+      "peak_allocated_bytes": 61162076672,
+      "transport": [
+        {
+          "input_tokens": 2775,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 136,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 132,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 416,
+          "forward_calls": 121,
+          "state_plan_tokens": 528,
+          "state_read_tokens": 416,
+          "store_plan_tokens": 44,
+          "store_read_tokens": 136,
+          "skipped_read_calls": 12,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "matmul_3x3x3",
+      "mode": "fixed",
+      "round": 0,
+      "warmup": false,
+      "seconds": 8.90034171496518,
+      "forward_calls": 53,
+      "execution_sha256": "20a86ca326270ee3153e7ad8a064e37cff29ebe72a1cbaf8c4c25f0bf24d9861",
+      "peak_allocated_bytes": 61269227008,
+      "transport": [
+        {
+          "input_tokens": 4626,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 72,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 59,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 273,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "matmul_3x3x3",
+      "mode": "state_store_plan",
+      "round": 0,
+      "warmup": false,
+      "seconds": 11.482824617996812,
+      "forward_calls": 76,
+      "execution_sha256": "20a86ca326270ee3153e7ad8a064e37cff29ebe72a1cbaf8c4c25f0bf24d9861",
+      "peak_allocated_bytes": 61162076672,
+      "transport": [
+        {
+          "input_tokens": 1981,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 72,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 59,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 273,
+          "forward_calls": 76,
+          "state_plan_tokens": 312,
+          "state_read_tokens": 273,
+          "store_plan_tokens": 26,
+          "store_read_tokens": 72,
+          "skipped_read_calls": 3,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "vector_17",
+      "mode": "state_store_plan",
+      "round": 1,
+      "warmup": false,
+      "seconds": 19.047470764024183,
+      "forward_calls": 121,
+      "execution_sha256": "3fe6a21b1af7fe0d98ede2df369991f3903173e26ea5b734ac41bda073d3a84a",
+      "peak_allocated_bytes": 61162076672,
+      "transport": [
+        {
+          "input_tokens": 2775,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 136,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 132,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 416,
+          "forward_calls": 121,
+          "state_plan_tokens": 528,
+          "state_read_tokens": 416,
+          "store_plan_tokens": 44,
+          "store_read_tokens": 136,
+          "skipped_read_calls": 12,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "vector_17",
+      "mode": "fixed",
+      "round": 1,
+      "warmup": false,
+      "seconds": 15.440085001057014,
+      "forward_calls": 89,
+      "execution_sha256": "3fe6a21b1af7fe0d98ede2df369991f3903173e26ea5b734ac41bda073d3a84a",
+      "peak_allocated_bytes": 61389913600,
+      "transport": [
+        {
+          "input_tokens": 7283,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 136,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 132,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 416,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "matmul_3x3x3",
+      "mode": "state_store_plan",
+      "round": 1,
+      "warmup": false,
+      "seconds": 11.49968582810834,
+      "forward_calls": 76,
+      "execution_sha256": "20a86ca326270ee3153e7ad8a064e37cff29ebe72a1cbaf8c4c25f0bf24d9861",
+      "peak_allocated_bytes": 61162076672,
+      "transport": [
+        {
+          "input_tokens": 1981,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 72,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 59,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 273,
+          "forward_calls": 76,
+          "state_plan_tokens": 312,
+          "state_read_tokens": 273,
+          "store_plan_tokens": 26,
+          "store_read_tokens": 72,
+          "skipped_read_calls": 3,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "matmul_3x3x3",
+      "mode": "fixed",
+      "round": 1,
+      "warmup": false,
+      "seconds": 8.89862154214643,
+      "forward_calls": 53,
+      "execution_sha256": "20a86ca326270ee3153e7ad8a064e37cff29ebe72a1cbaf8c4c25f0bf24d9861",
+      "peak_allocated_bytes": 61269227008,
+      "transport": [
+        {
+          "input_tokens": 4626,
+          "fresh_caches": 1,
+          "matrix_initial_tokens": 512,
+          "matrix_patch_tokens": 72,
+          "grid_initial_tokens": 1,
+          "high_register_updates": 59,
+          "rom_program_tokens": 32,
+          "rom_select_tokens": 2,
+          "warp_initial_tokens": 192,
+          "warp_update_tokens": 273,
+          "resident_grid_exact": true,
+          "resident_memory_exact": true,
+          "resident_rom_exact": true,
+          "resident_state_exact": true
+        }
+      ],
+      "exact": true
+    }
+  ],
+  "summary": {
+    "vector_17": {
+      "fixed": {
+        "median_seconds": 15.448848527041264
+      },
+      "state_store_plan": {
+        "median_seconds": 19.01883166655898
+      }
+    },
+    "matmul_3x3x3": {
+      "fixed": {
+        "median_seconds": 8.899481628555804
+      },
+      "state_store_plan": {
+        "median_seconds": 11.491255223052576
+      }
+    }
+  }
+}

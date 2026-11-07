@@ -5,5 +5,5 @@
   "error": "KeyError: forward_calls",
   "cause": "The benchmark assumed all transport records exposed an internal forward_calls counter. Fixed transport does not. The independently registered model hook counted calls, and kernel execution completed before the reporting failure.",
   "fix": "Cross-check the internal counter only when present for every launch; retain the independent forward hook's measured count for all modes.",
-  "status": "Pending full benchmark replay; no latency comparison is claimed from the interrupted run."
+  "status": "Resolved: a fresh complete warmup plus two alternating measured rounds per mode and case passed; see compute_transport_9b_cuda_fla.json."
 }

@@ -1698,6 +1698,9 @@ export QWENGPU_PYTHON="$PWD/../qwenputer/experimental/riscv/.venv/bin/python"
 "$QWENGPU_PYTHON" -m qwengpu.run_compute examples/compute_matmul.json --device mps
 "$QWENGPU_PYTHON" -m qwengpu.eval_compute --device mps \
   --out /tmp/qwengpu-compute-mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 \
+  eval/frozen/matmul16_gate_v1/dense_seeded.json --grid-2x2 \
+  --resident-compute --device mps --out /tmp/qwengpu-compute-matmul16-mps.json
 ```
 
 Each standalone command constructs the model. `eval_compute` loads it once

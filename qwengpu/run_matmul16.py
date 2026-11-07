@@ -316,6 +316,11 @@ def main() -> None:
     )
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument(
+        "--resident-compute",
+        action="store_true",
+        help="use the same standalone circuit as the common compute runner",
+    )
+    variants.add_argument(
         "--resident-add32",
         action="store_true",
         help="use the standalone checkpoint that also runs ADD32I",
@@ -362,7 +367,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_tilegrid = args.grid_2x2
+    resident_compute = args.resident_compute
+    resident_tilegrid = args.grid_2x2 or resident_compute
     resident_tilepipe = args.schedule_k or resident_tilegrid
     resident_loop32 = args.resident_loop32 or resident_tilepipe
     resident_branch32 = args.resident_branch32 or resident_loop32
@@ -412,6 +418,7 @@ def main() -> None:
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
             )
+            resident_compute = meta["layout"] == RESIDENT_COMPUTE_LAYOUT
             resident_tilepipe = meta["layout"] in RESIDENT_TILEPIPE_LAYOUTS
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
             resident_loop32 = meta["layout"] in RESIDENT_LOOP32_LAYOUTS
@@ -430,6 +437,8 @@ def main() -> None:
                 raise ValueError("--resident-branch32 requires a branch32 checkpoint")
             if args.resident_loop32 and not resident_loop32:
                 raise ValueError("--resident-loop32 requires a loop32 checkpoint")
+            if args.resident_compute and not resident_compute:
+                raise ValueError("--resident-compute requires a compute checkpoint")
             offset = meta["chip_token_offset"]
         if args.schedule_k and not resident_tilepipe:
             raise ValueError("--schedule-k requires a tilepipe checkpoint")
@@ -460,9 +469,12 @@ def main() -> None:
         resident_loop32=resident_loop32,
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
+        resident_compute=resident_compute,
     )
     standalone = (
-        "standalone-resident-tilegrid"
+        "standalone-resident-compute"
+        if resident_compute
+        else "standalone-resident-tilegrid"
         if resident_tilegrid
         else "standalone-resident-tilepipe"
         if resident_tilepipe

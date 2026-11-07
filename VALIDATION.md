@@ -1508,4 +1508,34 @@ Reduction input packing now supports 64 values in four workgroups without
 changing constructed weights. All eighteen original request programs and
 memory images remain identical to the preceding runtime. See
 `results/compute_extent_compatibility.json`. The 33-, 63-, and 64-value
-model gates in `compute_extent_v1` remain pending.
+model gates in `compute_extent_v1` remain pending on MPS; all three pass
+on merged 9B. The public fixed-transport runner also completes the
+64-value case. Cross-backend saved-evidence comparison will follow MPS.
+
+The complete 27-case inherited replay passes on the compute MPS circuit
+and exactly reproduces the tilegrid baseline. The maximum-byte-product
+5×2×2 matrix also matches between MPS and merged 9B, including all raw
+case records. See `results/compute_inherited_mps.json` and
+`results/compute_decode_mps.json`.
+
+## Compute transport measurement
+
+The repaired benchmark uses one loaded A100 merge, warms each mode and
+kernel, alternates order for two measured rounds, synchronizes CUDA, and
+counts top-level model calls with a forward hook. All modes have identical
+execution digests and scalar outputs. Checkpoint loading is excluded;
+packing, reference checks, memory audits, and launch execution are timed.
+
+| Frozen case | Fixed median | Planned median | Fixed calls | Planned calls | Fixed input tokens | Planned input tokens |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| vector_17 | 15.449 s | 19.019 s | 89 | 121 | 7,283 | 2,775 |
+| matmul_3x3x3 | 8.899 s | 11.491 s | 53 | 76 | 4,626 | 1,981 |
+
+The observed latency decreases are 18.8% and 22.6%. Fixed-mode peak
+allocation is 57.174 GiB and 57.061 GiB respectively, compared with
+56.962 GiB for planned mode. These are two short fixtures, two repetitions,
+and one device. They do not establish acceleration or a general throughput
+result. The public interface retains its planned default and exposes
+`--transport fixed` for the measured tradeoff. See
+`results/compute_transport_9b_cuda_fla.json`. The first benchmark's
+optional-counter error is retained separately; this is a fresh complete run.

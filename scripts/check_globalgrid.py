@@ -23,13 +23,13 @@ def lanes(step: dict) -> list[int]:
     ]
 
 
-def check(report: dict) -> None:
+def check(report: dict, layout: str = LAYOUT) -> None:
     payload = FIXTURE.read_bytes()
     values = json.loads(payload)
     assert report["input_sha256"] == hashlib.sha256(payload).hexdigest()
     assert report["input"] == values
     if report["merge"] is not None:
-        assert report["merge"]["layout"] == LAYOUT
+        assert report["merge"]["layout"] == layout
     sentinel = [0xFFF0 + i % 16 for i in range(128)]
     for count, probe in enumerate(report["id_probes"], 1):
         expected = sentinel[:]
