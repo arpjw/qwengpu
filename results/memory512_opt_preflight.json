@@ -1,0 +1,28 @@
+{
+  "legacy": {
+    "source": "a18d684",
+    "ir_identical": true,
+    "rom_domain_identical": true
+  },
+  "base_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "circuit": {
+    "layers": 35,
+    "dims": 8753,
+    "heads": 290,
+    "ffn_units": 21662,
+    "max_units": 5593,
+    "max_heads": 16
+  },
+  "slots": 3262,
+  "merged_hidden": 7424,
+  "estimated_weight_bytes_bf16": 64543624832,
+  "estimated_weight_gib_bf16": 60.11093485355377,
+  "maximum_head_row": 127,
+  "vocab": 147456,
+  "weights_allocated": false,
+  "naive_initial_preflight": {
+    "slots": 6673,
+    "merged_hidden": 11008
+  },
+  "optimization": "Shared row/nibble/bank features and read-value bank selection."
+}
