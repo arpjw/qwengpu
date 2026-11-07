@@ -9,7 +9,14 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.compiled_tile8 import NEXT_BANK, TICKET, VOCAB, WARP_DIRTY_OFFSET
+from qwengpu.compiled_tile8 import (
+    NEXT_BANK,
+    RESIDENT_TILEGRID_LAYOUT,
+    TICKET,
+    TILEGRID_VOCAB,
+    VOCAB,
+    WARP_DIRTY_OFFSET,
+)
 from qwengpu.eval_tile import _unsigned
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUTS,
@@ -18,7 +25,7 @@ from qwengpu.eval_tile8 import (
     RESIDENT_GRID_LAYOUT,
     RESIDENT_LOOP32_LAYOUTS,
     RESIDENT_SHARED32_LAYOUTS,
-    RESIDENT_TILEPIPE_LAYOUT,
+    RESIDENT_TILEPIPE_LAYOUTS,
     RESIDENT_TRANSPORTS,
     execute,
     launch_cached_tile,
@@ -340,6 +347,11 @@ def main() -> None:
         action="store_true",
         help="schedule both slices in one tilepipe launch",
     )
+    modes.add_argument(
+        "--grid-2x2",
+        action="store_true",
+        help="schedule all four output tiles in one tilegrid cache",
+    )
     parser.add_argument("--device", choices=("cpu", "mps", "cuda"))
     parser.add_argument(
         "--out", type=Path, help="write JSON to a file instead of stdout"
@@ -348,7 +360,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_tilepipe = args.schedule_k
+    resident_tilegrid = args.grid_2x2
+    resident_tilepipe = args.schedule_k or resident_tilegrid
     resident_loop32 = args.resident_loop32 or resident_tilepipe
     resident_branch32 = args.resident_branch32 or resident_loop32
     resident_addmem32 = args.resident_addmem32 or resident_branch32
@@ -358,7 +371,7 @@ def main() -> None:
         payload = args.input.read_bytes()
         a, b, c = parse_inputs(json.loads(payload))
         if (
-            args.schedule_k
+            (args.schedule_k or args.grid_2x2)
             and args.model is None
             and any(
                 (
@@ -370,19 +383,25 @@ def main() -> None:
                 )
             )
         ):
-            raise ValueError("--schedule-k selects the standalone tilepipe checkpoint")
+            raise ValueError("scheduled modes select their own standalone checkpoint")
         if args.model:
             meta = json.loads((args.model / "qwengpu9b.json").read_text())
             if (
                 not isinstance(meta, dict)
                 or meta.get("layout")
                 not in (RESIDENT_GRID_LAYOUT, *RESIDENT_ADD32_LAYOUTS)
-                or meta.get("chip_vocab") != VOCAB
+                or meta.get("chip_vocab")
+                != (
+                    TILEGRID_VOCAB
+                    if meta.get("layout") == RESIDENT_TILEGRID_LAYOUT
+                    else VOCAB
+                )
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged resident grid or ADD32 checkpoint")
-            resident_tilepipe = meta["layout"] == RESIDENT_TILEPIPE_LAYOUT
+            resident_tilegrid = meta["layout"] == RESIDENT_TILEGRID_LAYOUT
+            resident_tilepipe = meta["layout"] in RESIDENT_TILEPIPE_LAYOUTS
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
             resident_loop32 = meta["layout"] in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = meta["layout"] in RESIDENT_BRANCH32_LAYOUTS
@@ -403,6 +422,8 @@ def main() -> None:
             offset = meta["chip_token_offset"]
         if args.schedule_k and not resident_tilepipe:
             raise ValueError("--schedule-k requires a tilepipe checkpoint")
+        if args.grid_2x2 and not resident_tilegrid:
+            raise ValueError("--grid-2x2 requires a tilegrid checkpoint")
         if args.retain_c and not resident_add32:
             raise ValueError("--retain-c requires a resident ADD32 checkpoint")
     except (OSError, TypeError, ValueError) as exc:
@@ -427,9 +448,12 @@ def main() -> None:
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
         resident_tilepipe=resident_tilepipe,
+        resident_tilegrid=resident_tilegrid,
     )
     standalone = (
-        "standalone-resident-tilepipe"
+        "standalone-resident-tilegrid"
+        if resident_tilegrid
+        else "standalone-resident-tilepipe"
         if resident_tilepipe
         else "standalone-resident-loop32"
         if resident_loop32
@@ -441,6 +465,24 @@ def main() -> None:
         if resident_shared32
         else "standalone-resident-add32"
     )
+    if args.grid_2x2:
+        from qwengpu.eval_tilegrid import execute_matrix
+
+        execution = execute_matrix(model, circuit, a, b, c, device, offset=offset)
+    elif args.schedule_k:
+        execution = run_scheduled_matmul(model, circuit, device, offset, a, b, c)
+    else:
+        execution = run_matmul(
+            model,
+            circuit,
+            device,
+            offset,
+            a,
+            b,
+            c,
+            resident_add32=resident_add32,
+            retain_c=args.retain_c,
+        )
     result = {
         "format": FORMAT,
         "input_sha256": hashlib.sha256(payload).hexdigest(),
@@ -448,30 +490,17 @@ def main() -> None:
         "torch": torch.__version__,
         "merge": meta,
         "transport_mode": "state_store_plan"
-        if args.retain_c or args.schedule_k
+        if args.retain_c or args.schedule_k or args.grid_2x2
         else "fixed",
         **({"schedule_k": True} if args.schedule_k else {}),
         **({"retain_c": True} if args.retain_c else {}),
+        **({"grid_2x2": True} if args.grid_2x2 else {}),
         **(
             {"checkpoint": meta["layout"] if meta else standalone}
             if resident_add32
             else {}
         ),
-        **(
-            run_scheduled_matmul(model, circuit, device, offset, a, b, c)
-            if args.schedule_k
-            else run_matmul(
-                model,
-                circuit,
-                device,
-                offset,
-                a,
-                b,
-                c,
-                resident_add32=resident_add32,
-                retain_c=args.retain_c,
-            )
-        ),
+        **execution,
     }
     output = json.dumps(result, indent=2) + "\n"
     if args.out:

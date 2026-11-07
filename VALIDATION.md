@@ -1345,3 +1345,11 @@ both B panels, and the four C images were uploaded in the first call.
 The interpreter and scalar check agreed with the model's active
 rows and all inactive output rows. See
 `results/tilegrid_2x2_row_pair_mps.json`.
+
+The full 16×16 case passed on MPS with 928 instructions and 929
+scheduling decisions in one cache. Both K-pass matrices matched
+the four-cache baseline. The model loaded the full operand image
+once and emitted its three workgroup transitions and four bank
+transitions. Inputs fell from 60,408 to 58,693 tokens and forward
+calls fell from 2,498 to 2,495. This counts work on the same fixture.
+See `results/tilegrid_2x2_full_mps.json`.

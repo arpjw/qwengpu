@@ -177,6 +177,77 @@ def qualify(
     }
 
 
+def execute_matrix(
+    model,
+    circuit,
+    a: list[list[int]],
+    b: list[list[int]],
+    initial: list[list[int]],
+    device: str,
+    *,
+    row_pairs: int = 4,
+    separate_outputs: bool = True,
+    right_panel: bool = True,
+    full_grid: bool = True,
+    offset: int = 0,
+) -> dict:
+    """Run and verify one resident matrix grid using caller-supplied operands."""
+    right_panel = right_panel or full_grid
+    case = parse_launch(
+        {
+            "a": _tile(a, 0, 0),
+            "b": _tile(b, 0, 0),
+            "c": _tile(initial, 0, 0),
+            "row_pairs": row_pairs,
+        },
+        resident_loop32=True,
+    )
+    alternate = _tile(a, 0, TILE) + _tile(b, TILE, 0)
+    right = (_tile(b, 0, TILE), _tile(b, TILE, TILE)) if right_panel else None
+    bottom = (
+        BottomRow(
+            operands=(_tile(a, TILE, 0), _tile(a, TILE, TILE)),
+            outputs=(_tile(initial, TILE, 0), _tile(initial, TILE, TILE)),
+        )
+        if full_grid
+        else None
+    )
+    result = qualify(
+        model,
+        circuit,
+        case,
+        alternate,
+        device,
+        second_output=(
+            _tile(initial, 0, TILE) if separate_outputs or right_panel else None
+        ),
+        right_operands=right,
+        bottom=bottom,
+        offset=offset,
+    )
+    if right_panel:
+        outputs = result["workgroup_outputs"]
+        matrix = [
+            l + r
+            for index in range(0, len(outputs), 2)
+            for l, r in zip(outputs[index], outputs[index + 1], strict=True)
+        ]
+        expected = [
+            [
+                (initial[i][j] + sum(a[i][k] * b[k][j] for k in range(2 * TILE)))
+                & 65535
+                if i % TILE < 2 * row_pairs
+                else initial[i][j]
+                for j in range(2 * TILE)
+            ]
+            for i in range(len(matrix))
+        ]
+        if matrix != expected:
+            raise ValueError("resident panel multiply differs from the scalar matrix")
+        result["matrix"] = matrix
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="mps")
@@ -194,26 +265,6 @@ def main() -> None:
     args = parser.parse_args()
     payload = args.input.read_bytes()
     a, b, initial = parse_inputs(json.loads(payload))
-    case = parse_launch(
-        {
-            "a": _tile(a, 0, 0),
-            "b": _tile(b, 0, 0),
-            "c": _tile(initial, 0, 0),
-            "row_pairs": args.row_pairs,
-        },
-        resident_loop32=True,
-    )
-    alternate = _tile(a, 0, TILE) + _tile(b, TILE, 0)
-    right_panel = args.right_panel or args.grid_2x2
-    right = (_tile(b, 0, TILE), _tile(b, TILE, TILE)) if right_panel else None
-    bottom = (
-        BottomRow(
-            operands=(_tile(a, TILE, 0), _tile(a, TILE, TILE)),
-            outputs=(_tile(initial, TILE, 0), _tile(initial, TILE, TILE)),
-        )
-        if args.grid_2x2
-        else None
-    )
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
@@ -225,39 +276,20 @@ def main() -> None:
     model, circuit = load_tile_model(
         args.model, args.device, resident_add32=True, resident_tilegrid=True
     )
-    result = qualify(
+    right_panel = args.right_panel or args.grid_2x2
+    result = execute_matrix(
         model,
         circuit,
-        case,
-        alternate,
+        a,
+        b,
+        initial,
         args.device,
-        second_output=(
-            _tile(initial, 0, TILE) if args.separate_outputs or right_panel else None
-        ),
-        right_operands=right,
-        bottom=bottom,
+        row_pairs=args.row_pairs,
+        separate_outputs=args.separate_outputs,
+        right_panel=right_panel,
+        full_grid=args.grid_2x2,
         offset=meta["chip_token_offset"] if meta else 0,
     )
-    if right_panel:
-        outputs = result["workgroup_outputs"]
-        matrix = [
-            l + r
-            for index in range(0, len(outputs), 2)
-            for l, r in zip(outputs[index], outputs[index + 1], strict=True)
-        ]
-        expected = [
-            [
-                (initial[i][j] + sum(a[i][k] * b[k][j] for k in range(2 * TILE)))
-                & 65535
-                if i % TILE < 2 * args.row_pairs
-                else initial[i][j]
-                for j in range(2 * TILE)
-            ]
-            for i in range(len(matrix))
-        ]
-        if matrix != expected:
-            raise ValueError("resident panel multiply differs from the scalar matrix")
-        result["matrix"] = matrix
     report = {
         "device": args.device,
         "row_pairs": args.row_pairs,

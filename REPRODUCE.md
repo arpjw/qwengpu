@@ -1574,10 +1574,13 @@ as the dense fixture.
 fixture=eval/frozen/matmul16_gate_v1/dense_seeded.json
 "$QWENGPU_PYTHON" -m qwengpu.eval_tilegrid --grid-2x2 --row-pairs 4 \
   --input "$fixture" --device mps --out /tmp/qwengpu-tilegrid-2x2-mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 "$fixture" --grid-2x2 --device mps \
+  --out /tmp/qwengpu-matmul16-mps.json
 base=/path/to/Qwen3.5-9B
 model=/path/to/Qwen3.5-9B-qwengpu-resident-tilegrid
 "$QWENGPU_PYTHON" -m qwengpu.merge9b "$base" --resident-tilegrid --out "$model"
 "$QWENGPU_PYTHON" -m qwengpu.eval_tilegrid --grid-2x2 --row-pairs 4 \
   --input "$fixture" --model "$model" --device cuda \
   --out /tmp/qwengpu-tilegrid-2x2-9b.json
+python3 scripts/check_tilegrid.py
 ```

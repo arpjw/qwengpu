@@ -29,7 +29,7 @@ output tile. Its stores carry the address of that output and preserve
 the first tile. The model can also select different B panels for each
 group, sharing the A panel across both. The 2×2 mode also selects the
 A panel from the workgroup row. It stores four distinct C tiles in the
-same cache. The initial 2×2 MPS check passed on a row pair in each tile.
+same cache. The full 16×16 multiply passed on MPS in one cache.
 General-purpose global addressing and independently resident workgroups
 remain open.
 
