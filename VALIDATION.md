@@ -1354,6 +1354,13 @@ transitions. Inputs fell from 60,408 to 58,693 tokens and forward
 calls fell from 2,498 to 2,495. This counts work on the same fixture.
 See `results/tilegrid_2x2_full_mps.json`.
 
+The merged Qwen3.5-9B tilegrid checkpoint on one A100 SXM 80 GB
+matched the full MPS result, all eight pass records, transition
+tickets, and each audited model call. The run took 6 minutes
+45 seconds including model load. CUDA retried three allocations
+and completed with exact output. See
+`results/tilegrid_2x2_full_9b_cuda_fla.json`.
+
 The same standalone tilegrid circuit matched six seeded programs on
 MPS, covering 70 instructions. Two carry loops, two diverging
 scatter collisions, and two deliberate barrier deadlocks agreed with

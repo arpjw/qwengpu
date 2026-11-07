@@ -1582,7 +1582,7 @@ model=/path/to/Qwen3.5-9B-qwengpu-resident-tilegrid
 "$QWENGPU_PYTHON" -m qwengpu.eval_tilegrid --grid-2x2 --row-pairs 4 \
   --input "$fixture" --model "$model" --device cuda \
   --out /tmp/qwengpu-tilegrid-2x2-9b.json
-python3 scripts/check_tilegrid.py
+python3 scripts/check_tilegrid.py --cuda
 ```
 
 Generate and qualify the six seeded programs with the same circuit.
