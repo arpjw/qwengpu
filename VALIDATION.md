@@ -1399,3 +1399,8 @@ standalone tilegrid circuit. All 20 instructions and the complete
 shared-memory image matched the interpreter and scalar additions.
 The right operand and three inactive output guards stayed intact.
 See `results/tilegrid_vector_mps.json`.
+
+The merged tilegrid checkpoint replayed all 27 inherited cases
+exactly. The records match the previous 9B suite, including
+1,972 instructions, 1,999 scheduling decisions, and the memory
+and transport checks. See `results/tilegrid_inherited_9b_cuda_fla.json`.
