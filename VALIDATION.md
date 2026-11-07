@@ -1279,3 +1279,21 @@ the inherited GPU trace, copies eight pairs after text, and
 uploads zero initial shared-memory tokens. These checks use
 the same tilepipe merge as the public multiply and the 27-case
 GPU suite. See `results/resident_tilepipe_*` and `REPRODUCE.md`.
+
+## Two model-selected vector workgroups in one cache
+
+Standalone Qwen3.5 on MPS passed all six lengths (0, 1, 8, 9, 13, and
+16) using the pinned compiler. Each case started with one upload of
+its two inputs, output guard image, and length descriptor. The model
+emitted the workgroup tickets, selected addresses from the group bit
+and lane index, and stored modular 32-bit sums in the same forward call
+that computed them. The host fed each generated ticket back unchanged
+with a fixed step token.
+
+The output tokens and all 192 recurrent memory bytes matched the scalar
+reference per case. This includes wraparound, carry out of the low
+16 bits, and unchanged inactive output words. A step after the terminal
+ticket left memory intact. The 13-word case used five forward calls,
+including prefill, the terminal probe, and readout. This isolated check
+uses a fixed vector operation. Tilepipe integration and merged 9B
+qualification are separate gates. See `results/vector_grid_mps.json`.

@@ -14,6 +14,13 @@ both K slices within each 8×8 output tile. The evidence covers
 frozen workloads. Larger geometry and changes to the host
 protocol are separate design decisions for review.
 
+The standalone vector-grid circuit establishes the first grid scheduling
+gate on MPS. A length descriptor drives up to two eight-lane workgroups
+in one recurrent cache. The circuit selects each group, derives its
+addresses, and commits 32-bit sums to resident memory on each step.
+The follow-on grid layout needs to bring this boundary into tilepipe and
+make global memory addressable by uploaded kernels.
+
 The resident 8×8 tile engine holds its 256 shared bytes in one inference
 cache per launch. A, B, and initial C are uploaded once. The host relays
 model-tagged writes into the same cache. MPS and merged Qwen3.5-9B agree

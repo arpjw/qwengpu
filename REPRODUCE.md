@@ -1506,3 +1506,18 @@ model=/path/to/Qwen3.5-9B-qwengpu-resident-tilepipe
   --out results/resident_tilepipe_arithmetic_relaunch_9b_cuda_fla.json
 python3 scripts/check_tilepipe_matmul16.py --text
 ```
+
+## Verify model-selected workgroups in one cache
+
+Run the standalone grid check with the pinned compiler environment above.
+
+```sh
+cd "$QWENGPU_DIR"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_vector_grid --device mps \
+  --out /tmp/qwengpu-vector-grid-mps.json
+```
+
+The report compares output tokens and physical recurrent memory against
+scalar results for six lengths. The 13-word case should emit both group
+tickets and retain all three trailing guard words. It receives one
+upload, then relayed tickets, fixed steps, and read requests.
