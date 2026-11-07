@@ -11,6 +11,7 @@ import torch
 
 from qwengpu.compiled_tile8 import (
     NEXT_BANK,
+    RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     TICKET,
@@ -395,7 +396,11 @@ def main() -> None:
                 != (
                     TILEGRID_VOCAB
                     if meta.get("layout")
-                    in (RESIDENT_TILEGRID_LAYOUT, RESIDENT_GLOBALGRID_LAYOUT)
+                    in (
+                        RESIDENT_TILEGRID_LAYOUT,
+                        RESIDENT_GLOBALGRID_LAYOUT,
+                        RESIDENT_COMPUTE_LAYOUT,
+                    )
                     else VOCAB
                 )
                 or type(meta.get("chip_token_offset")) is not int
@@ -405,6 +410,7 @@ def main() -> None:
             resident_tilegrid = meta["layout"] in (
                 RESIDENT_TILEGRID_LAYOUT,
                 RESIDENT_GLOBALGRID_LAYOUT,
+                RESIDENT_COMPUTE_LAYOUT,
             )
             resident_tilepipe = meta["layout"] in RESIDENT_TILEPIPE_LAYOUTS
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS

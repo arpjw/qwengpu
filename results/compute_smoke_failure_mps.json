@@ -1,0 +1,14 @@
+{
+  "device": "mps",
+  "stage": "first compute smoke: vector_17, reduce_13, matmul_3x3x3",
+  "passed_before_failure": ["vector_17", "reduce_13"],
+  "failed_case": "matmul_3x3x3",
+  "trace_index": 14,
+  "actual_snapshot": "00004ef70000780d00007b5200007fbd00000000000000ff009d325488d1214003b30c3363ee142de4d35c20451b0f8af",
+  "oracle_snapshot": "00004ef70000780d00007b5200007fbd00000000000000ff009d325488d1214043b30c3363ee142de4d35c20451b0f8af",
+  "differing_bits": [130],
+  "other_trace_fields_equal": true,
+  "cause": "The independent oracle reused its scheduler row variable for matrix output addressing, corrupting its snapshot metadata. The model snapshot retained scheduler row zero, as specified. Arithmetic and emitted register fields agreed at the first mismatch.",
+  "fix": "Use a separate output_row variable in the matrix oracle and assert scheduler row metadata across all interpreted compute programs.",
+  "status": "Retained diagnostic; qualification requires a fresh complete model replay after the oracle correction."
+}

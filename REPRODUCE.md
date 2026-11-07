@@ -1683,3 +1683,60 @@ launcher replays without running inference.
 ```sh
 python3 scripts/check_globalgrid.py --cuda
 ```
+
+## Run variable-size common kernels
+
+The compute layout adds a global-ID tail mask and indexed byte matrix
+multiply-accumulate. See COMPUTE_DESIGN.md for its exact limits and memory
+map. Different supported shapes use the same fixed checkpoint.
+
+```sh
+export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
+export QWENGPU_PYTHON="$PWD/../qwenputer/experimental/riscv/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/compute_vector.json --device mps
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/compute_reduce.json --device mps
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/compute_matmul.json --device mps
+"$QWENGPU_PYTHON" -m qwengpu.eval_compute --device mps \
+  --out /tmp/qwengpu-compute-mps.json
+```
+
+Each standalone command constructs the model. `eval_compute` loads it once
+and runs all eighteen frozen cases. Vector lengths are 0 through 32;
+matrix limits are M ≤ 8, K ≤ 4, N ≤ 4, with byte inputs and uint32 C.
+`--trace` retains full execution and memory records in the public result.
+
+For the merged checkpoint, use the pinned compiler and base revision from
+the earlier RunPod bootstrap instructions. Keep the allocator setting for
+the long inherited matrix replay.
+
+```sh
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+base=/path/to/Qwen3.5-9B
+model=/path/to/Qwen3.5-9B-qwengpu-resident-compute
+"$QWENGPU_PYTHON" -m qwengpu.merge9b "$base" --resident-compute --out "$model"
+"$QWENGPU_PYTHON" -m qwengpu.eval_compute --model "$model" --device cuda \
+  --out /tmp/qwengpu-compute-9b.json
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/compute_reduce.json \
+  --model "$model" --device cuda --transport fixed --out /tmp/qwengpu-reduce.json
+bash scripts/qualify_resident_add32.sh --resident-compute "$model" \
+  --device cuda --out /tmp/qwengpu-compute-inherited-9b.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 \
+  eval/frozen/matmul16_gate_v1/dense_seeded.json --grid-2x2 \
+  --model "$model" --device cuda --out /tmp/qwengpu-compute-matmul16-9b.json
+"$QWENGPU_PYTHON" -m qwengpu.bench_compute --model "$model" \
+  --rounds 2 --out /tmp/qwengpu-compute-transport.json
+```
+
+The benchmark warms both transports, alternates their order, synchronizes
+CUDA timing, checks forward-hook counts, and requires identical execution
+digests. Its measurements describe these two short kernels on that device.
+They do not establish GPU acceleration.
+
+Saved-evidence checks use no model or paid compute:
+
+```sh
+python3 scripts/check_compute.py --cuda
+python3 scripts/check_checkpoint_full.py --cuda --matrix --text
+python3 scripts/check_checkpoint_full.py --stem compute --cuda --matrix --text
+```

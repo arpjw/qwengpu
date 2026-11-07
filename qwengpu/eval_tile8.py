@@ -34,6 +34,7 @@ from qwengpu.compiled_tile8 import (
     BRANCH_OPS,
     BRANCH_REGISTER,
     C_MEMORY,
+    COMPUTE_OPS,
     DEADLOCK,
     DONE,
     GLOBAL_GRID,
@@ -72,6 +73,7 @@ from qwengpu.compiled_tile8 import (
     RESET_WARP,
     RESIDENT_ADDMEM32_LAYOUT,
     RESIDENT_BRANCH32_LAYOUT,
+    RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_LOOP32_LAYOUT,
     RESIDENT_SHARED32_LAYOUT,
@@ -128,7 +130,9 @@ RESIDENT_TILEPIPE_LAYOUTS = (
     RESIDENT_TILEPIPE_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
+    RESIDENT_COMPUTE_LAYOUT,
 )
+RESIDENT_GLOBALGRID_LAYOUTS = (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT)
 RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, *RESIDENT_TILEPIPE_LAYOUTS)
 RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, *RESIDENT_TILEBANKS_LAYOUTS)
 RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, *RESIDENT_LOOP32_LAYOUTS)
@@ -220,7 +224,9 @@ def parse_launch(
     resident_branch32: bool = False,
     resident_loop32: bool = False,
     resident_globalgrid: bool = False,
+    resident_compute: bool = False,
 ) -> dict:
+    resident_globalgrid = resident_globalgrid or resident_compute
     resident_loop32 = resident_loop32 or resident_globalgrid
     resident_branch32 = resident_branch32 or resident_loop32
     resident_addmem32 = resident_addmem32 or resident_branch32
@@ -305,6 +311,7 @@ def parse_launch(
             + (SHARED32_OPS if resident_shared32 else ())
             + (ADDMEM32_OPS if resident_addmem32 else ())
             + (GLOBAL_OPS if workgroups else ())
+            + (COMPUTE_OPS if workgroups and resident_compute else ())
         )
         for warp, program in enumerate(raw):
             if not isinstance(program, list) or not 1 <= len(program) <= 16:
@@ -329,11 +336,17 @@ def parse_launch(
                     "WHILE_BIT": 31 if resident_loop32 else 15,
                     "SHL32I": 7,
                     "MASK_LANES": 8,
+                    "MASK_GLOBAL_LT": 64,
+                    "MATRIX_MAC8": 63,
                 }.get(op, 0)
                 if type(arg) is not int or not 0 <= arg <= limit:
                     raise ValueError(f"invalid {op} argument")
                 if op in ADDMEM32_OPS and arg % 2:
                     raise ValueError(f"{op} requires an even pair mask")
+                if op == "MATRIX_MAC8" and arg % 4 > arg // 16:
+                    raise ValueError(
+                        "MATRIX_MAC8 selects a K position outside the matrix"
+                    )
                 if (op == "HALT") != (index == len(program) - 1):
                     raise ValueError("HALT must appear exactly once at the end")
                 ops.append((op, arg))
@@ -1022,6 +1035,7 @@ def execute(
                 resident_branch32=resident_branch32,
                 resident_loop32=resident_loop32,
                 resident_globalgrid=circuit.resident_globalgrid,
+                resident_compute=circuit.resident_compute,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1412,6 +1426,37 @@ def oracle(
                 word >> 16 if active >> lane & 1 else high[warp][lane]
                 for lane, word in enumerate(words)
             ]
+        elif op == "MATRIX_MAC8":
+            k_size, n_size, k = arg // 16 + 1, (arg // 4) % 4 + 1, arg % 4
+            words = []
+            for lane, (low, upper) in enumerate(zip(before, high[warp], strict=True)):
+                value = low | upper << 16
+                if active >> lane & 1:
+                    output_row, col = divmod(16 * group + 8 * warp + lane, n_size)
+                    left = (
+                        int.from_bytes(
+                            operands[
+                                2 * (output_row * k_size + k) : 2 * (output_row * k_size + k) + 2
+                            ],
+                            "little",
+                        )
+                        & 255
+                    )
+                    address = 32 + k * n_size + col
+                    right = (
+                        int.from_bytes(
+                            operands[2 * address : 2 * address + 2], "little"
+                        )
+                        & 255
+                    )
+                    value = (value + left * right) & 0xFFFFFFFF
+                words.append(value)
+            candidate = [value & 65535 for value in words]
+            high[warp] = [value >> 16 for value in words]
+        elif op == "MASK_GLOBAL_LT":
+            masks[warp] &= sum(
+                int(16 * group + 8 * warp + lane < arg) << lane for lane in range(8)
+            )
         elif op in GLOBAL_OPS and op != "MASK_LANES":
             if op in ID_OPS:
                 words = {
@@ -1652,14 +1697,16 @@ def load_tile_model(
     resident_tilepipe: bool = False,
     resident_tilegrid: bool = False,
     resident_globalgrid: bool = False,
+    resident_compute: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_globalgrid = layout == RESIDENT_GLOBALGRID_LAYOUT
+        resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
+        resident_compute = layout == RESIDENT_COMPUTE_LAYOUT
         resident_tilegrid = layout in (
             RESIDENT_TILEGRID_LAYOUT,
-            RESIDENT_GLOBALGRID_LAYOUT,
+            *RESIDENT_GLOBALGRID_LAYOUTS,
         )
         resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
@@ -1689,6 +1736,7 @@ def load_tile_model(
             resident_tilepipe=resident_tilepipe,
             resident_tilegrid=resident_tilegrid,
             resident_globalgrid=resident_globalgrid,
+            resident_compute=resident_compute,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1722,6 +1770,7 @@ def load_tile_model(
             resident_tilepipe=resident_tilepipe,
             resident_tilegrid=resident_tilegrid,
             resident_globalgrid=resident_globalgrid,
+            resident_compute=resident_compute,
         )
     return model.to(device).eval(), circuit
 
@@ -1752,6 +1801,7 @@ def main() -> None:
     variants.add_argument("--resident-tilepipe", action="store_true")
     variants.add_argument("--resident-tilegrid", action="store_true")
     variants.add_argument("--resident-globalgrid", action="store_true")
+    variants.add_argument("--resident-compute", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1761,7 +1811,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_globalgrid = args.resident_globalgrid
+    resident_compute = args.resident_compute
+    resident_globalgrid = args.resident_globalgrid or resident_compute
     resident_tilegrid = args.resident_tilegrid or resident_globalgrid
     resident_tilepipe = args.resident_tilepipe or resident_tilegrid
     resident_tilebanks = args.resident_tilebanks or resident_tilepipe
@@ -1803,10 +1854,11 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_globalgrid = layout == RESIDENT_GLOBALGRID_LAYOUT
+        resident_compute = layout == RESIDENT_COMPUTE_LAYOUT
+        resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
         resident_tilegrid = layout in (
             RESIDENT_TILEGRID_LAYOUT,
-            RESIDENT_GLOBALGRID_LAYOUT,
+            *RESIDENT_GLOBALGRID_LAYOUTS,
         )
         resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
@@ -1868,6 +1920,8 @@ def main() -> None:
             raise ValueError("--resident-tilegrid requires a tilegrid checkpoint")
         if args.resident_globalgrid and not resident_globalgrid:
             raise ValueError("--resident-globalgrid requires a globalgrid checkpoint")
+        if args.resident_compute and not resident_compute:
+            raise ValueError("--resident-compute requires a compute checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1944,6 +1998,7 @@ def main() -> None:
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
         resident_globalgrid=resident_globalgrid,
+        resident_compute=resident_compute,
     )
     report = {
         "device": args.device,

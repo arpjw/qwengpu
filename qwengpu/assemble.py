@@ -40,7 +40,10 @@ def assemble(source: str, data: dict | None = None) -> dict:
         raise ValueError("expected two warp sections")
     launch = {**(data or {}), "programs": [programs[0], programs[1]]}
     parse_launch(
-        launch, resident_loop32=True, resident_globalgrid="workgroups" in launch
+        launch,
+        resident_loop32=True,
+        resident_globalgrid="workgroups" in launch,
+        resident_compute="workgroups" in launch,
     )
     return launch
 

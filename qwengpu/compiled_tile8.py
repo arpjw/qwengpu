@@ -73,8 +73,10 @@ RESIDENT_TILEBANKS_LAYOUT = "qwengpu-resident-tilebanks-9b-v1"
 RESIDENT_TILEPIPE_LAYOUT = "qwengpu-resident-tilepipe-9b-v1"
 RESIDENT_TILEGRID_LAYOUT = "qwengpu-resident-tilegrid-9b-v1"
 RESIDENT_GLOBALGRID_LAYOUT = "qwengpu-resident-globalgrid-9b-v1"
+RESIDENT_COMPUTE_LAYOUT = "qwengpu-resident-compute-9b-v1"
 ID_OPS = ("LANE_ID", "WORKGROUP_ID", "THREAD_ID", "GLOBAL_ID")
 GLOBAL_OPS = ID_OPS + ("WARP_SUM", "SHL32I", "MASK_LANES")
+COMPUTE_OPS = ("MASK_GLOBAL_LT", "MATRIX_MAC8")
 GLOBAL_WIRE = 192
 GLOBAL_GRID = 128
 RESET_WARP = (2064, 2080)
@@ -133,6 +135,10 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
     def wire(address: int, op: str, arg: int) -> int:
         # The reserved HALT immediates extend the ROM without changing its stride.
         halt = OPS.index("HALT") * 256
+        if op == "MASK_GLOBAL_LT":
+            return OPS.index("BARRIER") * 256 + 32 + arg
+        if op == "MATRIX_MAC8":
+            return OPS.index("BARRIER") * 256 + 128 + arg
         if op in INDEX_OPS:
             return halt + 1 + INDEX_OPS.index(op)
         if op in SHARED32_OPS:
@@ -199,11 +205,17 @@ def rom_payload(
     resident_branch32: bool = False,
     resident_loop32: bool = False,
     resident_globalgrid: bool = False,
+    resident_compute: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
     wire = (token - ROM) % STRIDE
     tag, arg = divmod(wire, 256)
+    if resident_compute and OPS[tag] == "BARRIER":
+        if 32 <= arg <= 96:
+            return 29 * 256 + arg - 32
+        if 128 <= arg < 192:
+            return 30 * 256 + arg - 128
     if (
         resident_globalgrid
         and OPS[tag] == "HALT"
@@ -298,7 +310,9 @@ def build(
     resident_tilepipe: bool = False,
     resident_tilegrid: bool = False,
     resident_globalgrid: bool = False,
+    resident_compute: bool = False,
 ) -> Circ:
+    resident_globalgrid = resident_globalgrid or resident_compute
     resident_tilegrid = resident_tilegrid or resident_globalgrid
     resident_tilepipe = resident_tilepipe or resident_tilegrid
     resident_tilebanks = resident_tilebanks or resident_tilepipe
@@ -332,6 +346,7 @@ def build(
     c.resident_tilepipe = resident_tilepipe
     c.resident_tilegrid = resident_tilegrid
     c.resident_globalgrid = resident_globalgrid
+    c.resident_compute = resident_compute
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -604,6 +619,7 @@ def build(
         + (ADDMEM32_OPS if resident_addmem32 else ())
         + ((WHILE_HI_OP,) if resident_loop32 else ())
         + (GLOBAL_OPS if resident_globalgrid else ())
+        + (COMPUTE_OPS if resident_compute else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -623,6 +639,7 @@ def build(
                         resident_branch32=resident_branch32,
                         resident_loop32=resident_loop32,
                         resident_globalgrid=resident_globalgrid,
+                        resident_compute=resident_compute,
                     )
                     >> bit
                 )
@@ -963,6 +980,29 @@ def build(
                     )
                 )
                 keep_mask -= ops["MASK_LANES"]
+            if resident_compute:
+                mask_sources.append(
+                    (
+                        [ops["MASK_GLOBAL_LT"]],
+                        [
+                            c.node(
+                                c.t_lt(
+                                    16 * from_bits([group_low, group_high])
+                                    + 8 * warp_bit
+                                    + lane
+                                    - from_bits(arg[:7]),
+                                    0,
+                                    -127,
+                                    63,
+                                    lits=[enabled],
+                                ),
+                                f"mask.global.{lane}",
+                            )
+                            for lane, enabled in enumerate(active)
+                        ],
+                    )
+                )
+                keep_mask -= ops["MASK_GLOBAL_LT"]
             if looping:
                 loop = [
                     bit
@@ -1157,6 +1197,18 @@ def build(
             )
             special_low.extend(special[:16])
             special_high.extend(special[16:])
+    if resident_compute:
+        from qwengpu.compiled_matrix import operands as matrix_operands
+
+        matrix_a, matrix_b = matrix_operands(
+            c,
+            ops["MATRIX_MAC8"],
+            arg,
+            active,
+            [group_low, group_high],
+            warp_bit,
+            lookup,
+        )
     updated = []
     next_high = [] if resident_add32 else old_high
     add_immediate = ops["ADD16I"] + ops.get(ADD32I_OP, Expr())
@@ -1171,6 +1223,14 @@ def build(
                 for i, j in pairs
                 for term in c.t_and([ops["MAC_K"], a[i], b[lane][j]])
             ]
+            if resident_compute:
+                terms += [
+                    term
+                    for i, j in pairs
+                    for term in c.t_and(
+                        [ops["MATRIX_MAC8"], matrix_a[lane][i], matrix_b[lane][j]]
+                    )
+                ]
             if bit < 8:
                 terms += c.t_and([add_immediate, arg[bit]])
             if resident_addmem32:
@@ -1197,7 +1257,13 @@ def build(
             )
             updated.extend(word[:16])
             enabled = c.and_(
-                [ops[ADD32I_OP] + add_low + add_high, active[lane]],
+                [
+                    ops[ADD32I_OP]
+                    + add_low
+                    + add_high
+                    + ops.get("MATRIX_MAC8", Expr()),
+                    active[lane],
+                ],
                 f"wide.active.{lane}",
             )
             high_sources = [([enabled], word[16:])]
@@ -1534,6 +1600,7 @@ def build_standalone(
     resident_tilepipe: bool = False,
     resident_tilegrid: bool = False,
     resident_globalgrid: bool = False,
+    resident_compute: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1559,11 +1626,16 @@ def build_standalone(
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
         resident_globalgrid=resident_globalgrid,
+        resident_compute=resident_compute,
     )
     return build_qwen(
         circuit,
         list(
-            range(TILEGRID_VOCAB if resident_tilegrid or resident_globalgrid else VOCAB)
+            range(
+                TILEGRID_VOCAB
+                if resident_tilegrid or resident_globalgrid or resident_compute
+                else VOCAB
+            )
         ),
         [next(iter(expr.terms)) for expr in circuit.code],
         share=True,

@@ -16,12 +16,19 @@ from qwengpu.compiled_tile8 import (
     INDEX_OPERAND,
     INDEX_WORDS,
     RESET_WARP,
+    RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
     TILEGRID_VOCAB,
     WORKGROUP_TICKETS,
 )
 from qwengpu.eval_tile import _unsigned
-from qwengpu.eval_tile8 import execute, load_tile_model, oracle, parse_launch
+from qwengpu.eval_tile8 import (
+    RESIDENT_TRANSPORTS,
+    execute,
+    load_tile_model,
+    oracle,
+    parse_launch,
+)
 
 FIXTURE = Path(__file__).resolve().parents[1] / "eval/frozen/globalgrid_v1/words.json"
 MASK32 = 0xFFFFFFFF
@@ -35,8 +42,19 @@ def make_launch(
 
 
 @torch.no_grad()
-def launch(model, circuit, data: dict, device: str, offset: int, cache=None) -> tuple:
-    case = parse_launch(data, resident_globalgrid=True)
+def launch(
+    model,
+    circuit,
+    data: dict,
+    device: str,
+    offset: int,
+    cache=None,
+    *,
+    transport_mode: str = "state_store_plan",
+) -> tuple:
+    case = parse_launch(
+        data, resident_globalgrid=True, resident_compute=circuit.resident_compute
+    )
     expected = oracle(case, 256, looping=True)
     first = cache is None
     audit = []
@@ -73,8 +91,8 @@ def launch(model, circuit, data: dict, device: str, offset: int, cache=None) -> 
             256,
             offset,
             resident_add32=True,
-            resident_io=True,
             resident_cache=cache,
+            **RESIDENT_TRANSPORTS[transport_mode],
         )
     finally:
         handle.remove()
@@ -231,7 +249,7 @@ def main() -> None:
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
     if meta is not None and (
-        meta.get("layout") != RESIDENT_GLOBALGRID_LAYOUT
+        meta.get("layout") not in (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT)
         or meta.get("chip_vocab") != TILEGRID_VOCAB
     ):
         parser.error("expected a merged globalgrid checkpoint")

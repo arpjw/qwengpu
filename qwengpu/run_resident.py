@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 
 from qwengpu.compiled_tile8 import (
+    RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     TILEGRID_VOCAB,
@@ -48,6 +49,9 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-compute", action="store_true", help="use the common compute ISA"
+    )
     variants.add_argument(
         "--resident-globalgrid",
         action="store_true",
@@ -146,7 +150,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_globalgrid = args.resident_globalgrid
+    resident_compute = args.resident_compute
+    resident_globalgrid = args.resident_globalgrid or resident_compute
     resident_tilegrid = args.resident_tilegrid or resident_globalgrid
     resident_tilepipe = args.resident_tilepipe or resident_tilegrid
     resident_loop32 = args.resident_loop32 or resident_tilepipe
@@ -162,7 +167,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-globalgrid"
+        "standalone-resident-compute"
+        if resident_compute
+        else "standalone-resident-globalgrid"
         if resident_globalgrid
         else "standalone-resident-tilegrid"
         if resident_tilegrid
@@ -218,7 +225,11 @@ def main() -> int:
                 != (
                     TILEGRID_VOCAB
                     if meta.get("layout")
-                    in (RESIDENT_TILEGRID_LAYOUT, RESIDENT_GLOBALGRID_LAYOUT)
+                    in (
+                        RESIDENT_TILEGRID_LAYOUT,
+                        RESIDENT_GLOBALGRID_LAYOUT,
+                        RESIDENT_COMPUTE_LAYOUT,
+                    )
                     else VOCAB
                 )
                 or type(meta.get("chip_token_offset")) is not int
@@ -227,10 +238,15 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_globalgrid = layout == RESIDENT_GLOBALGRID_LAYOUT
+            resident_compute = layout == RESIDENT_COMPUTE_LAYOUT
+            resident_globalgrid = layout in (
+                RESIDENT_GLOBALGRID_LAYOUT,
+                RESIDENT_COMPUTE_LAYOUT,
+            )
             resident_tilegrid = layout in (
                 RESIDENT_TILEGRID_LAYOUT,
                 RESIDENT_GLOBALGRID_LAYOUT,
+                RESIDENT_COMPUTE_LAYOUT,
             )
             resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
@@ -282,6 +298,8 @@ def main() -> int:
                 raise ValueError(
                     "--resident-globalgrid requires a globalgrid checkpoint"
                 )
+            if args.resident_compute and not resident_compute:
+                raise ValueError("--resident-compute requires a compute checkpoint")
             offset = meta["chip_token_offset"]
         if args.transport and not resident_io:
             raise ValueError("--transport requires a resident I/O checkpoint")
@@ -296,6 +314,7 @@ def main() -> int:
             resident_branch32=resident_branch32,
             resident_loop32=resident_loop32,
             resident_globalgrid=resident_globalgrid,
+            resident_compute=resident_compute,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -328,6 +347,7 @@ def main() -> int:
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
         resident_globalgrid=resident_globalgrid,
+        resident_compute=resident_compute,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]
