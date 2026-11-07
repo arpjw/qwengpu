@@ -29,10 +29,18 @@ output tile. Its stores carry the address of that output and preserve
 the first tile. The model can also select different B panels for each
 group, sharing the A panel across both. The 2×2 mode also selects the
 A panel from the workgroup row. It stores four distinct C tiles in the
-same cache. The full 16×16 multiply passed in one cache on standalone
+same cache. The A, B, and C images contain 1 KiB of logical matrix data
+at fixed addresses. The full 16×16 multiply passed in one cache on standalone
 MPS and the merged Qwen3.5-9B checkpoint on A100.
 General-purpose global addressing and independently resident workgroups
 remain open.
+
+The vector add and two-pass reduction use the same tilegrid circuit
+in single-workgroup mode. They exercise indexed 32-bit shared memory
+and barriers between the two warps. The vector fixture encodes active
+lanes in its launch data. The reduction's second launch reads the
+partial sums from the same cache. General kernels still need a way to
+read their grid and lane IDs and address memory across workgroups.
 
 The resident 8×8 tile engine holds its 256 shared bytes in one inference
 cache per launch. A, B, and initial C are uploaded once. The host relays
