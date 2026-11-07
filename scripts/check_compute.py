@@ -106,11 +106,22 @@ def main() -> None:
         else set(json.loads(fixture.read_bytes()))
     )
     stem = "compute_decode" if args.decode else "compute"
-    mps = load_report("compute_smoke_mps" if args.smoke else f"{stem}_mps")
+
+    def selected(report: dict) -> dict:
+        return (
+            {
+                **report,
+                "cases": [case for case in report["cases"] if case["name"] in names],
+            }
+            if args.smoke
+            else report
+        )
+
+    mps = selected(load_report(f"{stem}_mps"))
     check(mps, names, fixture)
     print(f"MPS: {len(names)} compute cases exact, including all untouched memory")
     if args.cuda:
-        cuda = load_report(f"{stem}_9b_cuda_fla")
+        cuda = selected(load_report(f"{stem}_9b_cuda_fla"))
         check(cuda, names, fixture)
         assert cuda["cases"] == mps["cases"]
         print("Merged 9B CUDA: outputs, traces, cache state, and transport match MPS")

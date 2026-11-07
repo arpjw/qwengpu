@@ -1450,6 +1450,19 @@ See `results/globalgrid_inherited_mps.json`,
 `results/globalgrid_inherited_9b_cuda_fla.json`, and
 `python3 scripts/check_checkpoint_full.py --cuda`.
 
+The same globalgrid merge also reproduces the full one-cache 16×16
+multiply: both scalar accumulation passes, all eight tile traces, all
+seven bank/group transitions, and the complete memory-upload audit match
+the tilegrid MPS baseline. Fresh-cache text matches base on 24/24 first
+tokens and 21/24 greedy continuations of up to sixteen tokens, with zero
+chip-token emissions. All four text-cache resets reproduce fresh-cache
+logits and continuations exactly. The full-width GPU-to-text-to-GPU
+round trip matches its prior trace and saves 512 memory-upload tokens.
+See the `globalgrid_matmul16`, `globalgrid_text`, `globalgrid_handoff_reset`,
+and `globalgrid_arithmetic_relaunch` reports and
+`results/globalgrid_full_host_a100.txt`. Run
+`python3 scripts/check_checkpoint_full.py --cuda --matrix --text`.
+
 ## Variable-size common compute kernels
 
 The fixed compute circuit passes all eighteen frozen requests on Apple MPS.

@@ -1,0 +1,20 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=12b6e851b973a1431ca9481b717460ea2db36354
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+PYTORCH_ALLOC_CONF=expandable_segments:True
+flash-linear-attention=0.6.0
+transformers=5.19.0
+88ed53f34bb905ac12d438ad8ed3be07bedaad6a958bcce5f6c4217a37c44e64  qwengpu/compiled_tile8.py
+639002cb287c97693dc733e2b821dd6fafec5252e18386f65b7bad72f45d3746  qwengpu/eval_tile8.py
+622ae939cf5d862b275cba1ea9287072da191fb5d89c7fd2547d6b999978a711  qwengpu/eval_tilegrid.py
+53c168bbc98b99e4d740aa5c6526c637d21a3249dcfaef7bdb20291a49499619  qwengpu/run_matmul16.py
+merge_started_utc=2026-11-07T03:57:26Z
+merge_finished_utc=2026-11-07T04:02:16Z
+inherited_finished_utc=2026-11-07T04:14:40Z
+matmul_finished_utc=2026-11-07T04:20:53Z
+text_finished_utc=2026-11-07T04:22:04Z
+handoff_reset_finished_utc=2026-11-07T04:26:06Z
+arithmetic_relaunch_finished_utc=2026-11-07T04:26:56Z
