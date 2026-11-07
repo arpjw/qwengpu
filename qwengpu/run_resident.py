@@ -9,7 +9,12 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.compiled_tile8 import RESIDENT_TILEGRID_LAYOUT, TILEGRID_VOCAB, VOCAB
+from qwengpu.compiled_tile8 import (
+    RESIDENT_GLOBALGRID_LAYOUT,
+    RESIDENT_TILEGRID_LAYOUT,
+    TILEGRID_VOCAB,
+    VOCAB,
+)
 from qwengpu.eval_tile8 import (
     LOOP_LAYOUT,
     RESIDENT_ADD32_LAYOUTS,
@@ -43,6 +48,11 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-globalgrid",
+        action="store_true",
+        help="use programmable workgroups and global memory",
+    )
     variants.add_argument(
         "--resident-tilegrid",
         action="store_true",
@@ -136,7 +146,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_tilegrid = args.resident_tilegrid
+    resident_globalgrid = args.resident_globalgrid
+    resident_tilegrid = args.resident_tilegrid or resident_globalgrid
     resident_tilepipe = args.resident_tilepipe or resident_tilegrid
     resident_loop32 = args.resident_loop32 or resident_tilepipe
     resident_branch32 = args.resident_branch32 or resident_loop32
@@ -151,7 +162,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-tilegrid"
+        "standalone-resident-globalgrid"
+        if resident_globalgrid
+        else "standalone-resident-tilegrid"
         if resident_tilegrid
         else "standalone-resident-tilepipe"
         if resident_tilepipe
@@ -204,7 +217,8 @@ def main() -> int:
                 or meta.get("chip_vocab")
                 != (
                     TILEGRID_VOCAB
-                    if meta.get("layout") == RESIDENT_TILEGRID_LAYOUT
+                    if meta.get("layout")
+                    in (RESIDENT_TILEGRID_LAYOUT, RESIDENT_GLOBALGRID_LAYOUT)
                     else VOCAB
                 )
                 or type(meta.get("chip_token_offset")) is not int
@@ -213,7 +227,11 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_tilegrid = layout == RESIDENT_TILEGRID_LAYOUT
+            resident_globalgrid = layout == RESIDENT_GLOBALGRID_LAYOUT
+            resident_tilegrid = layout in (
+                RESIDENT_TILEGRID_LAYOUT,
+                RESIDENT_GLOBALGRID_LAYOUT,
+            )
             resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
             resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
@@ -260,6 +278,10 @@ def main() -> int:
                 raise ValueError("--resident-tilepipe requires a tilepipe checkpoint")
             if args.resident_tilegrid and not resident_tilegrid:
                 raise ValueError("--resident-tilegrid requires a tilegrid checkpoint")
+            if args.resident_globalgrid and not resident_globalgrid:
+                raise ValueError(
+                    "--resident-globalgrid requires a globalgrid checkpoint"
+                )
             offset = meta["chip_token_offset"]
         if args.transport and not resident_io:
             raise ValueError("--transport requires a resident I/O checkpoint")
@@ -273,6 +295,7 @@ def main() -> int:
             resident_addmem32=resident_addmem32,
             resident_branch32=resident_branch32,
             resident_loop32=resident_loop32,
+            resident_globalgrid=resident_globalgrid,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -304,6 +327,7 @@ def main() -> int:
         resident_loop32=resident_loop32,
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
+        resident_globalgrid=resident_globalgrid,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]

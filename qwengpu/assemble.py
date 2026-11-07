@@ -26,7 +26,9 @@ def assemble(source: str, data: dict | None = None) -> dict:
             programs[warp] = []
             continue
         if warp is None or len(args) > 1:
-            raise ValueError(f"line {number}: expected an instruction in a warp section")
+            raise ValueError(
+                f"line {number}: expected an instruction in a warp section"
+            )
         instruction: dict[str, str | int] = {"op": op.upper()}
         if args:
             try:
@@ -37,15 +39,21 @@ def assemble(source: str, data: dict | None = None) -> dict:
     if programs.keys() != {0, 1}:
         raise ValueError("expected two warp sections")
     launch = {**(data or {}), "programs": [programs[0], programs[1]]}
-    parse_launch(launch, resident_loop32=True)
+    parse_launch(
+        launch, resident_loop32=True, resident_globalgrid="workgroups" in launch
+    )
     return launch
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
-    parser.add_argument("--data", type=Path, help="optional JSON with initial launch data")
-    parser.add_argument("--out", type=Path, help="write JSON to a file instead of stdout")
+    parser.add_argument(
+        "--data", type=Path, help="optional JSON with initial launch data"
+    )
+    parser.add_argument(
+        "--out", type=Path, help="write JSON to a file instead of stdout"
+    )
     args = parser.parse_args()
     try:
         data = None

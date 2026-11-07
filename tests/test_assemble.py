@@ -32,3 +32,21 @@ class AssembleTests(unittest.TestCase):
     def test_rejects_ambiguous_program_sources(self) -> None:
         with self.assertRaises(ValueError):
             assemble(".warp 0\nHALT\n.warp 1\nHALT", {"programs": []})
+
+    def test_global_launch_uses_explicit_workgroup_descriptor(self) -> None:
+        source = ".warp 0\nGLOBAL_ID\nSHL32I 1\nHALT\n.warp 1\nLANE_ID\nHALT"
+        self.assertEqual(assemble(source, {"workgroups": 3})["workgroups"], 3)
+        for data in (
+            {},
+            {"workgroups": 0},
+            {"workgroups": 5},
+            {"workgroups": True},
+            {"workgroups": 2, "global_words": [0]},
+        ):
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                assemble(source, data)
+
+    def test_global_launch_rejects_tile_ops_and_invalid_immediates(self) -> None:
+        for op in ("LOAD_TILE", "SHL32I 8", "MASK_LANES 9"):
+            with self.subTest(op=op), self.assertRaises(ValueError):
+                assemble(f".warp 0\n{op}\nHALT\n.warp 1\nHALT", {"workgroups": 2})

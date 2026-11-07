@@ -1641,3 +1641,38 @@ bash scripts/qualify_resident_add32.sh --resident-tilegrid --device mps \
 bash scripts/qualify_resident_add32.sh --resident-tilegrid "$model" --device cuda \
   --out /tmp/qwengpu-tilegrid-inherited-9b.json
 ```
+
+## Run programmable workgroups and global memory
+
+A globalgrid launch supplies `workgroups` from 1 through 4, two
+warp programs, and an optional `global_words` array of 128 unsigned
+16-bit words. The global bank starts at zero when the array is
+omitted. `LANE_ID` gives 0 through 7, `THREAD_ID` gives 0 through
+15 within a workgroup, and `GLOBAL_ID` gives `16 * WORKGROUP_ID +
+THREAD_ID`. `SAVE_INDEX` latches the low seven bits of each active
+lane's register. Indexed low and high instructions access that word
+and its adjacent limb, with the low address bit flipped for the high
+limb. Use even word addresses for 32-bit pairs.
+
+`SHL32I` shifts a 32-bit register left by 0 through 7 bits.
+`MASK_LANES` intersects the active mask with the first 0 through
+8 lanes. `WARP_SUM` broadcasts the active lanes' sum modulo
+`2^32` to those lanes. A generated workgroup ticket advances the
+grid. The runner relays that ticket and two fixed warp reset tokens.
+
+```sh
+cd "$QWENGPU_DIR"
+"$QWENGPU_PYTHON" -m qwengpu.eval_globalgrid --device mps \
+  --out /tmp/qwengpu-globalgrid-mps.json
+model=/path/to/Qwen3.5-9B-qwengpu-resident-globalgrid
+"$QWENGPU_PYTHON" -m qwengpu.merge9b "$base" --resident-globalgrid --out "$model"
+"$QWENGPU_PYTHON" -m qwengpu.eval_globalgrid --model "$model" --device cuda \
+  --out /tmp/qwengpu-globalgrid-9b.json
+```
+
+Add `--ids-only` for the four ID and global memory probes.
+The reduction accepts a JSON array of 32 unsigned 32-bit values
+via `--input`. Its default result is `0x8b9ad658`. The assembler
+accepts the global launch descriptor through `--data`.
+Launch the assembled JSON with `qwengpu.run_resident
+--resident-globalgrid --check-reference`.

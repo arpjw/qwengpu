@@ -11,6 +11,7 @@ import torch
 
 from qwengpu.compiled_tile8 import (
     NEXT_BANK,
+    RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     TICKET,
     TILEGRID_VOCAB,
@@ -393,14 +394,18 @@ def main() -> None:
                 or meta.get("chip_vocab")
                 != (
                     TILEGRID_VOCAB
-                    if meta.get("layout") == RESIDENT_TILEGRID_LAYOUT
+                    if meta.get("layout")
+                    in (RESIDENT_TILEGRID_LAYOUT, RESIDENT_GLOBALGRID_LAYOUT)
                     else VOCAB
                 )
                 or type(meta.get("chip_token_offset")) is not int
                 or meta["chip_token_offset"] < 0
             ):
                 raise ValueError("expected a merged resident grid or ADD32 checkpoint")
-            resident_tilegrid = meta["layout"] == RESIDENT_TILEGRID_LAYOUT
+            resident_tilegrid = meta["layout"] in (
+                RESIDENT_TILEGRID_LAYOUT,
+                RESIDENT_GLOBALGRID_LAYOUT,
+            )
             resident_tilepipe = meta["layout"] in RESIDENT_TILEPIPE_LAYOUTS
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
             resident_loop32 = meta["layout"] in RESIDENT_LOOP32_LAYOUTS

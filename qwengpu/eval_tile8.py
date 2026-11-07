@@ -36,9 +36,12 @@ from qwengpu.compiled_tile8 import (
     C_MEMORY,
     DEADLOCK,
     DONE,
+    GLOBAL_GRID,
+    GLOBAL_OPS,
     GRID,
     HIGH_NIBBLES,
     HIGH_REGISTER,
+    ID_OPS,
     INDEX_OPERAND,
     INDEX_OPS,
     INDEX_REGISTER,
@@ -66,8 +69,10 @@ from qwengpu.compiled_tile8 import (
     READ_REG,
     READ_STORE,
     REGISTER,
+    RESET_WARP,
     RESIDENT_ADDMEM32_LAYOUT,
     RESIDENT_BRANCH32_LAYOUT,
+    RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_LOOP32_LAYOUT,
     RESIDENT_SHARED32_LAYOUT,
     RESIDENT_TILEBANKS_LAYOUT,
@@ -119,7 +124,11 @@ RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
-RESIDENT_TILEPIPE_LAYOUTS = (RESIDENT_TILEPIPE_LAYOUT, RESIDENT_TILEGRID_LAYOUT)
+RESIDENT_TILEPIPE_LAYOUTS = (
+    RESIDENT_TILEPIPE_LAYOUT,
+    RESIDENT_TILEGRID_LAYOUT,
+    RESIDENT_GLOBALGRID_LAYOUT,
+)
 RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, *RESIDENT_TILEPIPE_LAYOUTS)
 RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, *RESIDENT_TILEBANKS_LAYOUTS)
 RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, *RESIDENT_LOOP32_LAYOUTS)
@@ -210,7 +219,9 @@ def parse_launch(
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
     resident_loop32: bool = False,
+    resident_globalgrid: bool = False,
 ) -> dict:
+    resident_loop32 = resident_loop32 or resident_globalgrid
     resident_branch32 = resident_branch32 or resident_loop32
     resident_addmem32 = resident_addmem32 or resident_branch32
     resident_shared32 = resident_shared32 or resident_addmem32
@@ -220,12 +231,49 @@ def parse_launch(
     masked = masked or divergent
     if not isinstance(data, dict):
         raise ValueError("8x8 case must be an object")
-    a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
-    b = _unsigned(data.get("b", [0] * 64), 64, 255, "b")
-    initial = _unsigned(data.get("c", [0] * 64), 64, 65535, "c")
+    workgroups = data.get("workgroups")
+    if "workgroups" in data:
+        if (
+            not resident_globalgrid
+            or type(workgroups) is not int
+            or not 1 <= workgroups <= 4
+        ):
+            raise ValueError(
+                "workgroups requires globalgrid and an integer from 1 through 4"
+            )
+        if any(
+            name in data
+            for name in (
+                "a",
+                "b",
+                "c",
+                "initial_registers",
+                "row_pairs",
+                "first_row_pair",
+            )
+        ):
+            raise ValueError(
+                "globalgrid launches use global_words and zero-initialized warp state"
+            )
+        words = _unsigned(
+            data.get("global_words", [0] * INDEX_WORDS),
+            INDEX_WORDS,
+            65535,
+            "global_words",
+        )
+        operands = [byte for word in words[:64] for byte in (word & 255, word >> 8)]
+        a, b, initial = operands[:64], operands[64:], words[64:]
+    else:
+        if "global_words" in data:
+            raise ValueError("global_words requires a workgroups descriptor")
+        a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
+        b = _unsigned(data.get("b", [0] * 64), 64, 255, "b")
+        initial = _unsigned(data.get("c", [0] * 64), 64, 65535, "c")
     resident_wide = resident_wide or resident_add32
-    first_row_pair, row_pairs = _row_window(
-        data, resident_grid=resident_grid or resident_wide
+    first_row_pair, row_pairs = (
+        (0, 1)
+        if workgroups
+        else _row_window(data, resident_grid=resident_grid or resident_wide)
     )
     initial_registers = None
     if resident_wide:
@@ -240,6 +288,8 @@ def parse_launch(
     raw = data.get("programs")
     links = [{}, {}]
     if raw is None:
+        if workgroups:
+            raise ValueError("globalgrid requires two explicit warp programs")
         programs = [PROGRAM, (("ADD16I", 0),) + PROGRAM]
     else:
         if not isinstance(raw, list) or len(raw) != 2:
@@ -254,6 +304,7 @@ def parse_launch(
             + ((ADD32I_OP,) if resident_add32 else ())
             + (SHARED32_OPS if resident_shared32 else ())
             + (ADDMEM32_OPS if resident_addmem32 else ())
+            + (GLOBAL_OPS if workgroups else ())
         )
         for warp, program in enumerate(raw):
             if not isinstance(program, list) or not 1 <= len(program) <= 16:
@@ -265,6 +316,8 @@ def parse_launch(
                 if not isinstance(ins, dict) or ins.get("op") not in names:
                     raise ValueError("invalid tile opcode")
                 op, arg = ins["op"], ins.get("arg", 0)
+                if workgroups and op in ("LOAD_TILE", "MAC_K", "STORE_TILE"):
+                    raise ValueError(f"{op} requires a tiled launch")
                 limit = {
                     "MAC_K": 7,
                     "ADD16I": 255,
@@ -274,6 +327,8 @@ def parse_launch(
                     "MASK_BIT": 15,
                     "IF_BIT": 31 if resident_branch32 else 15,
                     "WHILE_BIT": 31 if resident_loop32 else 15,
+                    "SHL32I": 7,
+                    "MASK_LANES": 8,
                 }.get(op, 0)
                 if type(arg) is not int or not 0 <= arg <= limit:
                     raise ValueError(f"invalid {op} argument")
@@ -294,6 +349,7 @@ def parse_launch(
         "first_row_pair": first_row_pair,
         "row_pairs": row_pairs,
         **({"initial_registers": initial_registers} if resident_wide else {}),
+        **({"workgroups": workgroups} if workgroups else {}),
     }
 
 
@@ -417,6 +473,14 @@ def execute(
     resident_addmem32 = circuit.resident_addmem32
     resident_branch32 = circuit.resident_branch32
     resident_loop32 = circuit.resident_loop32
+    workgroups = case.get("workgroups", 0)
+    if workgroups and (
+        not circuit.resident_globalgrid
+        or auto_workgroups
+        or auto_operand_bank
+        or refresh_operands
+    ):
+        raise ValueError("expected a globalgrid circuit and one global memory image")
     resident_add32 = resident_add32 or resident_shared32
     if type(operand_bank) is not int or operand_bank not in (0, 1):
         raise ValueError("operand_bank must be 0 or 1")
@@ -588,7 +652,9 @@ def execute(
 
     if resident_grid:
         pending.append(
-            GRID
+            GRID + GLOBAL_GRID + ROW_PAIRS * (workgroups - 1)
+            if workgroups
+            else GRID
             + last_row_pair
             + ROW_PAIRS * operand_bank
             + 2 * ROW_PAIRS * int(auto_operand_bank)
@@ -691,6 +757,12 @@ def execute(
             if ticket == NEXT_BANK:
                 if not auto_operand_bank or len(bank_transitions) != group_index:
                     raise ValueError("unexpected operand bank transition")
+            elif workgroups:
+                if (
+                    group_index >= workgroups - 1
+                    or ticket != WORKGROUP_TICKETS[group_index]
+                ):
+                    raise ValueError("unexpected global workgroup transition")
             elif (
                 not auto_workgroups
                 or group_index >= (3 if bottom is not None else 1)
@@ -733,6 +805,16 @@ def execute(
         previous = ticket
         if resident:
             prefix = controls
+            if workgroups and ticket in WORKGROUP_TICKETS:
+                prefix = [*prefix, *RESET_WARP]
+                registers = [nibbles(REGISTER, [0] * 32) for _ in range(2)]
+                high_registers = [nibbles(HIGH_REGISTER, [0] * 32) for _ in range(2)]
+                indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
+                masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
+                branches = [
+                    nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(2)
+                ]
+                loops = [nibbles(LOOP_REGISTER, [0] * LOOP_NIBBLES) for _ in range(2)]
         else:
             prefix = [*operands, *memory, controls[warp]]
             transport["matrix_initial_tokens"] += len(operands) + len(memory)
@@ -889,6 +971,7 @@ def execute(
         trace.append(
             {
                 "warp": warp,
+                **({"workgroup": group_index} if workgroups else {}),
                 "control": control,
                 "registers": next_registers,
                 **({"indices": indices[warp]} if indexed else {}),
@@ -938,6 +1021,7 @@ def execute(
                 resident_addmem32=resident_addmem32,
                 resident_branch32=resident_branch32,
                 resident_loop32=resident_loop32,
+                resident_globalgrid=circuit.resident_globalgrid,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -965,7 +1049,7 @@ def execute(
                 "workgroup_transitions": workgroup_transitions,
                 "workgroup_cursor": head_row(cache, circuit, "workgroup", 0, 2),
             }
-            if auto_workgroups
+            if auto_workgroups or workgroups
             else {"bank_transition": bank_transitions[0] if bank_transitions else None}
             if auto_operand_bank
             else {}
@@ -974,6 +1058,7 @@ def execute(
         "trace": trace,
         "outcome": outcome,
         "matrix": _matrix(output_memories[-1]),
+        **({"global_words": _words(operands + memory)} if workgroups else {}),
         **(
             {"workgroup_outputs": [_matrix(output) for output in output_memories]}
             if second_memory
@@ -1241,6 +1326,8 @@ def oracle(
     tile, row_pairs = _row_window(case, resident_grid=True)
     last_tile = tile + row_pairs - 1
     last = 1
+    workgroups = case.get("workgroups", 0)
+    group = 0
     wide = "initial_registers" in case
     initial = case.get("initial_registers", [[0] * 8, [0] * 8])
     acc = [[word & 65535 for word in bank] for bank in initial]
@@ -1258,15 +1345,28 @@ def oracle(
     for index in range(max_steps + 1):
         released = states == [2, 2]
         advance = states == [1, 1] and tile < last_tile
+        next_group = states == [1, 1] and group + 1 < workgroups
+        if next_group:
+            group += 1
+            pcs = [0, 0]
+            acc = [[0] * 8 for _ in range(2)]
+            high = [[0] * 8 for _ in range(2)]
+            indices = [[0] * 8 for _ in range(2)]
+            masks = [255, 255]
+            branches = [[], []]
+            loops = [[], []]
         if advance:
             tile += 1
             pcs = [0, 0]
-        if advance or released:
+        if advance or released or next_group:
             states = [0, 0]
         ready = [warp for warp in range(2) if states[warp] == 0]
         if not ready:
             outcome = "halted" if states == [1, 1] else "deadlock"
             ticket = DONE if outcome == "halted" else DEADLOCK
+        elif next_group:
+            warp = 0
+            ticket = WORKGROUP_TICKETS[group - 1]
         else:
             warp = 1 - last if 1 - last in ready else ready[0]
             ticket = (
@@ -1312,6 +1412,32 @@ def oracle(
                 word >> 16 if active >> lane & 1 else high[warp][lane]
                 for lane, word in enumerate(words)
             ]
+        elif op in GLOBAL_OPS and op != "MASK_LANES":
+            if op in ID_OPS:
+                words = {
+                    "LANE_ID": list(range(8)),
+                    "WORKGROUP_ID": [group] * 8,
+                    "THREAD_ID": [8 * warp + lane for lane in range(8)],
+                    "GLOBAL_ID": [16 * group + 8 * warp + lane for lane in range(8)],
+                }[op]
+            else:
+                prior = [
+                    lo | hi << 16 for lo, hi in zip(before, high[warp], strict=True)
+                ]
+                if op == "WARP_SUM":
+                    total = sum(
+                        word for lane, word in enumerate(prior) if active >> lane & 1
+                    )
+                    words = [total & 0xFFFFFFFF] * 8
+                else:
+                    words = [(word << arg) & 0xFFFFFFFF for word in prior]
+            candidate = [word & 65535 for word in words]
+            high[warp] = [
+                word >> 16 if active >> lane & 1 else high[warp][lane]
+                for lane, word in enumerate(words)
+            ]
+        elif op == "MASK_LANES":
+            masks[warp] &= (1 << arg) - 1
         elif op == "BARRIER":
             states[warp] = 2
         elif op == "SAVE_INDEX":
@@ -1453,6 +1579,7 @@ def oracle(
         trace.append(
             {
                 "warp": warp,
+                **({"workgroup": group} if workgroups else {}),
                 "control": control_token(warp, pcs[warp], states[warp]),
                 "registers": nibbles(REGISTER, _digits(acc[warp], 16)),
                 **(
@@ -1524,11 +1651,16 @@ def load_tile_model(
     resident_tilebanks: bool = False,
     resident_tilepipe: bool = False,
     resident_tilegrid: bool = False,
+    resident_globalgrid: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_tilegrid = layout == RESIDENT_TILEGRID_LAYOUT
+        resident_globalgrid = layout == RESIDENT_GLOBALGRID_LAYOUT
+        resident_tilegrid = layout in (
+            RESIDENT_TILEGRID_LAYOUT,
+            RESIDENT_GLOBALGRID_LAYOUT,
+        )
         resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
@@ -1556,6 +1688,7 @@ def load_tile_model(
             resident_tilebanks=resident_tilebanks,
             resident_tilepipe=resident_tilepipe,
             resident_tilegrid=resident_tilegrid,
+            resident_globalgrid=resident_globalgrid,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1588,6 +1721,7 @@ def load_tile_model(
             resident_tilebanks=resident_tilebanks,
             resident_tilepipe=resident_tilepipe,
             resident_tilegrid=resident_tilegrid,
+            resident_globalgrid=resident_globalgrid,
         )
     return model.to(device).eval(), circuit
 

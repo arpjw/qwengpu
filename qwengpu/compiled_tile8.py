@@ -72,6 +72,12 @@ RESIDENT_LOOP32_LAYOUT = "qwengpu-resident-loop32-9b-v1"
 RESIDENT_TILEBANKS_LAYOUT = "qwengpu-resident-tilebanks-9b-v1"
 RESIDENT_TILEPIPE_LAYOUT = "qwengpu-resident-tilepipe-9b-v1"
 RESIDENT_TILEGRID_LAYOUT = "qwengpu-resident-tilegrid-9b-v1"
+RESIDENT_GLOBALGRID_LAYOUT = "qwengpu-resident-globalgrid-9b-v1"
+ID_OPS = ("LANE_ID", "WORKGROUP_ID", "THREAD_ID", "GLOBAL_ID")
+GLOBAL_OPS = ID_OPS + ("WARP_SUM", "SHL32I", "MASK_LANES")
+GLOBAL_WIRE = 192
+GLOBAL_GRID = 128
+RESET_WARP = (2064, 2080)
 WHILE_HI_OP = "WHILE_HI_BIT"
 WHILE_HI_WIRE_OFFSET = 9
 RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
@@ -138,6 +144,12 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
                 + PAIR_MASK_COUNT * ADDMEM32_OPS.index(op)
                 + arg // 2
             )
+        if op in GLOBAL_OPS:
+            if op == "SHL32I":
+                return halt + GLOBAL_WIRE + 5 + arg
+            if op == "MASK_LANES":
+                return halt + GLOBAL_WIRE + 13 + arg
+            return halt + GLOBAL_WIRE + GLOBAL_OPS.index(op)
         if op == "MASK_ALL":
             return halt + 4
         if op == "MASK_BIT":
@@ -186,11 +198,23 @@ def rom_payload(
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
     resident_loop32: bool = False,
+    resident_globalgrid: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
     wire = (token - ROM) % STRIDE
     tag, arg = divmod(wire, 256)
+    if (
+        resident_globalgrid
+        and OPS[tag] == "HALT"
+        and GLOBAL_WIRE <= arg < GLOBAL_WIRE + 22
+    ):
+        index = arg - GLOBAL_WIRE
+        if index < 5:
+            return (22 + index) * 256
+        if index < 13:
+            return 27 * 256 + index - 5
+        return 28 * 256 + index - 13
     if resident_add32 and (
         (OPS[tag] == "STORE_TILE" and arg) or wire == ADD32I_ZERO_WIRE
     ):
@@ -273,7 +297,9 @@ def build(
     resident_tilebanks: bool = False,
     resident_tilepipe: bool = False,
     resident_tilegrid: bool = False,
+    resident_globalgrid: bool = False,
 ) -> Circ:
+    resident_tilegrid = resident_tilegrid or resident_globalgrid
     resident_tilepipe = resident_tilepipe or resident_tilegrid
     resident_tilebanks = resident_tilebanks or resident_tilepipe
     resident_loop32 = resident_loop32 or resident_tilebanks
@@ -305,6 +331,7 @@ def build(
     c.resident_tilebanks = resident_tilebanks
     c.resident_tilepipe = resident_tilepipe
     c.resident_tilegrid = resident_tilegrid
+    c.resident_globalgrid = resident_globalgrid
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -369,7 +396,7 @@ def build(
 
     raw = [
         c.token_feature(f"raw.{bit}", lambda t, bit=bit: (t >> bit) & 1, full=True)
-        for bit in range(6 + int(resident_tilegrid))
+        for bit in range(6 + int(resident_tilegrid) + int(resident_globalgrid))
     ]
     controls = []
     for warp in range(2):
@@ -381,7 +408,7 @@ def build(
                 f"control.{warp}",
                 {0: load},
                 {0: tick + schedule + sum(resets, Expr())},
-                {**{2 + bit: value for bit, value in enumerate(raw)}, 8: load},
+                {**{2 + bit: value for bit, value in enumerate(raw[:6])}, 8: load},
                 load,
             )
         )
@@ -412,6 +439,7 @@ def build(
                     int(resident_tilebanks)
                     + int(resident_tilepipe)
                     + 3 * int(resident_tilegrid)
+                    + int(resident_globalgrid)
                 )
             ),
         )
@@ -426,6 +454,8 @@ def build(
             grid_value[6] = raw[4]
             grid_value[7] = raw[5]
             grid_value[8] = raw[6]
+        if resident_globalgrid:
+            grid_value[9] = raw[7]
         grid = c.slot_head(
             "grid", {0: load_grid}, {0: grid_queries}, grid_value, load_grid
         )
@@ -470,8 +500,29 @@ def build(
                 )
                 more_rows = c.and_([grid[6], one - group_high], "workgroup.more_rows")
                 last_group = c.and_([group_low, one - more_rows], "workgroup.last")
+                group_ready = (
+                    c.and_(
+                        [grid[4], bank_bit, one - last_group], "workgroup.tile_ready"
+                    )
+                    if resident_globalgrid
+                    else None
+                )
+                if resident_globalgrid:
+                    generic = grid[7]
+                    count_difference = from_bits([group_low, group_high]) - from_bits(
+                        grid[2:4]
+                    )
+                    last_global = c.node(
+                        c.t_eq(count_difference, 0, -3, 3), "workgroup.global_last"
+                    )
+                    group_ready = c.and_(
+                        [group_ready, one - generic], "workgroup.tile_mode"
+                    ) + c.and_([generic, one - last_global], "workgroup.global_mode")
+                    switch = c.and_([switch, one - generic], "schedule.tile_bank")
                 group_switch = c.and_(
-                    [both_halted, last_tile, grid[4], bank_bit, one - last_group],
+                    [both_halted, last_tile, group_ready]
+                    if resident_globalgrid
+                    else [both_halted, last_tile, grid[4], bank_bit, one - last_group],
                     "schedule.next_workgroup",
                 )
                 second_output = c.and_([group_low, grid[5]], "workgroup.right_output")
@@ -552,6 +603,7 @@ def build(
         + (SHARED32_OPS if resident_shared32 else ())
         + (ADDMEM32_OPS if resident_addmem32 else ())
         + ((WHILE_HI_OP,) if resident_loop32 else ())
+        + (GLOBAL_OPS if resident_globalgrid else ())
     )
     op_width = (len(op_names) - 1).bit_length()
     rom_bits = [
@@ -570,6 +622,7 @@ def build(
                         resident_addmem32=resident_addmem32,
                         resident_branch32=resident_branch32,
                         resident_loop32=resident_loop32,
+                        resident_globalgrid=resident_globalgrid,
                     )
                     >> bit
                 )
@@ -630,7 +683,13 @@ def build(
     input_keys: dict[int, Expr] = {}
 
     def lookup(
-        name: str, base: int, addresses: list[int], selects: list[Expr]
+        name: str,
+        base: int,
+        addresses: list[int],
+        selects: list[Expr],
+        *,
+        reset: bool = False,
+        reset_ones: bool = False,
     ) -> list[Expr]:
         keys = {}
         for slot, address in enumerate(addresses):
@@ -638,9 +697,22 @@ def build(
             if start not in input_keys:
                 input_keys[start] = between(f"{name}.load.{slot}", start, start + 16)
             keys[slot] = input_keys[start]
+        data = raw_nibble
+        if reset:
+            keys = {slot: key + warp_resets[slot] for slot, key in keys.items()}
+            if reset_ones:
+                data = {
+                    bit: value + sum(warp_resets, Expr()) for bit, value in data.items()
+                }
         return c.slot_head(
-            name, keys, dict(enumerate(selects)), raw_nibble, sum(keys.values(), Expr())
+            name, keys, dict(enumerate(selects)), data, sum(keys.values(), Expr())
         )
+
+    warp_resets = (
+        [match(f"warp.reset.{i}", token) for i, token in enumerate(RESET_WARP)]
+        if resident_globalgrid
+        else []
+    )
 
     state_queries = (
         [
@@ -655,7 +727,12 @@ def build(
         if resident_state:
             offset = warp_tags.index(base) + nib
             return lookup(
-                name, 0, [bank // 16 + offset for bank in WARP_BANKS], state_queries
+                name,
+                0,
+                [bank // 16 + offset for bank in WARP_BANKS],
+                state_queries,
+                reset=resident_globalgrid,
+                reset_ones=base == MASK_REGISTER,
             )
         return lookup(name, base, [nib], state_queries)
 
@@ -870,6 +947,22 @@ def build(
                 - ops["MASK_BIT"]
                 - ops["MASK_ALL"]
             )
+            if resident_globalgrid:
+                mask_sources.append(
+                    (
+                        [ops["MASK_LANES"]],
+                        [
+                            c.node(
+                                c.t_ge(
+                                    from_bits(arg[:4]), lane + 1, 0, 15, lits=[enabled]
+                                ),
+                                f"mask.first.{lane}",
+                            )
+                            for lane, enabled in enumerate(active)
+                        ],
+                    )
+                )
+                keep_mask -= ops["MASK_LANES"]
             if looping:
                 loop = [
                     bit
@@ -1013,6 +1106,57 @@ def build(
             )
             prior_addresses.append(addr)
 
+    if resident_globalgrid:
+        registers32 = [
+            old[16 * lane : 16 * (lane + 1)] + old_high[16 * lane : 16 * (lane + 1)]
+            for lane in range(8)
+        ]
+        warp_sum = _word_from_columns(
+            c,
+            [
+                sum(
+                    (
+                        c.and_([active[lane], word[bit]], f"sum.input.{lane}.{bit}")
+                        for lane, word in enumerate(registers32)
+                    ),
+                    Expr(),
+                )
+                for bit in range(32)
+            ],
+            [8] * 32,
+            "warp.sum",
+        )
+        shifts = c.onehot_of_bits(arg[:3], "shift.amount", 8)
+        group_ops = sum((ops[op] for op in GLOBAL_OPS[:-1]), Expr())
+        special_low = []
+        special_high = []
+        for lane, word in enumerate(registers32):
+            lane_bits = [(lane >> bit) & 1 for bit in range(3)]
+            id_bits = (
+                lane_bits,
+                [group_low, group_high],
+                lane_bits + [warp_bit],
+                lane_bits + [warp_bit, group_low, group_high],
+            )
+            shifted = c.select_bits(
+                [
+                    ([shift], [Expr()] * n + word[: 32 - n])
+                    for n, shift in enumerate(shifts)
+                ],
+                32,
+                f"shift.lane.{lane}",
+            )
+            special = c.select_bits(
+                [
+                    ([ops[op]], bits + [Expr()] * (32 - len(bits)))
+                    for op, bits in zip(ID_OPS, id_bits, strict=True)
+                ]
+                + [([ops["SHL32I"]], shifted), ([ops["WARP_SUM"]], warp_sum)],
+                32,
+                f"global.result.{lane}",
+            )
+            special_low.extend(special[:16])
+            special_high.extend(special[16:])
     updated = []
     next_high = [] if resident_add32 else old_high
     add_immediate = ops["ADD16I"] + ops.get(ADD32I_OP, Expr())
@@ -1058,6 +1202,14 @@ def build(
             )
             high_sources = [([enabled], word[16:])]
             preserve = one - enabled
+            if resident_globalgrid:
+                special_enabled = c.and_(
+                    [group_ops, active[lane]], f"global.active.{lane}"
+                )
+                high_sources.append(
+                    ([special_enabled], special_high[16 * lane : 16 * (lane + 1)])
+                )
+                preserve -= special_enabled
             if resident_shared32:
                 gather_high = c.and_([load_high, active[lane]], f"wide.gather.{lane}")
                 high_sources.append(([gather_high], gathered))
@@ -1075,6 +1227,8 @@ def build(
     sources = [([ops["LOAD_TILE"]], c_row)]
     if indexed:
         sources.append(([ops["LOAD_INDEX"]], indexed_values))
+    if resident_globalgrid:
+        sources.append(([group_ops], special_low))
     sources.append(([one - sum((gate[0] for gate, _ in sources), Expr())], updated))
     result = c.select_bits(sources, 128, "register.next")
     if masked:
@@ -1379,6 +1533,7 @@ def build_standalone(
     resident_tilebanks: bool = False,
     resident_tilepipe: bool = False,
     resident_tilegrid: bool = False,
+    resident_globalgrid: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1403,10 +1558,13 @@ def build_standalone(
         resident_tilebanks=resident_tilebanks,
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
+        resident_globalgrid=resident_globalgrid,
     )
     return build_qwen(
         circuit,
-        list(range(TILEGRID_VOCAB if resident_tilegrid else VOCAB)),
+        list(
+            range(TILEGRID_VOCAB if resident_tilegrid or resident_globalgrid else VOCAB)
+        ),
         [next(iter(expr.terms)) for expr in circuit.code],
         share=True,
     ), circuit

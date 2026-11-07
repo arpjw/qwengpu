@@ -1413,3 +1413,13 @@ pass again uploaded zero shared-memory tokens. CUDA matched the
 MPS traces, output words, guards, and physical state records.
 See the corresponding `results/tilegrid_*_9b_cuda_fla.json` reports
 and `results/tilegrid_2x2_host_a100.txt`.
+
+## Programmable workgroup IDs and global memory
+
+The MPS globalgrid circuit matched the independent interpreter for
+one, two, three, and four workgroups. It emitted correct lane, thread,
+workgroup, and global IDs and stored the 64 possible global IDs at
+their computed addresses. The odd-numbered groups read values stored
+by the preceding groups. Full recurrent memory, guard words, and
+the zero-initialized warp state at each group boundary matched.
+See `results/globalgrid_ids_mps.json`.

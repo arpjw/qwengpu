@@ -32,15 +32,22 @@ A panel from the workgroup row. It stores four distinct C tiles in the
 same cache. The A, B, and C images contain 1 KiB of logical matrix data
 at fixed addresses. The full 16×16 multiply passed in one cache on standalone
 MPS and the merged Qwen3.5-9B checkpoint on A100.
-General-purpose global addressing and independently resident workgroups
-remain open.
+Tilegrid's matrix addresses are fixed. Globalgrid extends the same
+circuit with a programmable launch of one to four sequential workgroups.
+Each has two eight-lane warps with model-visible lane, thread, workgroup,
+and global IDs. Global-mode indexed instructions address one resident
+array of 128 unsigned 16-bit words. Adjacent even and odd words hold
+the low and high limbs of a 32-bit value. Registers, indices, and masks
+reset on each workgroup transition while global memory persists.
 
 The vector add and two-pass reduction use the same tilegrid circuit
 in single-workgroup mode. They exercise indexed 32-bit shared memory
 and barriers between the two warps. The vector fixture encodes active
 lanes in its launch data. The reduction's second launch reads the
-partial sums from the same cache. General kernels still need a way to
-read their grid and lane IDs and address memory across workgroups.
+partial sums from the same cache. Globalgrid adds a cross-workgroup
+reduction path with independent partial sums in global memory.
+Multiple simultaneously resident workgroups and larger address
+spaces remain open.
 
 The resident 8×8 tile engine holds its 256 shared bytes in one inference
 cache per launch. A, B, and initial C are uploaded once. The host relays
