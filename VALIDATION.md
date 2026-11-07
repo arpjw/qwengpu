@@ -1332,3 +1332,8 @@ With different B panels, the row-pair check matched the scalar
 model read both K slices from the correct panel and wrote only
 the selected output region. The host uploaded both B panels once.
 See `results/tilegrid_right_panel_row_pair_mps.json`.
+
+The full 8×16 panel also matched on MPS. Four passes executed
+464 instructions and 465 decisions in one cache, with one initial
+upload and no operand reloads. See
+`results/tilegrid_right_panel_full_mps.json`.
