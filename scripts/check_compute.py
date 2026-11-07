@@ -17,8 +17,8 @@ def limbs(values: list[int]) -> list[int]:
     return [part for value in values for part in (value & 65535, value >> 16)]
 
 
-def check(report: dict, names: set[str]) -> None:
-    payload = FIXTURE.read_bytes()
+def check(report: dict, names: set[str], fixture=FIXTURE) -> None:
+    payload = fixture.read_bytes()
     inputs = json.loads(payload)
     assert report["fixture_sha256"] == hashlib.sha256(payload).hexdigest()
     assert report["all_exact"]
@@ -91,18 +91,27 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--cuda", action="store_true")
+    parser.add_argument("--decode", action="store_true")
     args = parser.parse_args()
+    if args.smoke and args.decode:
+        parser.error("choose smoke or decode")
+    fixture = (
+        FIXTURE.parent.parent / "compute_decode_v1/cases.json"
+        if args.decode
+        else FIXTURE
+    )
     names = (
         {"vector_17", "reduce_13", "matmul_3x3x3"}
         if args.smoke
-        else set(json.loads(FIXTURE.read_bytes()))
+        else set(json.loads(fixture.read_bytes()))
     )
-    mps = load_report("compute_smoke_mps" if args.smoke else "compute_mps")
-    check(mps, names)
+    stem = "compute_decode" if args.decode else "compute"
+    mps = load_report("compute_smoke_mps" if args.smoke else f"{stem}_mps")
+    check(mps, names, fixture)
     print(f"MPS: {len(names)} compute cases exact, including all untouched memory")
     if args.cuda:
-        cuda = load_report("compute_9b_cuda_fla")
-        check(cuda, names)
+        cuda = load_report(f"{stem}_9b_cuda_fla")
+        check(cuda, names, fixture)
         assert cuda["cases"] == mps["cases"]
         print("Merged 9B CUDA: outputs, traces, cache state, and transport match MPS")
 

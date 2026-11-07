@@ -2,17 +2,24 @@
 
 ## Current validated checkpoint
 
-The bounded project target is met by the pinned tilepipe
-Qwen3.5-9B merge. One checkpoint runs the cooperating warps,
-full-width arithmetic and control, and the public tiled multiply.
-The 27 inherited GPU cases, four-launch 16×16 multiply, frozen
-text corpus, and text cache handoffs all have saved evidence.
+Globalgrid extends the validated tilegrid machine with programmable
+workgroups, model-derived IDs, and global memory shared across sequential
+groups. Its ID and two-pass uint32 reduction gates pass on MPS and merged
+Qwen3.5-9B. All 27 inherited GPU case records also match on both backends.
+The specialized 16×16 tiled mode uses one inference cache, four scheduled
+output tiles, and two K slices per tile.
 
-The current machine uses host-relayed tokens, 16 ROM slots per
-warp, and four caches for a 16×16 multiply. The scheduler controls
-both K slices within each 8×8 output tile. The evidence covers
-frozen workloads. Larger geometry and changes to the host
-protocol are separate design decisions for review.
+The compute candidate adds a common interface for variable-size uint32
+vector addition and reduction, plus byte-input matrix multiplication with
+uint32 accumulation. Shape-specific programs use fixed weights. Its frozen
+model qualification is tracked in VALIDATION.md; the design and exact
+limits are in COMPUTE_DESIGN.md.
+
+The machine still uses host-relayed tokens and 16 ROM slots per warp.
+Workgroups run sequentially, and programmable global memory contains 128
+uint16 words, or 256 bytes. Specialized matrix banks use a separate fixed
+layout. These bounds and frozen-case results do not establish a complete
+general-purpose GPU or arbitrary-program correctness.
 
 The standalone vector-grid circuit establishes the first grid scheduling
 gate on MPS. A length descriptor drives up to two eight-lane workgroups
@@ -340,6 +347,21 @@ after launch. Keep the ROM size bounded until model-level traces are exact.
 See [ROM_DESIGN.md](ROM_DESIGN.md) for the concrete first design.
 
 ## Measurement and decision rules
+
+The next architectural gates, after qualifying the compute candidate, are:
+
+| Gate | Required change | Evidence needed |
+| --- | --- | --- |
+| Larger programmable memory | Separate private, workgroup-shared, and global banks with explicit addresses | Boundary accesses, isolation, aliasing, guards, and cross-group visibility on both backends |
+| Longer and more general programs | More than sixteen ROM slots, richer address arithmetic, and runtime extents | Unseen uploaded programs and lengths on the same weights, with exact traces and bounded termination |
+| Broader arithmetic | Full-width multiply, comparisons and bitwise operations; define signed and floating-point semantics separately | Overflow, carry, shift boundaries, signed extremes, and numerical edge cases where applicable |
+| Multiple resident workgroups | Bank each group's PCs, registers, masks, and barrier state; schedule without resetting the only group bank | Interleaved producer/consumer traces, independent barriers, fairness, and explicit memory ordering |
+| Less host involvement | Move tagged state and store writeback into recurrent model execution | Equivalent multi-instruction traces with measured reductions in forwarding and model calls |
+| Larger end-to-end workloads | Tile arbitrary supported matrix shapes over the general memory/launch interface | Non-square shapes, tail tiles, multiple K panels, and scalar comparisons across seeded inputs |
+
+These are remaining implementation gates. Passing the small common-kernel
+suite does not close them. Atomics, floating-point execution, graphics,
+CUDA compatibility, and useful acceleration have no current evidence.
 
 For each gate, freeze programs before the model run, compare generated tokens
 and actual recurrent state to the independent interpreter, and test both the

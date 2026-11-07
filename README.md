@@ -8,6 +8,28 @@ refer to simulated machines inside model state, not physical hardware.
 The processor weights are constructed by the compiler; this experiment does
 not fine-tune the pretrained model.
 
+The newest compute interface runs uploaded vector-add, reduction, and
+matrix programs with model-scheduled warps and indexed global memory.
+See [COMPUTE_DESIGN.md](COMPUTE_DESIGN.md) for the supported dimensions,
+arithmetic, and memory map; [REPRODUCE.md](REPRODUCE.md#run-variable-size-common-kernels)
+has standalone MPS and merged Qwen3.5-9B commands.
+[VALIDATION.md](VALIDATION.md) records measured gates, and
+[SCOPE.md](SCOPE.md) lists the remaining architecture work.
+
+```sh
+export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
+../qwenputer/experimental/riscv/.venv/bin/python -m qwengpu.run_compute \
+  examples/compute_matmul.json --device mps
+```
+
+This remains a bounded GPU experiment: two eight-lane warps per group,
+sixteen ROM slots per warp, sequential groups, 256 bytes of programmable
+global memory, and host forwarding of model-generated state and stores.
+The specialized tiled mode also has separate fixed matrix banks. There
+is no acceleration or complete general-purpose GPU claim.
+
+## Original SIMT variant
+
 The repository contains an independent eight-lane reference machine.
 Each lane has an unsigned byte accumulator. The warp shares an instruction
 stream and active mask. Structured `IF_LT`/`ELSE`/`ENDIF` executes divergent
