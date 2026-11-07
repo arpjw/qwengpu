@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 7, 2026 at 02:28 UTC.
+was November 7, 2026 at 02:56 UTC.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -52,10 +52,11 @@ was November 7, 2026 at 02:28 UTC.
 | `v6b971ophoua68` | Preloaded operand banks and inherited suite | $1.474978 | |
 | `ev84g71gc7yn2n` | Model-selected K transition and inherited suite | $0.613430 | |
 | `e28q01ftnq770h` | Public tilepipe multiply, text and cache integration | $0.566842 | |
-| `d3vvbd3rvgwktg` | Merged tilegrid matrix, inherited cases, kernel and text qualification | Pending | $1.20 |
+| `d3vvbd3rvgwktg` | Merged tilegrid matrix, inherited cases, kernel and text qualification | $0.155222 | $1.05 remaining |
+| `mcla5c112zcnxu` | Merged globalgrid IDs, reduction, and launcher checks | Pending | $0.35 |
 
-Total posted is about $21.74. With the pending estimate, tracked spend
-is about $22.94. All project pods are terminated and the live pod list was
+Total posted is about $21.90. With pending estimates, tracked spend
+is about $23.30. All project pods are terminated and the live pod list was
 empty at the last check. Refresh pending rows before adding another
 pod, then record the new pod's quote, timestamps, outcome, and teardown.
 
@@ -281,3 +282,10 @@ posts. The merged 9B grid, all 27 inherited cases, the assembled,
 vector, reduction, and seeded cases, and the text and cache suites
 completed. The pod was terminated after copying reports. RunPod
 returned HTTP 204 and an empty live pod list.
+
+The globalgrid A100 SXM 80 GB ran from 02:45:43 to 02:56:00 UTC
+on November 7 at $1.79/hour. Elapsed compute was about $0.31.
+The ledger reserves $0.35 including disk until billing posts.
+The IDs, two-pass reduction, and public and legacy launchers
+matched. The pod was terminated after copying the reports.
+RunPod returned HTTP 204 and an empty live pod list.

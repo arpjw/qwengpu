@@ -87,6 +87,20 @@ def check(report: dict) -> None:
         )
 
 
+def check_public(probe: dict, backend: str) -> None:
+    public = load_report(f"globalgrid_public_ids_{backend}")
+    for field in (
+        "trace",
+        "schedules",
+        "global_words",
+        "workgroup_cursor",
+        "workgroup_transitions",
+        "transport",
+    ):
+        assert public[field] == probe[field], field
+    assert all(public["reference"].values())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ids-only", action="store_true")
@@ -98,6 +112,7 @@ def main() -> None:
     check(mps)
     print("MPS: exact IDs, cross-workgroup reads, and global memory guards")
     if not args.ids_only:
+        check_public(mps["id_probes"][1], "mps")
         print(f"MPS: exact retained-cache reduction, sum = 0x{mps['sum']:08x}")
     if args.cuda:
         cuda = load_report("globalgrid_reduction_9b_cuda_fla")
@@ -105,6 +120,19 @@ def main() -> None:
         for key in ("id_probes", "producer", "consumer", "partials", "sum"):
             if key in mps:
                 assert mps[key] == cuda[key], key
+        check_public(cuda["id_probes"][1], "9b_cuda_fla")
+        legacy = load_report("globalgrid_legacy_assembly_9b_cuda_fla")
+        assert legacy["checkpoint"] == LAYOUT
+        baseline = load_report("assembled_cooperative_pair_mps")
+        for field in (
+            "trace",
+            "schedules",
+            "matrix",
+            "warp_registers",
+            "shared_words",
+            "reference",
+        ):
+            assert legacy[field] == baseline[field], field
         print("Merged 9B CUDA: exact matching traces, state, and transport")
 
 

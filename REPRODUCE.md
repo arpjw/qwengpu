@@ -1676,3 +1676,10 @@ via `--input`. Its default result is `0x8b9ad658`. The assembler
 accepts the global launch descriptor through `--data`.
 Launch the assembled JSON with `qwengpu.run_resident
 --resident-globalgrid --check-reference`.
+
+Check the saved ID probes, both reduction passes, and the public
+launcher replays without running inference.
+
+```sh
+python3 scripts/check_globalgrid.py --cuda
+```

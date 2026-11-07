@@ -1,0 +1,18 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=2a5896046493666f449e265d040c39e9582ed323
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+flash-linear-attention=0.6.0
+transformers=5.19.0
+88ed53f34bb905ac12d438ad8ed3be07bedaad6a958bcce5f6c4217a37c44e64  qwengpu/compiled_tile8.py
+187e75b40eaf0d5e6b6c1b6fa165afa3b24e441824be3af8d62eb3077d7c59e3  qwengpu/eval_tile8.py
+768934b92c14c00b23fb665416fa1e41d9588120fc01f1d2223b7fdea39fa447  qwengpu/eval_globalgrid.py
+f3a10eb4c6297ac9d727d4a8df7c3fa76d02a8e17142a126908d7f7a85321bbc  qwengpu/run_resident.py
+15ade8fd5e4d6ce5edc4d65a8a1f09ef930e34116c8725b513c76932a6460feb  eval/frozen/globalgrid_v1/words.json
+merge_started_utc=2026-11-07T02:47:50Z
+merge_finished_utc=2026-11-07T02:51:38Z
+reduction_finished_utc=2026-11-07T02:54:27Z
+legacy_assembly_finished_utc=2026-11-07T02:54:55Z
+public_ids_finished_utc=2026-11-07T02:55:38Z

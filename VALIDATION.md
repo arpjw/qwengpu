@@ -1433,3 +1433,11 @@ global-memory uploads. The scalar reference matched the partials,
 final result, and every guard word. The interpreter matched each
 instruction and scheduling decision. See
 `results/globalgrid_reduction_mps.json`.
+
+The merged globalgrid Qwen3.5-9B on A100 reproduced all four ID
+probes and both reduction passes exactly, including recurrent
+memory and the zero-upload consumer handoff. The public resident
+launcher reproduced the two-workgroup probe on both backends.
+The new merge also matched the existing single-workgroup assembly
+trace. See `results/globalgrid_reduction_9b_cuda_fla.json`,
+the public launcher reports, and `results/globalgrid_host_a100.txt`.
