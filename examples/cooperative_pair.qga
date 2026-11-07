@@ -1,0 +1,20 @@
+# Publish a masked 32-bit result and read it back from the other warp.
+.warp 0
+SAVE_INDEX
+ADD32I 0x01
+IF_BIT 16
+    ADD32I 0x02
+ELSE
+    ADD32I 0x03
+ENDIF
+STORE_INDEX
+STORE_INDEX_HI
+BARRIER
+HALT
+
+.warp 1
+SAVE_INDEX
+BARRIER
+LOAD_INDEX
+LOAD_INDEX_HI
+HALT

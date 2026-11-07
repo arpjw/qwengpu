@@ -1521,3 +1521,24 @@ The report compares output tokens and physical recurrent memory against
 scalar results for six lengths. The 13-word case should emit both group
 tickets and retain all three trailing guard words. It receives one
 upload, then relayed tickets, fixed steps, and read requests.
+
+## Assemble and check a resident program
+
+The tilepipe v1 assembler accepts two sections named `.warp 0` and
+`.warp 1`. Each line contains an opcode and an optional integer
+operand. Use `#` for comments. Structured `IF_BIT` and `WHILE_BIT`
+blocks use the same validation as JSON kernels.
+
+```sh
+cd "$QWENGPU_DIR"
+export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.assemble examples/cooperative_pair.qga \
+  --data examples/cooperative_pair_data.json --out /tmp/qwengpu-cooperative-pair.json
+"$QWENGPU_PYTHON" -m qwengpu.run_resident /tmp/qwengpu-cooperative-pair.json \
+  --resident-tilepipe --device mps --check-reference --trace \
+  --out /tmp/qwengpu-cooperative-pair-mps.json
+```
+
+The second warp should finish with
+`[4, 65541, 8, 65545, 12, 65549, 16, 65553]`. The reference check
+compares every instruction, scheduling decision, and final state field.

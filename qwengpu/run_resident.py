@@ -23,10 +23,12 @@ from qwengpu.eval_tile8 import (
     RESIDENT_ROM_LAYOUT,
     RESIDENT_SHARED32_LAYOUTS,
     RESIDENT_STATE_LAYOUT,
+    RESIDENT_TILEPIPE_LAYOUT,
     RESIDENT_TRANSPORTS,
     RESIDENT_WIDE_LAYOUT,
     execute,
     load_tile_model,
+    oracle,
     parse_launch,
 )
 
@@ -41,6 +43,11 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument(
+        "--resident-tilepipe",
+        action="store_true",
+        help="use the standalone circuit from the final tilepipe checkpoint",
+    )
     variants.add_argument(
         "--resident-loop32",
         action="store_true",
@@ -114,12 +121,17 @@ def main() -> int:
     parser.add_argument(
         "--trace", action="store_true", help="include instruction and scheduler traces"
     )
+    parser.add_argument(
+        "--check-reference", action="store_true",
+        help="compare the execution trace and final state to the reference interpreter",
+    )
     args = parser.parse_args()
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_loop32 = args.resident_loop32
+    resident_tilepipe = args.resident_tilepipe
+    resident_loop32 = args.resident_loop32 or resident_tilepipe
     resident_branch32 = args.resident_branch32 or resident_loop32
     resident_addmem32 = args.resident_addmem32 or resident_branch32
     resident_shared32 = args.resident_shared32 or resident_addmem32
@@ -132,7 +144,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-loop32"
+        "standalone-resident-tilepipe"
+        if resident_tilepipe
+        else "standalone-resident-loop32"
         if resident_loop32
         else "standalone-resident-branch32"
         if resident_branch32
@@ -184,6 +198,7 @@ def main() -> int:
             ):
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
+            resident_tilepipe = layout == RESIDENT_TILEPIPE_LAYOUT
             resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
             resident_addmem32 = layout in RESIDENT_ADDMEM32_LAYOUTS
@@ -226,6 +241,8 @@ def main() -> int:
                 raise ValueError("--resident-branch32 requires a branch32 checkpoint")
             if args.resident_loop32 and not resident_loop32:
                 raise ValueError("--resident-loop32 requires a loop32 checkpoint")
+            if args.resident_tilepipe and not resident_tilepipe:
+                raise ValueError("--resident-tilepipe requires a tilepipe checkpoint")
             offset = meta["chip_token_offset"]
         if args.transport and not resident_io:
             raise ValueError("--transport requires a resident I/O checkpoint")
@@ -268,6 +285,7 @@ def main() -> int:
         resident_addmem32=resident_addmem32,
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
+        resident_tilepipe=resident_tilepipe,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]
@@ -293,6 +311,9 @@ def main() -> int:
         resident_add32=resident_add32,
         **execution,
     )
+    if args.check_reference:
+        expected = oracle(launch, args.max_steps, looping=True)
+        reference = {key: observed.get(key) == value for key, value in expected.items()}
     trace = observed.pop("trace")
     schedules = observed.pop("schedules")
     result = {
@@ -311,6 +332,8 @@ def main() -> int:
         result["transport_mode"] = args.transport
     if args.trace:
         result.update(trace=trace, schedules=schedules)
+    if args.check_reference:
+        result["reference"] = reference
     output = json.dumps(result, indent=2)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -324,6 +347,7 @@ def main() -> int:
         or (resident_grid and not transport["resident_grid_exact"])
         or (resident_rom and not transport["resident_rom_exact"])
         or (resident_state and not transport["resident_state_exact"])
+        or (args.check_reference and not all(reference.values()))
     ):
         return 1
     return EXIT_CODES[observed["outcome"]]

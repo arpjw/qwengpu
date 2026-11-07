@@ -1297,3 +1297,10 @@ ticket left memory intact. The 13-word case used five forward calls,
 including prefill, the terminal probe, and readout. This isolated check
 uses a fixed vector operation. Tilepipe integration and merged 9B
 qualification are separate gates. See `results/vector_grid_mps.json`.
+
+The tilepipe v1 assembler also launched a two-warp 32-bit producer and
+consumer example on MPS. The example branches on bit 16, stores indexed
+pairs, synchronizes, and reads them from the other warp. All 16
+instructions and every scheduler decision and final state field matched
+the independent interpreter. The launch used one cache and passed all
+four physical state checks. See `results/assembled_cooperative_pair_mps.json`.
