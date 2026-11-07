@@ -740,16 +740,16 @@ def build(
         )
 
     if resident_memory512:
-        ram_word = [
+        ram_word_bits = [
             c.token_feature(
-                f"ram.word.{word}",
-                lambda t, word=word: int(
+                f"ram.word_bit.{bit}",
+                lambda t, bit=bit: int(
                     geometry.base <= t < geometry.vocab
-                    and ((t - geometry.base) // 64) % 128 == word
+                    and (((t - geometry.base) // 64) >> bit) & 1
                 ),
                 full=True,
             )
-            for word in range(128)
+            for bit in range(7)
         ]
         ram_nib = [
             c.token_feature(
@@ -778,14 +778,22 @@ def build(
             assert all(
                 address // 512 == bank and address % 4 == nib for address in addresses
             )
-            # A slot-head key accepts a preactivation <= 0 as false. The
-            # three one-hot fields therefore decode a row without 1024
-            # separate token features or an extra FFN layer.
+            # Seven address-bit matches and the nibble/bank matches give
+            # exactly one for a matching row and <= 0 otherwise. This keeps
+            # the existing slot-head key contract without 128 one-hot rows.
             keys = {
-                slot: ram_word[(address // 4) % 128]
+                slot: sum(
+                    (
+                        ram_word_bits[bit]
+                        if (address // 4) >> bit & 1
+                        else one - ram_word_bits[bit]
+                        for bit in range(7)
+                    ),
+                    Expr(),
+                )
                 + ram_nib[nib]
                 + ram_bank_load[bank]
-                - 2 * one
+                - 8 * one
                 for slot, address in enumerate(addresses)
             }
             return c.slot_head(
