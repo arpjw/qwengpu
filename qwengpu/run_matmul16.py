@@ -35,6 +35,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
+from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
 
 SIZE = 16
 TILE = 8
@@ -315,6 +316,7 @@ def main() -> None:
         "--model", type=Path, help="merged resident grid or ADD32 checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute",
         action="store_true",
@@ -367,7 +369,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_compute = args.resident_compute
+    resident_memory512 = args.resident_memory512
+    resident_compute = args.resident_compute or resident_memory512
     resident_tilegrid = args.grid_2x2 or resident_compute
     resident_tilepipe = args.schedule_k or resident_tilegrid
     resident_loop32 = args.resident_loop32 or resident_tilepipe
@@ -400,7 +403,9 @@ def main() -> None:
                 not in (RESIDENT_GRID_LAYOUT, *RESIDENT_ADD32_LAYOUTS)
                 or meta.get("chip_vocab")
                 != (
-                    TILEGRID_VOCAB
+                    WIDE_MEMORY.vocab
+                    if meta.get("layout") == MEMORY512_LAYOUT
+                    else TILEGRID_VOCAB
                     if meta.get("layout")
                     in (
                         RESIDENT_TILEGRID_LAYOUT,
@@ -417,8 +422,13 @@ def main() -> None:
                 RESIDENT_TILEGRID_LAYOUT,
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
+                MEMORY512_LAYOUT,
             )
-            resident_compute = meta["layout"] == RESIDENT_COMPUTE_LAYOUT
+            resident_memory512 = meta["layout"] == MEMORY512_LAYOUT
+            resident_compute = meta["layout"] in (
+                RESIDENT_COMPUTE_LAYOUT,
+                MEMORY512_LAYOUT,
+            )
             resident_tilepipe = meta["layout"] in RESIDENT_TILEPIPE_LAYOUTS
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
             resident_loop32 = meta["layout"] in RESIDENT_LOOP32_LAYOUTS
@@ -437,6 +447,8 @@ def main() -> None:
                 raise ValueError("--resident-branch32 requires a branch32 checkpoint")
             if args.resident_loop32 and not resident_loop32:
                 raise ValueError("--resident-loop32 requires a loop32 checkpoint")
+            if args.resident_memory512 and not resident_memory512:
+                raise ValueError("--resident-memory512 requires a memory512 checkpoint")
             if args.resident_compute and not resident_compute:
                 raise ValueError("--resident-compute requires a compute checkpoint")
             offset = meta["chip_token_offset"]
@@ -470,9 +482,12 @@ def main() -> None:
         resident_tilepipe=resident_tilepipe,
         resident_tilegrid=resident_tilegrid,
         resident_compute=resident_compute,
+        resident_memory512=resident_memory512,
     )
     standalone = (
-        "standalone-resident-compute"
+        "standalone-resident-memory512"
+        if resident_memory512
+        else "standalone-resident-compute"
         if resident_compute
         else "standalone-resident-tilegrid"
         if resident_tilegrid

@@ -1,6 +1,8 @@
 # Next memory gate: 256 programmable words
 
-This is an unimplemented follow-up to the compute checkpoint. It proposes
+This design motivated the memory512 implementation. See MEMORY512_DESIGN.md
+for the implemented bank and state ABI, and VALIDATION.md for qualification.
+The original proposal below targeted
 512 bytes of programmable memory. The current bank remains 128 uint16
 words, or 256 bytes. Larger specialized tile banks are separate.
 

@@ -92,7 +92,7 @@ def _load_widened_text(src: Path, hidden: int, n_chip: int) -> tuple[dict, torch
 
 
 def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
-                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False, tile: bool = False, tile8: bool = False, resident: bool = False, indexed: bool = False, masked: bool = False, divergent: bool = False, looping: bool = False, resident_rom: bool = False, resident_state: bool = False, resident_delta: bool = False, resident_plan: bool = False, resident_io: bool = False, resident_grid: bool = False, resident_wide: bool = False, resident_add32: bool = False, resident_shared32: bool = False, resident_addmem32: bool = False, resident_branch32: bool = False, resident_loop32: bool = False, resident_tilebanks: bool = False, resident_tilepipe: bool = False, resident_tilegrid: bool = False, resident_globalgrid: bool = False, resident_compute: bool = False, add32: bool = False) -> dict:
+                 rom: bool = False, writeback: bool = False, control: bool = False, resume: bool = False, isa: bool = False, workgroup: bool = False, tile: bool = False, tile8: bool = False, resident: bool = False, indexed: bool = False, masked: bool = False, divergent: bool = False, looping: bool = False, resident_rom: bool = False, resident_state: bool = False, resident_delta: bool = False, resident_plan: bool = False, resident_io: bool = False, resident_grid: bool = False, resident_wide: bool = False, resident_add32: bool = False, resident_shared32: bool = False, resident_addmem32: bool = False, resident_branch32: bool = False, resident_loop32: bool = False, resident_tilebanks: bool = False, resident_tilepipe: bool = False, resident_tilegrid: bool = False, resident_globalgrid: bool = False, resident_compute: bool = False, resident_memory512: bool = False, add32: bool = False) -> dict:
     """Write a text-only stock Qwen3.5 checkpoint with the SIMT circuit first."""
     from safetensors.torch import save_file
 
@@ -104,12 +104,13 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     d0, v0, inter = tc0["hidden_size"], tc0["vocab_size"], tc0["intermediate_size"]
     from chipformer.q35.ir import Target
 
-    if sum((rom, writeback, control, resume, isa, workgroup, tile, tile8, resident, indexed, masked, divergent, looping, resident_rom, resident_state, resident_delta, resident_plan, resident_io, resident_grid, resident_wide, resident_add32, resident_shared32, resident_addmem32, resident_branch32, resident_loop32, resident_tilebanks, resident_tilepipe, resident_tilegrid, resident_globalgrid, resident_compute, add32)) > 1:
+    if sum((rom, writeback, control, resume, isa, workgroup, tile, tile8, resident, indexed, masked, divergent, looping, resident_rom, resident_state, resident_delta, resident_plan, resident_io, resident_grid, resident_wide, resident_add32, resident_shared32, resident_addmem32, resident_branch32, resident_loop32, resident_tilebanks, resident_tilepipe, resident_tilegrid, resident_globalgrid, resident_compute, resident_memory512, add32)) > 1:
         raise ValueError("choose one circuit variant")
-    if tile8 or resident or indexed or masked or divergent or looping or resident_rom or resident_state or resident_delta or resident_plan or resident_io or resident_grid or resident_wide or resident_add32 or resident_shared32 or resident_addmem32 or resident_branch32 or resident_loop32 or resident_tilebanks or resident_tilepipe or resident_tilegrid or resident_globalgrid or resident_compute:
+    if tile8 or resident or indexed or masked or divergent or looping or resident_rom or resident_state or resident_delta or resident_plan or resident_io or resident_grid or resident_wide or resident_add32 or resident_shared32 or resident_addmem32 or resident_branch32 or resident_loop32 or resident_tilebanks or resident_tilepipe or resident_tilegrid or resident_globalgrid or resident_compute or resident_memory512:
         from qwengpu.compiled_tile8 import TILEGRID_VOCAB, VOCAB, build
+        from qwengpu.memory_geometry import WIDE_MEMORY
 
-        chip_vocab = TILEGRID_VOCAB if resident_tilegrid or resident_globalgrid or resident_compute else VOCAB
+        chip_vocab = WIDE_MEMORY.vocab if resident_memory512 else TILEGRID_VOCAB if resident_tilegrid or resident_globalgrid or resident_compute else VOCAB
     elif add32:
         from qwengpu.compiled_add32 import VOCAB as chip_vocab
         from qwengpu.compiled_add32 import build
@@ -129,8 +130,8 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         from qwengpu.compiled_add import VOCAB as chip_vocab
         from qwengpu.compiled_add import build
     target = Target(tc0["linear_num_key_heads"], tc0["linear_num_value_heads"], inter)
-    if resident or indexed or masked or divergent or looping or resident_rom or resident_state or resident_delta or resident_plan or resident_io or resident_grid or resident_wide or resident_add32 or resident_shared32 or resident_addmem32 or resident_branch32 or resident_loop32 or resident_tilebanks or resident_tilepipe or resident_tilegrid or resident_globalgrid or resident_compute:
-        circuit = build(target, resident=resident, indexed=indexed, masked=masked, divergent=divergent, looping=looping, resident_rom=resident_rom, resident_state=resident_state, resident_delta=resident_delta, resident_plan=resident_plan, resident_io=resident_io, resident_grid=resident_grid, resident_wide=resident_wide, resident_add32=resident_add32, resident_shared32=resident_shared32, resident_addmem32=resident_addmem32, resident_branch32=resident_branch32, resident_loop32=resident_loop32, resident_tilebanks=resident_tilebanks, resident_tilepipe=resident_tilepipe, resident_tilegrid=resident_tilegrid, resident_globalgrid=resident_globalgrid, resident_compute=resident_compute)
+    if resident or indexed or masked or divergent or looping or resident_rom or resident_state or resident_delta or resident_plan or resident_io or resident_grid or resident_wide or resident_add32 or resident_shared32 or resident_addmem32 or resident_branch32 or resident_loop32 or resident_tilebanks or resident_tilepipe or resident_tilegrid or resident_globalgrid or resident_compute or resident_memory512:
+        circuit = build(target, resident=resident, indexed=indexed, masked=masked, divergent=divergent, looping=looping, resident_rom=resident_rom, resident_state=resident_state, resident_delta=resident_delta, resident_plan=resident_plan, resident_io=resident_io, resident_grid=resident_grid, resident_wide=resident_wide, resident_add32=resident_add32, resident_shared32=resident_shared32, resident_addmem32=resident_addmem32, resident_branch32=resident_branch32, resident_loop32=resident_loop32, resident_tilebanks=resident_tilebanks, resident_tilepipe=resident_tilepipe, resident_tilegrid=resident_tilegrid, resident_globalgrid=resident_globalgrid, resident_compute=resident_compute, resident_memory512=resident_memory512)
     elif workgroup:
         circuit = build(target, workgroup=True)
     elif resume or isa:
@@ -223,6 +224,7 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
         indent=2), encoding="utf-8")
     _copy_tokenizer(src, dst)
     meta = {"layout": ("qwengpu-add32-9b-v1" if add32 else
+                       "qwengpu-resident-memory512-9b-v1" if resident_memory512 else
                        "qwengpu-resident-compute-9b-v1" if resident_compute else
                        "qwengpu-resident-globalgrid-9b-v1" if resident_globalgrid else
                        "qwengpu-resident-tilegrid-9b-v1" if resident_tilegrid else
@@ -270,6 +272,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-anti-sink", action="store_true")
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-memory512", action="store_true",
+                          help="merge the 512-byte banked programmable memory circuit")
     variants.add_argument("--add32", action="store_true",
                           help="merge the isolated masked 32-bit addition circuit")
     variants.add_argument("--resident-compute", action="store_true",
@@ -336,7 +340,7 @@ def main() -> None:
     print(json.dumps(build_merged(args.src, args.out,
                                   fit_sinks=not args.no_anti_sink,
                                   rom=args.rom, writeback=args.writeback, control=args.control,
-                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup, tile=args.tile, tile8=args.tile8, resident=args.resident, indexed=args.indexed, masked=args.masked, divergent=args.divergent, looping=args.looping, resident_rom=args.resident_rom, resident_state=args.resident_state, resident_delta=args.resident_delta, resident_plan=args.resident_plan, resident_io=args.resident_io, resident_grid=args.resident_grid, resident_wide=args.resident_wide, resident_add32=args.resident_add32, resident_shared32=args.resident_shared32, resident_addmem32=args.resident_addmem32, resident_branch32=args.resident_branch32, resident_loop32=args.resident_loop32, resident_tilebanks=args.resident_tilebanks, resident_tilepipe=args.resident_tilepipe, resident_tilegrid=args.resident_tilegrid, resident_globalgrid=args.resident_globalgrid, resident_compute=args.resident_compute, add32=args.add32)), flush=True)
+                                  resume=args.resume, isa=args.isa, workgroup=args.workgroup, tile=args.tile, tile8=args.tile8, resident=args.resident, indexed=args.indexed, masked=args.masked, divergent=args.divergent, looping=args.looping, resident_rom=args.resident_rom, resident_state=args.resident_state, resident_delta=args.resident_delta, resident_plan=args.resident_plan, resident_io=args.resident_io, resident_grid=args.resident_grid, resident_wide=args.resident_wide, resident_add32=args.resident_add32, resident_shared32=args.resident_shared32, resident_addmem32=args.resident_addmem32, resident_branch32=args.resident_branch32, resident_loop32=args.resident_loop32, resident_tilebanks=args.resident_tilebanks, resident_tilepipe=args.resident_tilepipe, resident_tilegrid=args.resident_tilegrid, resident_globalgrid=args.resident_globalgrid, resident_compute=args.resident_compute, resident_memory512=args.resident_memory512, add32=args.add32)), flush=True)
 
 
 if __name__ == "__main__":

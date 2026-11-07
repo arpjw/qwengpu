@@ -44,6 +44,8 @@ def assemble(source: str, data: dict | None = None) -> dict:
         resident_loop32=True,
         resident_globalgrid="workgroups" in launch,
         resident_compute="workgroups" in launch,
+        resident_memory512=isinstance(launch.get("global_words"), list)
+        and len(launch["global_words"]) == 256,
     )
     return launch
 

@@ -103,6 +103,7 @@ from qwengpu.compiled_tile8 import (
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_control import hex_bits, snapshot
 from qwengpu.eval_tile import _check_control, _unsigned
+from qwengpu.memory_geometry import LEGACY_MEMORY, MEMORY512_LAYOUT, WIDE_MEMORY
 
 FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
 RESIDENT_FIXTURES = FIXTURES.with_name("resident_gate_v1")
@@ -127,12 +128,17 @@ RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
 RESIDENT_TILEPIPE_LAYOUTS = (
+    MEMORY512_LAYOUT,
     RESIDENT_TILEPIPE_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_COMPUTE_LAYOUT,
 )
-RESIDENT_GLOBALGRID_LAYOUTS = (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT)
+RESIDENT_GLOBALGRID_LAYOUTS = (
+    RESIDENT_GLOBALGRID_LAYOUT,
+    RESIDENT_COMPUTE_LAYOUT,
+    MEMORY512_LAYOUT,
+)
 RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, *RESIDENT_TILEPIPE_LAYOUTS)
 RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, *RESIDENT_TILEBANKS_LAYOUTS)
 RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, *RESIDENT_LOOP32_LAYOUTS)
@@ -225,7 +231,9 @@ def parse_launch(
     resident_loop32: bool = False,
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
+    resident_memory512: bool = False,
 ) -> dict:
+    resident_compute = resident_compute or resident_memory512
     resident_globalgrid = resident_globalgrid or resident_compute
     resident_loop32 = resident_loop32 or resident_globalgrid
     resident_branch32 = resident_branch32 or resident_loop32
@@ -261,14 +269,23 @@ def parse_launch(
             raise ValueError(
                 "globalgrid launches use global_words and zero-initialized warp state"
             )
+        geometry = WIDE_MEMORY if resident_memory512 else LEGACY_MEMORY
         words = _unsigned(
-            data.get("global_words", [0] * INDEX_WORDS),
-            INDEX_WORDS,
+            data.get("global_words", [0] * geometry.words),
+            geometry.words,
             65535,
             "global_words",
         )
-        operands = [byte for word in words[:64] for byte in (word & 255, word >> 8)]
-        a, b, initial = operands[:64], operands[64:], words[64:]
+        operands = [
+            byte
+            for word in (words[:64] if not resident_memory512 else [0] * 64)
+            for byte in (word & 255, word >> 8)
+        ]
+        a, b, initial = (
+            operands[:64],
+            operands[64:],
+            words[64:] if not resident_memory512 else [0] * 64,
+        )
     else:
         if "global_words" in data:
             raise ValueError("global_words requires a workgroups descriptor")
@@ -329,8 +346,8 @@ def parse_launch(
                     "MAC_K": 7,
                     "ADD16I": 255,
                     ADD32I_OP: 255,
-                    ADD_INDEX_LO: 126,
-                    ADD_INDEX_HI: 126,
+                    ADD_INDEX_LO: 254 if resident_memory512 and workgroups else 126,
+                    ADD_INDEX_HI: 254 if resident_memory512 and workgroups else 126,
                     "MASK_BIT": 15,
                     "IF_BIT": 31 if resident_branch32 else 15,
                     "WHILE_BIT": 31 if resident_loop32 else 15,
@@ -363,6 +380,8 @@ def parse_launch(
         "row_pairs": row_pairs,
         **({"initial_registers": initial_registers} if resident_wide else {}),
         **({"workgroups": workgroups} if workgroups else {}),
+        **({"memory512": True} if resident_memory512 else {}),
+        **({"global_words": words} if resident_memory512 and workgroups else {}),
     }
 
 
@@ -380,6 +399,7 @@ def _parse_case(
     resident_addmem32: bool = False,
     resident_branch32: bool = False,
     resident_loop32: bool = False,
+    resident_memory512: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -394,6 +414,7 @@ def _parse_case(
         resident_addmem32=resident_addmem32,
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
+        resident_memory512=resident_memory512,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -487,6 +508,9 @@ def execute(
     resident_branch32 = circuit.resident_branch32
     resident_loop32 = circuit.resident_loop32
     workgroups = case.get("workgroups", 0)
+    memory512 = circuit.resident_memory512
+    geometry = circuit.memory_geometry
+    global512 = bool(workgroups and memory512)
     if workgroups and (
         not circuit.resident_globalgrid
         or auto_workgroups
@@ -511,6 +535,8 @@ def execute(
     resident_grid = resident_grid or resident_wide
     warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
     dirty_offset = WIDE_DIRTY_OFFSET if resident_wide else WARP_DIRTY_OFFSET
+    if memory512:
+        dirty_offset = geometry.dirty_offset
     plan_bytes = len(warp_tags) // 8
     resident_plan = resident_plan or resident_io
     resident_delta = resident_delta or resident_plan or resident_grid
@@ -567,6 +593,9 @@ def execute(
         else []
     )
     memory = nibbles(C_MEMORY, _digits(case["c"], 16))
+    ram_tokens = (
+        nibbles(geometry.base, _digits(case["global_words"], 16)) if global512 else []
+    )
     second_memory = (
         nibbles(SECOND_OUTPUT, _digits(second_output, 16))
         if second_output is not None
@@ -650,10 +679,12 @@ def execute(
     uploads = []
     if resident:
         if resident_cache is None or refresh_operands:
-            uploads.extend(operands)
+            uploads.extend(ram_tokens if global512 else operands)
         if resident_cache is None:
             uploads.extend(alternate)
-            for panel in output_memories + right_tokens + bottom_tokens:
+            for panel in (
+                [] if global512 else output_memories + right_tokens + bottom_tokens
+            ):
                 uploads.extend(panel)
     pending.extend(uploads)
     transport = {
@@ -722,6 +753,17 @@ def execute(
         return [token - offset for token in out.logits[0].argmax(dim=-1).tolist()]
 
     def memory_exact() -> bool:
+        if global512:
+            return all(
+                head_row(
+                    cache, circuit, f"ram.{lane}.{nib}.{word // 128}", word % 128, 4
+                )
+                == token & 15
+                for word in range(256)
+                for nib in range(4)
+                for lane in range(8)
+                for token in [ram_tokens[4 * word + nib]]
+            )
         return (
             _check_resident_memory(cache, circuit, operands, memory, indexed=indexed)
             and all(
@@ -927,7 +969,15 @@ def execute(
                 canonical.append(tag + (token & 15))
             packet = canonical + packet[-32:]
         if resident_delta:
-            observed_bits = observed_bits[:dirty_offset]
+            if (
+                memory512
+                and not workgroups
+                and any(observed_bits[WIDE_DIRTY_OFFSET:dirty_offset])
+            ):
+                raise ValueError("legacy launch changed expanded index or mode bits")
+            observed_bits = observed_bits[
+                : WIDE_DIRTY_OFFSET if memory512 and not workgroups else dirty_offset
+            ]
         next_registers, patch = packet[:32], packet[-32:]
         for nib, token in enumerate(next_registers):
             if not REGISTER + 16 * nib <= token < REGISTER + 16 * (nib + 1):
@@ -936,7 +986,7 @@ def execute(
             indices[warp] = packet[32:48]
             for nib, token in enumerate(indices[warp]):
                 start = INDEX_REGISTER + 16 * nib
-                if not start <= token < start + (8 if nib % 2 else 16):
+                if not start <= token < start + (16 if memory512 or not nib % 2 else 8):
                     raise ValueError(f"invalid index packet at nibble {nib}")
         if masked:
             masks[warp] = packet[48:50]
@@ -967,7 +1017,12 @@ def execute(
         output_index = group_index if second_memory else 0
         output_base = OUTPUT_BANKS[output_index]
         for token in updates:
-            if output_base <= token < output_base + 4096:
+            if (
+                global512
+                and geometry.base <= token < geometry.base + 64 * geometry.words
+            ):
+                ram_tokens[(token - geometry.base) // 16] = token
+            elif output_base <= token < output_base + 4096:
                 output_memories[output_index][(token - output_base) // 16] = token
             elif indexed and INDEX_OPERAND <= token < INDEX_OPERAND + 4096:
                 operands[(token - INDEX_OPERAND) // 16] = token
@@ -1036,6 +1091,7 @@ def execute(
                 resident_loop32=resident_loop32,
                 resident_globalgrid=circuit.resident_globalgrid,
                 resident_compute=circuit.resident_compute,
+                resident_memory512=memory512,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1071,14 +1127,24 @@ def execute(
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
-        "matrix": _matrix(output_memories[-1]),
-        **({"global_words": _words(operands + memory)} if workgroups else {}),
+        "matrix": _matrix(ram_tokens[256:512])
+        if global512
+        else _matrix(output_memories[-1]),
+        **(
+            {"global_words": _words(ram_tokens if global512 else operands + memory)}
+            if workgroups
+            else {}
+        ),
         **(
             {"workgroup_outputs": [_matrix(output) for output in output_memories]}
             if second_memory
             else {}
         ),
-        **({"shared_words": _words(operands + memory)} if indexed else {}),
+        **(
+            {"shared_words": _words(ram_tokens if global512 else operands + memory)}
+            if indexed
+            else {}
+        ),
         **(
             {
                 "warp_registers": [
@@ -1275,9 +1341,22 @@ def _state_snapshot_digits(bits: list[int] | None, dirty_offset: int) -> list[in
     index_bits = [
         bit
         for start in range(SNAPSHOT_BITS, SNAPSHOT_BITS + 56, 7)
-        for bit in (*bits[start : start + 7], 0)
+        for bit in (
+            *bits[start : start + 7],
+            bits[WIDE_MEMORY.extra_index_offset + (start - SNAPSHOT_BITS) // 7]
+            if dirty_offset == WIDE_MEMORY.dirty_offset
+            else 0,
+        )
     ]
-    state = bits[:128] + index_bits + bits[MASK_OFFSET:dirty_offset]
+    state = (
+        bits[:128]
+        + index_bits
+        + bits[
+            MASK_OFFSET : WIDE_DIRTY_OFFSET
+            if dirty_offset == WIDE_MEMORY.dirty_offset
+            else dirty_offset
+        ]
+    )
     return [
         sum(state[start + bit] << bit for bit in range(4))
         for start in range(0, len(state), 4)
@@ -1341,6 +1420,8 @@ def oracle(
     last_tile = tile + row_pairs - 1
     last = 1
     workgroups = case.get("workgroups", 0)
+    global512 = bool(workgroups and case.get("memory512"))
+    ram = case["global_words"][:] if global512 else None
     group = 0
     wide = "initial_registers" in case
     initial = case.get("initial_registers", [[0] * 8, [0] * 8])
@@ -1434,21 +1515,25 @@ def oracle(
                 output_row, col = divmod(16 * group + 8 * warp + lane, n_size)
                 if active >> lane & 1 and output_row < 8:
                     left = (
-                        int.from_bytes(
+                        ram[output_row * k_size + k]
+                        if global512
+                        else int.from_bytes(
                             operands[
-                                2 * (output_row * k_size + k) : 2 * (output_row * k_size + k) + 2
+                                2 * (output_row * k_size + k) : 2
+                                * (output_row * k_size + k)
+                                + 2
                             ],
                             "little",
                         )
-                        & 255
-                    )
+                    ) & 255
                     address = 32 + k * n_size + col
                     right = (
-                        int.from_bytes(
+                        ram[address]
+                        if global512
+                        else int.from_bytes(
                             operands[2 * address : 2 * address + 2], "little"
                         )
-                        & 255
-                    )
+                    ) & 255
                     value = (value + left * right) & 0xFFFFFFFF
                 words.append(value)
             candidate = [value & 65535 for value in words]
@@ -1487,14 +1572,18 @@ def oracle(
             states[warp] = 2
         elif op == "SAVE_INDEX":
             indices[warp] = [
-                v % INDEX_WORDS if active >> lane & 1 else indices[warp][lane]
+                v % (256 if global512 else INDEX_WORDS)
+                if active >> lane & 1
+                else indices[warp][lane]
                 for lane, v in enumerate(acc[warp])
             ]
         elif op in ("LOAD_INDEX", LOAD_INDEX_HI, *ADDMEM32_OPS):
             high_access = op in (LOAD_INDEX_HI, ADD_INDEX_HI)
             addresses = [addr ^ arg ^ int(high_access) for addr in indices[warp]]
             loaded = [
-                int.from_bytes(operands[2 * addr : 2 * addr + 2], "little")
+                ram[addr]
+                if global512
+                else int.from_bytes(operands[2 * addr : 2 * addr + 2], "little")
                 if addr < 64
                 else c[addr - 64]
                 for addr in addresses
@@ -1575,7 +1664,10 @@ def oracle(
                     continue
                 claimed.add(addr)
                 grants |= 1 << lane
-                if addr < 64:
+                if global512:
+                    ram[addr] = word
+                    base = WIDE_MEMORY.base + 64 * addr
+                elif addr < 64:
                     operands[2 * addr : 2 * addr + 2] = word.to_bytes(2, "little")
                     base = INDEX_OPERAND + 64 * addr
                 else:
@@ -1586,7 +1678,7 @@ def oracle(
         packed |= (int(op == "STORE_TILE") + 2 * row) << 128
         if indexed:
             packed |= sum(
-                value << (SNAPSHOT_BITS + 7 * lane)
+                (value & 127) << (SNAPSHOT_BITS + 7 * lane)
                 for lane, value in enumerate(indices[warp])
             )
             packed |= grants << (SNAPSHOT_BITS + 56)
@@ -1621,6 +1713,13 @@ def oracle(
                 for lane, word in enumerate(high[warp])
             )
             width = WIDE_DIRTY_OFFSET // 4
+        if global512:
+            packed |= sum(
+                (value >> 7) << (WIDE_MEMORY.extra_index_offset + lane)
+                for lane, value in enumerate(indices[warp])
+            )
+            packed |= 1 << WIDE_MEMORY.mode_offset
+            width = WIDE_MEMORY.dirty_offset // 4
         trace.append(
             {
                 "warp": warp,
@@ -1647,7 +1746,9 @@ def oracle(
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
-        "matrix": [c[i : i + 8] for i in range(0, 64, 8)],
+        "matrix": [
+            (ram[64:128] if global512 else c)[i : i + 8] for i in range(0, 64, 8)
+        ],
         **(
             {
                 "warp_registers": [
@@ -1660,7 +1761,9 @@ def oracle(
         ),
         **(
             {
-                "shared_words": [
+                "shared_words": ram
+                if global512
+                else [
                     int.from_bytes(operands[i : i + 2], "little")
                     for i in range(0, len(operands), 2)
                 ]
@@ -1698,12 +1801,14 @@ def load_tile_model(
     resident_tilegrid: bool = False,
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
+    resident_memory512: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
         resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
-        resident_compute = layout == RESIDENT_COMPUTE_LAYOUT
+        resident_memory512 = layout == MEMORY512_LAYOUT
+        resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
         resident_tilegrid = layout in (
             RESIDENT_TILEGRID_LAYOUT,
             *RESIDENT_GLOBALGRID_LAYOUTS,
@@ -1737,6 +1842,7 @@ def load_tile_model(
             resident_tilegrid=resident_tilegrid,
             resident_globalgrid=resident_globalgrid,
             resident_compute=resident_compute,
+            resident_memory512=resident_memory512,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1771,6 +1877,7 @@ def load_tile_model(
             resident_tilegrid=resident_tilegrid,
             resident_globalgrid=resident_globalgrid,
             resident_compute=resident_compute,
+            resident_memory512=resident_memory512,
         )
     return model.to(device).eval(), circuit
 
@@ -1802,6 +1909,7 @@ def main() -> None:
     variants.add_argument("--resident-tilegrid", action="store_true")
     variants.add_argument("--resident-globalgrid", action="store_true")
     variants.add_argument("--resident-compute", action="store_true")
+    variants.add_argument("--resident-memory512", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1811,7 +1919,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_compute = args.resident_compute
+    resident_memory512 = args.resident_memory512
+    resident_compute = args.resident_compute or resident_memory512
     resident_globalgrid = args.resident_globalgrid or resident_compute
     resident_tilegrid = args.resident_tilegrid or resident_globalgrid
     resident_tilepipe = args.resident_tilepipe or resident_tilegrid
@@ -1854,7 +1963,8 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_compute = layout == RESIDENT_COMPUTE_LAYOUT
+        resident_memory512 = layout == MEMORY512_LAYOUT
+        resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
         resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
         resident_tilegrid = layout in (
             RESIDENT_TILEGRID_LAYOUT,
@@ -1922,6 +2032,8 @@ def main() -> None:
             raise ValueError("--resident-globalgrid requires a globalgrid checkpoint")
         if args.resident_compute and not resident_compute:
             raise ValueError("--resident-compute requires a compute checkpoint")
+        if args.resident_memory512 and not resident_memory512:
+            raise ValueError("--resident-memory512 requires a memory512 checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
     if resident and not args.kernel:
         paths.extend(sorted(RESIDENT_FIXTURES.glob("*.json")))
@@ -1967,6 +2079,7 @@ def main() -> None:
                     resident_addmem32=resident_addmem32,
                     resident_branch32=resident_branch32,
                     resident_loop32=resident_loop32,
+                    resident_memory512=resident_memory512,
                 ),
             )
         )
@@ -1999,6 +2112,7 @@ def main() -> None:
         resident_tilegrid=resident_tilegrid,
         resident_globalgrid=resident_globalgrid,
         resident_compute=resident_compute,
+        resident_memory512=resident_memory512,
     )
     report = {
         "device": args.device,

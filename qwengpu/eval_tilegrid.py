@@ -29,6 +29,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
+from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
 from qwengpu.run_matmul16 import TILE, _tile, _trace_digest, parse_inputs
 
 
@@ -276,8 +277,14 @@ def main() -> None:
             RESIDENT_TILEGRID_LAYOUT,
             RESIDENT_GLOBALGRID_LAYOUT,
             RESIDENT_COMPUTE_LAYOUT,
+            MEMORY512_LAYOUT,
         )
-        or meta.get("chip_vocab") != TILEGRID_VOCAB
+        or meta.get("chip_vocab")
+        != (
+            WIDE_MEMORY.vocab
+            if meta.get("layout") == MEMORY512_LAYOUT
+            else TILEGRID_VOCAB
+        )
     ):
         parser.error("expected a merged tilegrid checkpoint")
     model, circuit = load_tile_model(

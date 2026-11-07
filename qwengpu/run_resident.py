@@ -37,6 +37,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
+from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
@@ -49,6 +50,7 @@ def main() -> int:
         "--model", type=Path, help="merged looping Qwen3.5-9B checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute", action="store_true", help="use the common compute ISA"
     )
@@ -150,7 +152,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_compute = args.resident_compute
+    resident_memory512 = args.resident_memory512
+    resident_compute = args.resident_compute or resident_memory512
     resident_globalgrid = args.resident_globalgrid or resident_compute
     resident_tilegrid = args.resident_tilegrid or resident_globalgrid
     resident_tilepipe = args.resident_tilepipe or resident_tilegrid
@@ -167,7 +170,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-compute"
+        "standalone-resident-memory512"
+        if resident_memory512
+        else "standalone-resident-compute"
         if resident_compute
         else "standalone-resident-globalgrid"
         if resident_globalgrid
@@ -223,7 +228,9 @@ def main() -> int:
                 )
                 or meta.get("chip_vocab")
                 != (
-                    TILEGRID_VOCAB
+                    WIDE_MEMORY.vocab
+                    if meta.get("layout") == MEMORY512_LAYOUT
+                    else TILEGRID_VOCAB
                     if meta.get("layout")
                     in (
                         RESIDENT_TILEGRID_LAYOUT,
@@ -238,15 +245,18 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_compute = layout == RESIDENT_COMPUTE_LAYOUT
+            resident_memory512 = layout == MEMORY512_LAYOUT
+            resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
             resident_globalgrid = layout in (
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
+                MEMORY512_LAYOUT,
             )
             resident_tilegrid = layout in (
                 RESIDENT_TILEGRID_LAYOUT,
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
+                MEMORY512_LAYOUT,
             )
             resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
@@ -298,6 +308,8 @@ def main() -> int:
                 raise ValueError(
                     "--resident-globalgrid requires a globalgrid checkpoint"
                 )
+            if args.resident_memory512 and not resident_memory512:
+                raise ValueError("--resident-memory512 requires a memory512 checkpoint")
             if args.resident_compute and not resident_compute:
                 raise ValueError("--resident-compute requires a compute checkpoint")
             offset = meta["chip_token_offset"]
@@ -315,6 +327,7 @@ def main() -> int:
             resident_loop32=resident_loop32,
             resident_globalgrid=resident_globalgrid,
             resident_compute=resident_compute,
+            resident_memory512=resident_memory512,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -348,6 +361,7 @@ def main() -> int:
         resident_tilegrid=resident_tilegrid,
         resident_globalgrid=resident_globalgrid,
         resident_compute=resident_compute,
+        resident_memory512=resident_memory512,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]

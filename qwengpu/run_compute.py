@@ -14,6 +14,7 @@ from qwengpu.compiled_tile8 import RESIDENT_COMPUTE_LAYOUT, TILEGRID_VOCAB
 from qwengpu.eval_globalgrid import launch
 from qwengpu.eval_tile import _unsigned
 from qwengpu.eval_tile8 import load_tile_model
+from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
 
 MASK32 = 0xFFFFFFFF
 GUARD = 0xD00D0000
@@ -50,17 +51,21 @@ def matrix(
     ]
 
 
-def parse_request(data: object) -> dict:
+def parse_request(data: object, *, memory512: bool = False) -> dict:
     if not isinstance(data, dict):
         raise TypeError("compute request must be an object")
     kernel = data.get("kernel")
     if kernel == "vector_add":
-        a, b = vector(data.get("a"), "a"), vector(data.get("b"), "b")
+        limit = 64 if memory512 else 32
+        a, b = vector(data.get("a"), "a", limit), vector(data.get("b"), "b", limit)
         if len(a) != len(b):
             raise ValueError("vector operands must have equal length")
         return {"kernel": kernel, "a": a, "b": b}
     if kernel == "reduce":
-        return {"kernel": kernel, "values": vector(data.get("values"), "values", 64)}
+        return {
+            "kernel": kernel,
+            "values": vector(data.get("values"), "values", 128 if memory512 else 64),
+        }
     if kernel == "matmul":
         a = matrix(data.get("a"), None, None, 255, "a")
         m, k = len(a), len(a[0])
@@ -85,7 +90,7 @@ def assemble_launch(
     return assemble(source, {"workgroups": groups, "global_words": words})
 
 
-def compile_request(request: dict) -> list[dict]:
+def compile_request(request: dict, *, memory512: bool = False) -> list[dict]:
     kind = request["kernel"]
     if kind == "matmul":
         a, b, c = request["a"], request["b"], request["c"]
@@ -97,6 +102,8 @@ def compile_request(request: dict) -> list[dict]:
         words += right + [0xBC00 + i for i in range(16 - len(right))]
         words += [0xCD00 + i for i in range(16)]
         words += words16(initial + [GUARD + i for i in range(32 - len(initial))])
+        if memory512:
+            words += [0xBEEF] * 128
         body = [
             "GLOBAL_ID",
             "SHL32I 1",
@@ -111,22 +118,24 @@ def compile_request(request: dict) -> list[dict]:
         return [assemble_launch(body, words, (m * n + 15) // 16)]
     values = request["a"] if kind == "vector_add" else request["values"]
     count = len(values)
-    groups = max(1, (count + 15) // 16)
+    threads = min(count, 64)
+    groups = max(1, (threads + 15) // 16)
     prefix = [
         "GLOBAL_ID",
         "SHL32I 1",
         "SAVE_INDEX",
-        f"MASK_GLOBAL_LT {count}",
+        f"MASK_GLOBAL_LT {threads}",
         "LOAD_INDEX",
         "LOAD_INDEX_HI",
     ]
     if kind == "vector_add":
-        left = values + [GUARD + i for i in range(32 - count)]
-        right = request["b"] + [GUARD + 32 + i for i in range(32 - count)]
+        capacity = 64 if memory512 else 32
+        left = values + [GUARD + i for i in range(capacity - count)]
+        right = request["b"] + [GUARD + capacity + i for i in range(capacity - count)]
         words = words16(left + right)
         body = prefix + [
-            "ADD_INDEX_LO 64",
-            "ADD_INDEX_HI 64",
+            f"ADD_INDEX_LO {2 * capacity}",
+            f"ADD_INDEX_HI {2 * capacity}",
             "STORE_INDEX",
             "STORE_INDEX_HI",
             "HALT",
@@ -134,8 +143,17 @@ def compile_request(request: dict) -> list[dict]:
         return [assemble_launch(body, words, groups)]
     padded = max(32, count)
     words = words16(
-        values + [0] * (padded - count) + [GUARD + i for i in range(64 - padded)]
+        values
+        + [0] * (padded - count)
+        + [GUARD + i for i in range((128 if memory512 else 64) - padded)]
     )
+    if count > 64:
+        prefix += [
+            f"MASK_GLOBAL_LT {count - 64}",
+            "ADD_INDEX_LO 128",
+            "ADD_INDEX_HI 128",
+            "MASK_ALL",
+        ]
     producer = prefix + [
         "WARP_SUM",
         "MASK_LANES 1",
@@ -147,7 +165,7 @@ def compile_request(request: dict) -> list[dict]:
         "LANE_ID",
         "SHL32I 4",
         "SAVE_INDEX",
-        f"MASK_LANES {(count + 7) // 8}",
+        f"MASK_LANES {(threads + 7) // 8}",
         "LOAD_INDEX",
         "LOAD_INDEX_HI",
         "WARP_SUM",
@@ -171,7 +189,7 @@ def execute_request(
     *,
     transport_mode: str = "state_store_plan",
 ) -> dict:
-    launches = compile_request(request)
+    launches = compile_request(request, memory512=circuit.resident_memory512)
     cache = None
     records = []
     words = launches[0]["global_words"][:]
@@ -190,7 +208,7 @@ def execute_request(
     expected = launches[0]["global_words"][:]
     kind = request["kernel"]
     if kind == "vector_add":
-        result = words32(words[:64])[: len(request["a"])]
+        result = words32(words)[: len(request["a"])]
         scalar = [
             (a + b) & MASK32 for a, b in zip(request["a"], request["b"], strict=True)
         ]
@@ -198,8 +216,11 @@ def execute_request(
     elif kind == "reduce":
         result = words32(words[:2])[0]
         scalar = sum(request["values"]) & MASK32
-        for start in range(0, len(request["values"]), 8):
-            subtotal = sum(request["values"][start : start + 8]) & MASK32
+        for start in range(0, min(len(request["values"]), 64), 8):
+            subtotal = (
+                sum(request["values"][start : start + 8])
+                + sum(request["values"][64 + start : 72 + start])
+            ) & MASK32
             expected[2 * start : 2 * start + 2] = words16([subtotal])
         expected[:2] = words16([scalar])
     else:
@@ -232,6 +253,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--resident-memory512", action="store_true")
     parser.add_argument("--device", default="mps", choices=("mps", "cuda", "cpu"))
     parser.add_argument("--trace", action="store_true")
     parser.add_argument(
@@ -239,20 +261,30 @@ def main() -> None:
     )
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
+    meta = (
+        json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
+    )
+    memory512 = args.resident_memory512 or (
+        meta is not None and meta.get("layout") == MEMORY512_LAYOUT
+    )
     try:
         payload = args.input.read_bytes()
-        request = parse_request(json.loads(payload))
+        request = parse_request(json.loads(payload), memory512=memory512)
     except (OSError, ValueError, TypeError) as exc:
         parser.error(str(exc))
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
     if meta is not None and (
-        meta.get("layout") != RESIDENT_COMPUTE_LAYOUT
-        or meta.get("chip_vocab") != TILEGRID_VOCAB
+        meta.get("layout")
+        != (MEMORY512_LAYOUT if memory512 else RESIDENT_COMPUTE_LAYOUT)
+        or meta.get("chip_vocab")
+        != (WIDE_MEMORY.vocab if memory512 else TILEGRID_VOCAB)
     ):
         parser.error("expected a merged compute checkpoint")
-    model, circuit = load_tile_model(args.model, args.device, resident_compute=True)
+    model, circuit = load_tile_model(
+        args.model, args.device, resident_compute=True, resident_memory512=memory512
+    )
     result = execute_request(
         model,
         circuit,

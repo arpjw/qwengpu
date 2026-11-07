@@ -14,7 +14,6 @@ from qwengpu.assemble import assemble
 from qwengpu.compiled_tile8 import (
     C_MEMORY,
     INDEX_OPERAND,
-    INDEX_WORDS,
     RESET_WARP,
     RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
@@ -29,6 +28,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
+from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
 
 FIXTURE = Path(__file__).resolve().parents[1] / "eval/frozen/globalgrid_v1/words.json"
 MASK32 = 0xFFFFFFFF
@@ -53,7 +53,10 @@ def launch(
     transport_mode: str = "state_store_plan",
 ) -> tuple:
     case = parse_launch(
-        data, resident_globalgrid=True, resident_compute=circuit.resident_compute
+        data,
+        resident_globalgrid=True,
+        resident_compute=circuit.resident_compute,
+        resident_memory512=circuit.resident_memory512,
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None
@@ -72,6 +75,12 @@ def launch(
                 "memory": sum(
                     INDEX_OPERAND <= token < INDEX_OPERAND + 4096
                     or C_MEMORY <= token < C_MEMORY + 4096
+                    or (
+                        circuit.resident_memory512
+                        and circuit.memory_geometry.base
+                        <= token
+                        < circuit.memory_geometry.vocab
+                    )
                     for token in tokens
                 ),
                 "transitions": [
@@ -115,7 +124,8 @@ def launch(
         actual["outcome"] != "halted"
         or actual["workgroup_cursor"] != groups - 1
         or transport["fresh_caches"] != int(first)
-        or transport["matrix_initial_tokens"] != 512 * int(first)
+        or transport["matrix_initial_tokens"]
+        != circuit.memory_geometry.upload_tokens * int(first)
         or not all(
             transport[f"resident_{name}_exact"]
             for name in ("grid", "memory", "rom", "state")
@@ -124,9 +134,10 @@ def launch(
             not item["resident_memory_exact"]
             for item in actual["workgroup_transitions"]
         )
-        or audit[0]["memory"] != 512 * int(first)
+        or audit[0]["memory"] != circuit.memory_geometry.upload_tokens * int(first)
         or sum(item["memory"] for item in audit)
-        != 512 * int(first) + transport["matrix_patch_tokens"]
+        != circuit.memory_geometry.upload_tokens * int(first)
+        + transport["matrix_patch_tokens"]
         or [token for call in audit for token in call["transitions"]]
         != list(WORKGROUP_TICKETS[: groups - 1])
         or [token for call in audit for token in call["resets"]]
@@ -182,7 +193,7 @@ HALT"""
 def qualify(
     model, circuit, values: list[int], device: str, offset: int, ids_only: bool
 ) -> dict:
-    sentinel = [0xFFF0 + i % 16 for i in range(INDEX_WORDS)]
+    sentinel = [0xFFF0 + i % 16 for i in range(circuit.memory_geometry.words)]
     probes = []
     for groups in (1, 2, 3, 4):
         _, probe = launch(
@@ -249,8 +260,14 @@ def main() -> None:
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
     if meta is not None and (
-        meta.get("layout") not in (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT)
-        or meta.get("chip_vocab") != TILEGRID_VOCAB
+        meta.get("layout")
+        not in (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
+        or meta.get("chip_vocab")
+        != (
+            WIDE_MEMORY.vocab
+            if meta.get("layout") == MEMORY512_LAYOUT
+            else TILEGRID_VOCAB
+        )
     ):
         parser.error("expected a merged globalgrid checkpoint")
     model, circuit = load_tile_model(

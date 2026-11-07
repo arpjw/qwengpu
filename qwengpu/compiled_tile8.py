@@ -20,6 +20,7 @@ from qwengpu.compiled_tile import (
     _word_from_columns,
     control_token,
 )
+from qwengpu.memory_geometry import LEGACY_MEMORY, PAIR_DECODE, PAIR_WIRES, WIDE_MEMORY
 
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
 INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
@@ -144,6 +145,8 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
         if op in SHARED32_OPS:
             return halt + SHARED32_WIRE_OFFSET + SHARED32_OPS.index(op)
         if op in ADDMEM32_OPS:
+            if arg >= 128:
+                return PAIR_WIRES[(ADDMEM32_OPS.index(op), arg)]
             return (
                 halt
                 + ADDMEM32_WIRE_OFFSET
@@ -206,10 +209,13 @@ def rom_payload(
     resident_loop32: bool = False,
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
+    resident_memory512: bool = False,
 ) -> int:
     if not ROM <= token < ROM + 16 * STRIDE:
         return 0
     wire = (token - ROM) % STRIDE
+    if resident_memory512 and wire in PAIR_DECODE:
+        return PAIR_DECODE[wire]
     tag, arg = divmod(wire, 256)
     if resident_compute and OPS[tag] == "BARRIER":
         if 32 <= arg <= 96:
@@ -311,7 +317,9 @@ def build(
     resident_tilegrid: bool = False,
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
+    resident_memory512: bool = False,
 ) -> Circ:
+    resident_compute = resident_compute or resident_memory512
     resident_globalgrid = resident_globalgrid or resident_compute
     resident_tilegrid = resident_tilegrid or resident_globalgrid
     resident_tilepipe = resident_tilepipe or resident_tilegrid
@@ -325,6 +333,9 @@ def build(
     resident_grid = resident_grid or resident_wide
     warp_tags = WIDE_WARP_TAGS if resident_wide else WARP_TAGS
     dirty_offset = WIDE_DIRTY_OFFSET if resident_wide else WARP_DIRTY_OFFSET
+    geometry = WIDE_MEMORY if resident_memory512 else LEGACY_MEMORY
+    if resident_memory512:
+        dirty_offset = geometry.dirty_offset
     plan_bytes = len(warp_tags) // 8
     resident_io = resident_io or resident_grid
     resident_plan = resident_plan or resident_io
@@ -347,6 +358,8 @@ def build(
     c.resident_tilegrid = resident_tilegrid
     c.resident_globalgrid = resident_globalgrid
     c.resident_compute = resident_compute
+    c.resident_memory512 = resident_memory512
+    c.memory_geometry = geometry
     one = c.one
 
     def match(name: str, token: int) -> Expr:
@@ -402,7 +415,7 @@ def build(
             lambda t, bit=bit: CODE_AMP * (2 * ((t >> bit) & 1) - 1),
             full=True,
         )
-        for bit in range(16 + int(resident_tilegrid))
+        for bit in range(16 + int(resident_tilegrid) + int(resident_memory512))
     ]
     c.code = code
     c.keep = {next(iter(expr.terms)) for expr in code}
@@ -640,6 +653,7 @@ def build(
                         resident_loop32=resident_loop32,
                         resident_globalgrid=resident_globalgrid,
                         resident_compute=resident_compute,
+                        resident_memory512=resident_memory512,
                     )
                     >> bit
                 )
@@ -724,6 +738,63 @@ def build(
         return c.slot_head(
             name, keys, dict(enumerate(selects)), data, sum(keys.values(), Expr())
         )
+
+    if resident_memory512:
+        ram_word = [
+            c.token_feature(
+                f"ram.word.{word}",
+                lambda t, word=word: int(
+                    geometry.base <= t < geometry.vocab
+                    and ((t - geometry.base) // 64) % 128 == word
+                ),
+                full=True,
+            )
+            for word in range(128)
+        ]
+        ram_nib = [
+            c.token_feature(
+                f"ram.nibble.{nib}",
+                lambda t, nib=nib: int(
+                    geometry.base <= t < geometry.vocab
+                    and ((t - geometry.base) // 16) % 4 == nib
+                ),
+                full=True,
+            )
+            for nib in range(4)
+        ]
+        ram_bank_load = [
+            c.token_feature(
+                f"ram.load_bank.{bank}",
+                lambda t, bank=bank: int(
+                    geometry.base + bank * 8192 <= t < geometry.base + (bank + 1) * 8192
+                ),
+                full=True,
+            )
+            for bank in range(2)
+        ]
+
+        def ram_lookup(name, addresses, selects):
+            bank, nib = addresses[0] // 512, addresses[0] % 4
+            assert all(
+                address // 512 == bank and address % 4 == nib for address in addresses
+            )
+            # A slot-head key accepts a preactivation <= 0 as false. The
+            # three one-hot fields therefore decode a row without 1024
+            # separate token features or an extra FFN layer.
+            keys = {
+                slot: ram_word[(address // 4) % 128]
+                + ram_nib[nib]
+                + ram_bank_load[bank]
+                - 2 * one
+                for slot, address in enumerate(addresses)
+            }
+            return c.slot_head(
+                name,
+                keys,
+                dict(enumerate(selects)),
+                raw_nibble,
+                ram_nib[nib] + ram_bank_load[bank] - one,
+            )
 
     warp_resets = (
         [match(f"warp.reset.{i}", token) for i, token in enumerate(RESET_WARP)]
@@ -1041,6 +1112,8 @@ def build(
 
     next_index = []
     old_indices = []
+    next_index_high = []
+    prior_index_high = []
     grants = []
     indexed_values = []
     load_high = ops.get(LOAD_INDEX_HI, Expr())
@@ -1053,7 +1126,7 @@ def build(
         pair_mask = (
             [
                 c.and_([add_low + add_high, bit], f"gather.mask.{i}")
-                for i, bit in enumerate(arg[1:7], 1)
+                for i, bit in enumerate(arg[1 : geometry.index_bits], 1)
             ]
             if resident_addmem32
             else []
@@ -1063,12 +1136,15 @@ def build(
         for lane in range(8):
             address = [
                 bit
-                for nib, width in enumerate((4, 3))
+                for nib, width in enumerate((4, 4 if resident_memory512 else 3))
                 for bit in state_lookup(
                     f"index.{lane}.{nib}", INDEX_REGISTER, 2 * lane + nib
                 )[:width]
             ]
-            old_indices.extend(address)
+            if resident_memory512:
+                address[7] = c.and_([address[7], generic], f"index.global_high.{lane}")
+                prior_index_high.append(address[7])
+            old_indices.extend(address[:7])
             # Both limbs share the saved base. The high limb toggles its low bit.
             gather_address = address
             if resident_shared32:
@@ -1094,20 +1170,37 @@ def build(
                         load_index,
                         *[
                             value if word >> bit & 1 else one - value
-                            for bit, value in enumerate(gather_address)
+                            for bit, value in enumerate(gather_address[:7])
                         ],
                     ],
                     f"gather.{lane}.{word}",
                 )
-                for word in range(INDEX_WORDS)
+                for word in range(128)
             ]
+            if resident_memory512:
+                ram_bank = [
+                    c.and_([generic, one - gather_address[7]], f"gather.bank.{lane}.0"),
+                    c.and_([generic, gather_address[7]], f"gather.bank.{lane}.1"),
+                ]
             for nib in range(4):
                 slots = [
                     base // 16 + 4 * word + nib
                     for base in (INDEX_OPERAND, C_MEMORY)
                     for word in range(INDEX_WORDS // 2)
                 ]
-                indexed_values.extend(lookup(f"shared.{lane}.{nib}", 0, slots, queries))
+                value = lookup(f"shared.{lane}.{nib}", 0, slots, queries)
+                if resident_memory512:
+                    sources = [([one - generic], value)]
+                    for bank in range(2):
+                        start = bank * 128
+                        other = ram_lookup(
+                            f"ram.{lane}.{nib}.{bank}",
+                            [4 * word + nib for word in range(start, start + 128)],
+                            queries,
+                        )
+                        sources.append(([ram_bank[bank]], other))
+                    value = c.select_bits(sources, 4, f"gather.value.{lane}.{nib}")
+                indexed_values.extend(value)
             save_index = (
                 c.and_([ops["SAVE_INDEX"], active[lane]], f"index.save.{lane}")
                 if masked
@@ -1117,18 +1210,33 @@ def build(
                 c.select_bits(
                     [
                         ([save_index], old[16 * lane : 16 * lane + 7]),
-                        ([one - save_index], address),
+                        ([one - save_index], address[:7]),
                     ],
                     7,
                     f"index.next.{lane}",
                 )
             )
+            if resident_memory512:
+                high = c.and_(
+                    [old[16 * lane + 7], generic], f"index.source_high.{lane}"
+                )
+                next_index_high.extend(
+                    c.select_bits(
+                        [([save_index], [high]), ([one - save_index], [address[7]])],
+                        1,
+                        f"index.next_high.{lane}",
+                    )
+                )
             # STORE_INDEX retains the old address, so it can use the same snapshot.
             addr = from_bits(address)
             earlier = [
                 c.node(
                     c.t_eq(
-                        addr - prior, 0, -127, 127, lits=[active[i]] if masked else ()
+                        addr - prior,
+                        0,
+                        -(geometry.words - 1),
+                        geometry.words - 1,
+                        lits=[active[i]] if masked else (),
                     ),
                     f"scatter.same.{lane}.{i}",
                 )
@@ -1200,6 +1308,11 @@ def build(
     if resident_compute:
         from qwengpu.compiled_matrix import operands as matrix_operands
 
+        def matrix_lookup(name, base, addresses, selects):
+            if resident_memory512:
+                return ram_lookup(name, addresses, selects)
+            return lookup(name, base, addresses, selects)
+
         matrix_a, matrix_b = matrix_operands(
             c,
             ops["MATRIX_MAC8"],
@@ -1207,7 +1320,7 @@ def build(
             active,
             [group_low, group_high],
             warp_bit,
-            lookup,
+            matrix_lookup,
         )
     updated = []
     next_high = [] if resident_add32 else old_high
@@ -1320,18 +1433,29 @@ def build(
         *next_loop,
         *next_high,
     ]
+    if resident_memory512:
+        bits.extend([*next_index_high, generic, Expr(), Expr(), Expr()])
     if resident_delta:
 
-        def padded_indices(indices: list[Expr]) -> list[Expr]:
+        def padded_indices(indices: list[Expr], high: list[Expr]) -> list[Expr]:
             return [
                 bit
                 for start in range(0, len(indices), 7)
-                for bit in (*indices[start : start + 7], Expr())
+                for bit in (
+                    *indices[start : start + 7],
+                    high[start // 7] if resident_memory512 else Expr(),
+                )
             ]
 
-        prior_state = old + padded_indices(old_indices) + active + stack + loop
+        prior_state = (
+            old + padded_indices(old_indices, prior_index_high) + active + stack + loop
+        )
         updated_state = (
-            result + padded_indices(next_index) + next_mask + next_branch + next_loop
+            result
+            + padded_indices(next_index, next_index_high)
+            + next_mask
+            + next_branch
+            + next_loop
         )
         if resident_add32:
             prior_state += old_high
@@ -1461,8 +1585,12 @@ def build(
         if indexed:
             for nib, read in enumerate(index_reads):
                 lane, half = divmod(nib, 2)
-                if bit < (4 if half == 0 else 3):
-                    index_bit = saved[SNAPSHOT_BITS + 7 * lane + 4 * half + bit]
+                if bit < (4 if half == 0 or resident_memory512 else 3):
+                    index_bit = (
+                        saved[geometry.extra_index_offset + lane]
+                        if resident_memory512 and half == 1 and bit == 3
+                        else saved[SNAPSHOT_BITS + 7 * lane + 4 * half + bit]
+                    )
                     terms += c.t_and([read, index_bit], 2 * KAPPA)
                 elif state_tag(INDEX_REGISTER, nib) >> bit & 1:
                     terms += c.t_and([read], 2 * KAPPA)
@@ -1471,6 +1599,8 @@ def build(
                 lane, digit = divmod(nib, 4)
                 index_start = SNAPSHOT_BITS + 7 * lane
                 address = saved[index_start : index_start + 7]
+                if resident_memory512:
+                    address = [*address, saved[geometry.extra_index_offset + lane]]
                 gate = [write, saved[SNAPSHOT_BITS + 56 + lane]]
                 if bit < 4:
                     low_value = saved[4 * nib + bit]
@@ -1493,10 +1623,25 @@ def build(
                 elif bit < 12:
                     scatter_terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
                 else:
+                    old_gate = (
+                        [*gate, one - saved[geometry.mode_offset]]
+                        if resident_memory512
+                        else gate
+                    )
                     if INDEX_OPERAND >> bit & 1:
-                        scatter_terms += c.t_and([*gate, one - address[6]], 2 * KAPPA)
+                        scatter_terms += c.t_and(
+                            [*old_gate, one - address[6]], 2 * KAPPA
+                        )
                     if C_MEMORY >> bit & 1:
-                        scatter_terms += c.t_and([*gate, address[6]], 2 * KAPPA)
+                        scatter_terms += c.t_and([*old_gate, address[6]], 2 * KAPPA)
+                    if resident_memory512:
+                        new_gate = [*gate, saved[geometry.mode_offset]]
+                        if bit in (12, 13):
+                            scatter_terms += c.t_and(
+                                [*new_gate, address[bit - 6]], 2 * KAPPA
+                            )
+                        elif geometry.base >> bit & 1:
+                            scatter_terms += c.t_and(new_gate, 2 * KAPPA)
             if resident_shared32 and scatter_terms:
                 c.ffn(
                     scatter_terms, f"exit.scatter.{bit}", into=expr, min_level=floor + 1
@@ -1601,6 +1746,7 @@ def build_standalone(
     resident_tilegrid: bool = False,
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
+    resident_memory512: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1627,13 +1773,19 @@ def build_standalone(
         resident_tilegrid=resident_tilegrid,
         resident_globalgrid=resident_globalgrid,
         resident_compute=resident_compute,
+        resident_memory512=resident_memory512,
     )
     return build_qwen(
         circuit,
         list(
             range(
-                TILEGRID_VOCAB
-                if resident_tilegrid or resident_globalgrid or resident_compute
+                WIDE_MEMORY.vocab
+                if resident_memory512
+                else TILEGRID_VOCAB
+                if resident_tilegrid
+                or resident_globalgrid
+                or resident_compute
+                or resident_memory512
                 else VOCAB
             )
         ),

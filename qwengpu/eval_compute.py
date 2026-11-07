@@ -12,6 +12,7 @@ import transformers
 
 from qwengpu.compiled_tile8 import RESIDENT_COMPUTE_LAYOUT, TILEGRID_VOCAB
 from qwengpu.eval_tile8 import load_tile_model
+from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
 from qwengpu.run_compute import execute_request, parse_request
 
 FIXTURE = Path(__file__).resolve().parents[1] / "eval/frozen/compute_v1/cases.json"
@@ -22,6 +23,7 @@ def main() -> None:
     parser.add_argument("--cases", type=Path, default=FIXTURE)
     parser.add_argument("--case", action="append")
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--resident-memory512", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -34,16 +36,25 @@ def main() -> None:
         or any(name not in raw for name in selected)
     ):
         parser.error("expected unique case names from the input manifest")
-    requests = [(name, parse_request(raw[name])) for name in selected]
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
+    memory512 = args.resident_memory512 or (
+        meta is not None and meta.get("layout") == MEMORY512_LAYOUT
+    )
+    requests = [
+        (name, parse_request(raw[name], memory512=memory512)) for name in selected
+    ]
     if meta is not None and (
-        meta.get("layout") != RESIDENT_COMPUTE_LAYOUT
-        or meta.get("chip_vocab") != TILEGRID_VOCAB
+        meta.get("layout")
+        != (MEMORY512_LAYOUT if memory512 else RESIDENT_COMPUTE_LAYOUT)
+        or meta.get("chip_vocab")
+        != (WIDE_MEMORY.vocab if memory512 else TILEGRID_VOCAB)
     ):
         parser.error("expected a merged compute checkpoint")
-    model, circuit = load_tile_model(args.model, args.device, resident_compute=True)
+    model, circuit = load_tile_model(
+        args.model, args.device, resident_compute=True, resident_memory512=memory512
+    )
     records = []
     for name, request in requests:
         result = execute_request(
