@@ -3,7 +3,7 @@
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
-was November 7, 2026 at 04:23 UTC.
+was November 7, 2026 at 05:16 UTC.
 
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
@@ -54,13 +54,13 @@ was November 7, 2026 at 04:23 UTC.
 | `e28q01ftnq770h` | Public tilepipe multiply, text and cache integration | $0.566842 | |
 | `d3vvbd3rvgwktg` | Merged tilegrid matrix, inherited cases, kernel and text qualification | $1.128544 | |
 | `mcla5c112zcnxu` | Merged globalgrid IDs, reduction, and launcher checks | $0.309297 | |
-| `lcs8xcxtr8ezrj` | Full globalgrid qualification and common compute kernels | Pending | $3.50 reserved, active |
+| `lcs8xcxtr8ezrj` | Full globalgrid and compute qualification, larger reductions, and transport benchmark | $0.620611 | $1.88 remaining |
 
-Total posted is about $23.18. Including the active pod's conservative
-reserve, tracked spend is about $26.68, leaving about $47.32 under the
-approved cap. Pod `lcs8xcxtr8ezrj` started on November 7 at 03:54:49 UTC
-on the quoted A100 SXM 80 GB at $1.79/hour. Copy reports before terminating
-it and reconcile the reserve with elapsed time and posted billing.
+Total posted is about $23.80. Including the remaining reserve for unposted
+charges, tracked project spend is about $25.68, leaving about $48.32 under
+the approved project cap. This is a project ledger, not an account balance.
+The latest QwenGPU task pod was terminated and is absent from the live
+pod list. Reconcile its remaining estimate when final charges post.
 
 The A100 for resident and indexed validation ran from about 2:34:30 p.m.
 to 2:49:33 p.m. Pacific at $1.79/hour. Both merged Qwen3.5-9B suites
@@ -291,3 +291,14 @@ The ledger reserves $0.35 including disk until billing posts.
 The IDs, two-pass reduction, and public and legacy launchers
 matched. The pod was terminated after copying the reports.
 RunPod returned HTTP 204 and an empty live pod list.
+
+The full qualification A100 SXM 80 GB (`lcs8xcxtr8ezrj`) ran on November 7
+from 03:54:49 to 05:16:34 UTC at the quoted $1.79/hour. Its approximately
+81.74 minutes imply $2.44 of compute. Reserve $2.50 total including disk;
+$0.620611 has posted and about $1.88 remains reserved. It qualified
+globalgrid and the unified compute checkpoint, including the common
+kernels, inherited traces, large matrix, global IDs, native text, retained
+cache handoffs, and repaired transport benchmark. All reports, config,
+weight index, shard hashes, commands, and pinned rebuild instructions
+were copied before termination. RunPod returned HTTP 204 and a fresh list
+confirmed this task pod was gone. See `results/compute_runpod_cost.json`.

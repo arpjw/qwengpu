@@ -13,6 +13,9 @@ matrix programs with model-scheduled warps and indexed global memory.
 See [COMPUTE_DESIGN.md](COMPUTE_DESIGN.md) for the supported dimensions,
 arithmetic, and memory map; [REPRODUCE.md](REPRODUCE.md#run-variable-size-common-kernels)
 has standalone MPS and merged Qwen3.5-9B commands.
+The current checkpoint passes 22 frozen common requests and 27 inherited
+GPU cases on both backends, plus the one-cache 16×16 demo and cache handoffs.
+Fresh text matches base on 24/24 first tokens and 21/24 short continuations.
 [VALIDATION.md](VALIDATION.md) records measured gates, and
 [SCOPE.md](SCOPE.md) lists the remaining architecture work.
 

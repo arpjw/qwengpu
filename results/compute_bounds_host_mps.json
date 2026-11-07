@@ -1,0 +1,21 @@
+{
+  "source_commit": "2a17752",
+  "compiler_commit": "ca13310e2f9f788d1dd3feeea8213c1b0c23913c",
+  "python": "3.13.14 (main, Jun 23 2026, 15:20:43) [Clang 22.1.3 ]",
+  "torch": "2.14.1",
+  "transformers": "5.19.0",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M4",
+  "memory_bytes": 17179869184,
+  "mps_available": true,
+  "source_sha256": {
+    "qwengpu/compiled_tile8.py": "ff3ba6e67bab557220550a84f637a5e9818e3cdd33a7fbd318da3fbb011d6d25",
+    "qwengpu/compiled_matrix.py": "660d55eddf8de8ce93855c9b9645bbf19f0867492782b32cd5278bba94efb7d4",
+    "qwengpu/eval_tile8.py": "c375935c90d3df3e0696c5caafbea9e9401a3d315ee9d4214b423d0f55146948",
+    "eval/frozen/compute_bounds_v1/matrix_extent.json": "e994eb1808eaf16533a17a785b2fd41e8aae19f5ff71b4808a2f3aff8c93cf27"
+  },
+  "commands": [
+    "python -m qwengpu.run_resident eval/frozen/compute_bounds_v1/matrix_extent.json --resident-compute --device mps --check-reference --trace --out /tmp/qwengpu-compute-bounds-trace-mps.json"
+  ],
+  "reference_only_correction": true
+}

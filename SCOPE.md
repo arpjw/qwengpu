@@ -2,18 +2,24 @@
 
 ## Current validated checkpoint
 
-Globalgrid extends the validated tilegrid machine with programmable
-workgroups, model-derived IDs, and global memory shared across sequential
-groups. Its ID and two-pass uint32 reduction gates pass on MPS and merged
-Qwen3.5-9B. All 27 inherited GPU case records also match on both backends.
-The specialized 16×16 tiled mode uses one inference cache, four scheduled
-output tiles, and two K slices per tile.
+The current qualified layout is `qwengpu-resident-compute-9b-v1`.
+One fixed constructed checkpoint runs variable-size uint32 vector addition
+up to 32 values, reduction up to 64 values, and byte-input matrix multiply
+with uint32 accumulation for M ≤ 8, K ≤ 4, N ≤ 4. All 22 frozen common
+requests and all 27 inherited GPU cases match on MPS and merged Qwen3.5-9B.
+The same checkpoint runs the specialized 16×16 modular uint16 multiply in
+one inference cache, with four scheduled output tiles and two K slices.
+Both scalar pass matrices, all eight tile traces, transitions, and upload
+audits match on both backends.
 
-The compute candidate adds a common interface for variable-size uint32
-vector addition and reduction, plus byte-input matrix multiplication with
-uint32 accumulation. Shape-specific programs use fixed weights. Its frozen
-model qualification is tracked in VALIDATION.md; the design and exact
-limits are in COMPUTE_DESIGN.md.
+The model derives lane, thread, workgroup, and global IDs. One to four
+sequential workgroups access the same programmable memory. A dependent
+reduction launch keeps that memory with zero re-upload. The raw matrix
+extent probe also matches on both backends. Fresh text matches base on
+24/24 first tokens and 21/24 short greedy continuations. Four text-cache
+resets and a GPU-to-text-to-GPU arithmetic relaunch reproduce their
+fresh-cache controls exactly. VALIDATION.md records these bounded results;
+COMPUTE_DESIGN.md defines the interface and exact limits.
 
 The machine still uses host-relayed tokens and 16 ROM slots per warp.
 Workgroups run sequentially, and programmable global memory contains 128
@@ -348,7 +354,7 @@ See [ROM_DESIGN.md](ROM_DESIGN.md) for the concrete first design.
 
 ## Measurement and decision rules
 
-The next architectural gates, after qualifying the compute candidate, are:
+The next architectural gates after the qualified compute checkpoint are:
 
 | Gate | Required change | Evidence needed |
 | --- | --- | --- |

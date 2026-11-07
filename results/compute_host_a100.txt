@@ -1,0 +1,15 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=e6be9c58ca2af1cc57654f2aa662e0957fb71831
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+PYTORCH_ALLOC_CONF=expandable_segments:True
+ff3ba6e67bab557220550a84f637a5e9818e3cdd33a7fbd318da3fbb011d6d25  qwengpu/compiled_tile8.py
+660d55eddf8de8ce93855c9b9645bbf19f0867492782b32cd5278bba94efb7d4  qwengpu/compiled_matrix.py
+c6a45f72258557a8b49b61edf771ff9b9ec03c0e373f0801a03034761cd222fc  qwengpu/eval_tile8.py
+513887e3439f23e1cde32866ffb19fe9769533342048f875ba9cc4db5319e1f4  qwengpu/run_compute.py
+f699e58b564375dc41ccd8d03605cf6647f0b22d911b79105098db3ccd3305cd  eval/frozen/compute_v1/cases.json
+merge_started_utc=2026-11-07T04:27:38Z
+merge_finished_utc=2026-11-07T04:31:28Z
+compute_finished_utc=2026-11-07T04:36:41Z
+decode_finished_utc=2026-11-07T04:37:13Z
+public_finished_utc=2026-11-07T04:37:52Z

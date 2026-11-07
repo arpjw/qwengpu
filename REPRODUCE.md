@@ -1744,7 +1744,8 @@ Saved-evidence checks use no model or paid compute:
 ```sh
 python3 scripts/check_compute.py --cuda
 python3 scripts/check_compute.py --decode --cuda
-python3 scripts/check_compute.py --extent --cuda
+python3 scripts/check_compute.py --extent --cuda --public
+python3 scripts/check_compute_bounds.py --cuda
 python3 scripts/check_compute_transport.py
 python3 scripts/check_checkpoint_full.py --cuda --matrix --text
 python3 scripts/check_checkpoint_full.py --stem compute --cuda --matrix --text --global-memory
@@ -1755,3 +1756,20 @@ eval/frozen/compute_decode_v1/cases.json` or `--cases
 eval/frozen/compute_extent_v1/cases.json`, with the same `--device`, `--model`,
 and `--out` arguments as above. The 64-value reduction changes only request
 packing and validation; it uses the already constructed compute weights.
+
+The raw matrix extent probe runs four groups with every lane active. It
+checks that IDs beyond the eight-row operand extent preserve their values:
+
+```sh
+probe=eval/frozen/compute_bounds_v1/matrix_extent.json
+"$QWENGPU_PYTHON" -m qwengpu.run_resident "$probe" --resident-compute \
+  --device mps --check-reference --trace --out /tmp/qwengpu-compute-bounds-mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_resident "$probe" --model "$model" \
+  --device cuda --check-reference --trace --out /tmp/qwengpu-compute-bounds-9b.json
+```
+
+The tested checkpoint's config, metadata, weight index, and shard hashes
+are saved in `results/compute_checkpoint_manifest.json`. The large binary
+weights are rebuilt from the pinned base and compiler; they are not in Git.
+Exact executed RunPod pipelines and their source revisions are recorded in
+`results/compute_*_runpod_commands.sh` and the corresponding host reports.

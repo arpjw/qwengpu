@@ -1496,12 +1496,11 @@ fresh MPS replay above includes the failing case. The diagnostic is kept
 in `results/compute_smoke_failure_mps.json`.
 
 Reference tests also cover vector lengths 0 through 32, reduction lengths
-0 through 64, and 48 matrix shapes, including modular overflow. These interpreter
-checks are separate from the eighteen actual model cases. A separate
+0 through 64, and 48 matrix shapes, including modular overflow. These
+interpreter checks are separate from the eighteen original model cases. A separate
 decode/max-product/wrap manifest is frozen in `compute_decode_v1`. Its
-5×2×2 maximum-byte-product case passes on merged 9B; MPS is queued.
-The inherited, full-matrix, and text qualification on this merge remains
-in progress. The first benchmark hit an optional-counter reporting bug;
+5×2×2 maximum-byte-product case matches on MPS and merged 9B.
+The first benchmark hit an optional-counter reporting bug;
 `results/compute_benchmark_failure.json` records it. It changed no weights.
 
 Reduction input packing now supports 64 values in four workgroups without
@@ -1520,11 +1519,37 @@ three larger reductions. The latter use three or four sequential groups;
 the 64-value all-maximum-word case returns `0xffffffc0` modulo 2³².
 See `results/compute_extent_mps.json`.
 
-The complete 27-case inherited replay passes on the compute MPS circuit
-and exactly reproduces the tilegrid baseline. The maximum-byte-product
-5×2×2 matrix also matches between MPS and merged 9B, including all raw
-case records. See `results/compute_inherited_mps.json` and
-`results/compute_decode_mps.json`.
+The complete 27-case inherited replay passes on compute MPS and merged 9B,
+with identical case records that exactly reproduce the tilegrid baseline.
+The public one-cache 16×16 multiply also matches on these two compute
+backends: 928 instructions, both scalar accumulation passes, all eight tile
+traces, seven transitions, and all upload counts. Four workgroup ID probes
+and the inherited cross-workgroup reduction match the earlier MPS records.
+See `results/compute_inherited_*`, `results/compute_matmul16_*`, and
+`results/compute_globalgrid_9b_cuda_fla.json`.
+
+Fresh text on the same merge matches base on all 24 first tokens and
+21/24 greedy continuations of up to sixteen tokens, with no chip-token
+emissions. All four text-cache resets preserve inspected GPU state and
+reproduce fresh-cache logits and continuations exactly. The full-width
+GPU-to-text-to-GPU round trip reproduces its prior execution, with a
+20-instruction consumer and 512 initial memory-upload tokens omitted.
+See `results/compute_text_9b_cuda_fla.json`,
+`results/compute_handoff_reset_9b_cuda_fla.json`, and
+`results/compute_arithmetic_relaunch_9b_cuda_fla.json`. Run
+`python3 scripts/check_checkpoint_full.py --stem compute --cuda --matrix --text --global-memory`.
+
+The final raw-ISA probe leaves all lanes active across four workgroups.
+For a matrix instruction with K=N=1, IDs 0 through 7 accumulate a product;
+IDs 8 through 63 preserve their accumulators and issue no writes. Model
+lookups already returned zero outside the eight-row extent. Review found
+that the interpreter could instead read later memory there; its bounds
+guard now matches the circuit. This changes no constructed weights.
+The MPS and merged 9B probes match on every trace and all memory words.
+Reference tests cover all forty K/N/position encodings for this boundary.
+See `results/compute_bounds_*` and run
+`python3 scripts/check_compute_bounds.py --cuda`. The final local suite has
+34 passing test methods.
 
 ## Compute transport measurement
 

@@ -1,0 +1,39 @@
+{
+  "layout": "qwengpu-resident-compute-9b-v1",
+  "chip_token_offset": 248320,
+  "chip_vocab": 131072,
+  "chip_layers": 31,
+  "hidden": 7424,
+  "slots": 3238,
+  "code_dims": [
+    4271,
+    4272,
+    4273,
+    4274,
+    4275,
+    4276,
+    4277,
+    4278,
+    4279,
+    4280,
+    4281,
+    4282,
+    4283,
+    4284,
+    4285,
+    4286,
+    4287
+  ],
+  "tau_dim": 4125,
+  "mute_dim": 6578,
+  "fit_anti_sink": true,
+  "circuit": {
+    "layers": 31,
+    "dims": 8294,
+    "heads": 226,
+    "ffn_units": 21104,
+    "max_units": 5592,
+    "max_heads": 16
+  },
+  "output_head_tied": false
+}

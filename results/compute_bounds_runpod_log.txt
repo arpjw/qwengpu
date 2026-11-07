@@ -1,0 +1,6 @@
+
+Loading weights:   0%|          | 0/861 [00:00<?, ?it/s]
+Loading weights:  89%|████████▉ | 769/861 [00:00<00:00, 7680.98it/s]
+Loading weights: 100%|██████████| 861/861 [00:00<00:00, 7699.61it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+bounds_finished_utc=2026-11-07T05:15:52Z
