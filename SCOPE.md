@@ -2,30 +2,35 @@
 
 ## Current validated checkpoint
 
-The current qualified layout is `qwengpu-resident-compute-9b-v1`.
-One fixed constructed checkpoint runs variable-size uint32 vector addition
-up to 32 values, reduction up to 64 values, and byte-input matrix multiply
-with uint32 accumulation for M ≤ 8, K ≤ 4, N ≤ 4. All 22 frozen common
-requests and all 27 inherited GPU cases match on MPS and merged Qwen3.5-9B.
-The same checkpoint runs the specialized 16×16 modular uint16 multiply in
-one inference cache, with four scheduled output tiles and two K slices.
-Both scalar pass matrices, all eight tile traces, transitions, and upload
-audits match on both backends.
+The qualified layout is `qwengpu-resident-memory512-9b-v1`. One fixed
+constructed merged checkpoint runs uint32 vector addition up to 64 values,
+reduction up to 128 values, and byte-input matrix multiply with uint32
+accumulation for M <= 8, K <= 4, N <= 4. All 31 frozen common requests,
+seven raw bank/barrier/collision probes, the separate raw matrix-extent
+probe, and all 27 inherited cases match on standalone MPS and merged
+Qwen3.5-9B CUDA.
 
-The model derives lane, thread, workgroup, and global IDs. One to four
-sequential workgroups access the same programmable memory. A dependent
-reduction launch keeps that memory with zero re-upload. The raw matrix
-extent probe also matches on both backends. Fresh text matches base on
-24/24 first tokens and 21/24 short greedy continuations. Four text-cache
-resets and a GPU-to-text-to-GPU arithmetic relaunch reproduce their
-fresh-cache controls exactly. VALIDATION.md records these bounded results;
-COMPUTE_DESIGN.md defines the interface and exact limits.
+The same checkpoint runs the specialized 16x16 modular uint16 multiply in
+one cache, with four output tiles and two K slices. Both assembled scalar
+pass matrices, all eight traces, transitions, and upload audits match.
+Lane, thread, workgroup, and global IDs come from model state. One to four
+sequential workgroups share 256 programmable uint16 words, or 512 bytes.
+Dependent reduction launches retain that bank with zero memory re-upload.
 
-The machine still uses host-relayed tokens and 16 ROM slots per warp.
-Workgroups run sequentially, and programmable global memory contains 128
-uint16 words, or 256 bytes. Specialized matrix banks use a separate fixed
-layout. These bounds and frozen-case results do not establish a complete
-general-purpose GPU or arbitrary-program correctness.
+Fresh text matches base on 24/24 first tokens and 21/24 short greedy
+continuations. Four native-cache resets, a legacy full-width arithmetic
+relaunch, and a reduction across native text reproduce their controls
+exactly. The active expanded-bank handoff preserves all 8,192 indexed-port
+nibbles. VALIDATION.md records the tests and initial native-text regression;
+MEMORY512_DESIGN.md defines the supported interface.
+
+The machine still uses host-relayed tokens, sixteen ROM slots per warp,
+and sequential workgroups. Specialized matrix banks are a separate fixed
+layout. The remaining gates below cover richer programs and arithmetic,
+separate memory spaces, resident groups, and reduced host involvement.
+These bounded results do not establish a complete general-purpose GPU.
+
+## Earlier gates
 
 The standalone vector-grid circuit establishes the first grid scheduling
 gate on MPS. A length descriptor drives up to two eight-lane workgroups
@@ -354,11 +359,11 @@ See [ROM_DESIGN.md](ROM_DESIGN.md) for the concrete first design.
 
 ## Measurement and decision rules
 
-The next architectural gates after the qualified compute checkpoint are:
+The next architectural gates after the qualified 512-byte checkpoint are:
 
 | Gate | Required change | Evidence needed |
 | --- | --- | --- |
-| Larger programmable memory | Separate private, workgroup-shared, and global banks with explicit addresses | Boundary accesses, isolation, aliasing, guards, and cross-group visibility on both backends |
+| Separate address spaces | Add private and per-workgroup shared banks with explicit isolation from the 512-byte global bank | Boundary accesses, isolation, aliasing, guards, and cross-group visibility on both backends |
 | Longer and more general programs | More than sixteen ROM slots, richer address arithmetic, and runtime extents | Unseen uploaded programs and lengths on the same weights, with exact traces and bounded termination |
 | Broader arithmetic | Full-width multiply, comparisons and bitwise operations; define signed and floating-point semantics separately | Overflow, carry, shift boundaries, signed extremes, and numerical edge cases where applicable |
 | Multiple resident workgroups | Bank each group's PCs, registers, masks, and barrier state; schedule without resetting the only group bank | Interleaved producer/consumer traces, independent barriers, fairness, and explicit memory ordering |
@@ -368,8 +373,10 @@ The next architectural gates after the qualified compute checkpoint are:
 These are remaining implementation gates. Passing the small common-kernel
 suite does not close them. Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
-NEXT_MEMORY_DESIGN.md records the first capacity step, the seven-bit
-index/snapshot constraints, and token/ROM encoding hazards found in source.
+The capacity step is qualified in MEMORY512_DESIGN.md. NEXT_MEMORY_DESIGN.md
+retains its historical proposal and the original encoding hazards. Future
+layout changes must preflight allocation and retain the native-text gate;
+the validation pipeline checks text before the expensive GPU regressions.
 
 For each gate, freeze programs before the model run, compare generated tokens
 and actual recurrent state to the independent interpreter, and test both the

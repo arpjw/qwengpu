@@ -23,6 +23,15 @@ mark() { printf '%s_utc=%s\n' "$1" "$(date -u +%FT%TZ)" | tee -a "$host"; }
 mark merge_started
 "$py" -m qwengpu.merge9b "$base" --resident-memory512 --out "$model"
 mark merge_finished
+"$py" -m qwengpu.textcheck_9b "$base" "$model" --device cuda --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 --out "$reports/memory512_text_9b_cuda_fla.json"
+"$py" - <<'CHECK'
+import json
+p=json.load(open("/workspace/reports/memory512_text_9b_cuda_fla.json"))
+assert p["next_top1_same"] == 24 and p["greedy_identical"] >= 21
+assert p["merged_chip_tokens"] == 0
+CHECK
+mark text_gate_passed
+"$py" scripts/capture_checkpoint_manifest.py "$model" --source "$1" --compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c --base c202236235762e1c871ad0ccb60c8ee5ba337b9a --variant resident-memory512 --out "$reports/memory512_checkpoint_manifest.json"
 "$py" -m qwengpu.eval_memory512 --model "$model" --device cuda --out "$reports/memory512_9b_cuda_fla.json"
 mark memory512_finished
 bash scripts/qualify_resident_add32.sh --resident-memory512 "$model" --device cuda --out "$reports/memory512_inherited_9b_cuda_fla.json"
@@ -34,9 +43,11 @@ mark globalgrid_finished
 "$py" -m qwengpu.run_compute examples/memory512_vector_64.json --model "$model" --device cuda --transport fixed --trace --out "$reports/memory512_public_vector_9b_cuda_fla.json"
 "$py" -m qwengpu.run_compute examples/memory512_reduce_128.json --model "$model" --device cuda --transport fixed --trace --out "$reports/memory512_public_reduce_9b_cuda_fla.json"
 mark public_finished
-"$py" -m qwengpu.textcheck_9b "$base" "$model" --device cuda --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 --out "$reports/memory512_text_9b_cuda_fla.json"
-mark text_finished
 "$py" -m qwengpu.eval_text_handoff "$model" --device cuda --reset-text --out "$reports/memory512_handoff_reset_9b_cuda_fla.json"
 mark handoff_reset_finished
 "$py" -m qwengpu.eval_cache_relaunch "$model" --addmem32 --device cuda --out "$reports/memory512_arithmetic_relaunch_9b_cuda_fla.json"
 mark arithmetic_relaunch_finished
+"$py" -m qwengpu.run_resident eval/frozen/memory512_extent_v1/matrix_extent.json --model "$model" --device cuda --check-reference --trace --out "$reports/memory512_bounds_9b_cuda_fla.json"
+mark bounds_finished
+"$py" -m qwengpu.eval_memory512_handoff "$model" --device cuda --out "$reports/memory512_ram_handoff_9b_cuda_fla.json"
+mark ram_handoff_finished

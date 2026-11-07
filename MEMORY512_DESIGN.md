@@ -1,7 +1,7 @@
 # 512-byte programmable memory
 
-The new layout is `qwengpu-resident-memory512-9b-v1`. This document defines
-the candidate; qualification results belong in VALIDATION.md.
+The new layout is `qwengpu-resident-memory512-9b-v1`. This layout is qualified on standalone MPS and merged Qwen3.5-9B on CUDA.
+VALIDATION.md records the bounded tests and the initial text regression.
 
 ## Memory and address semantics
 

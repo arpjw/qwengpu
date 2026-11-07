@@ -1580,80 +1580,101 @@ config, generation config, weight index, metadata, and hashes for all 25
 weight shards. The binary weights are not stored in Git. Rebuild them
 from the pinned base revision and compiler using the recorded merge command.
 
-## Initial 512-byte primary memory and workload gate
+## Qualified 512-byte memory checkpoint
 
-The `qwengpu-resident-memory512-9b-v1` primary gate passes on standalone
-Apple MPS and merged Qwen3.5-9B on an A100-SXM4-80GB. Each backend completes
-31 frozen common requests and seven raw memory probes. Their complete
-case and raw records match exactly, including generated tokens, schedules,
-packed snapshots, full memory, and transport audits. Independent saved-JSON
-checks recompute outputs and every guard word without loading a model.
+`qwengpu-resident-memory512-9b-v1` is qualified on standalone Apple MPS and
+merged Qwen3.5-9B on an A100-SXM4-80GB. Both complete 31 frozen common
+requests, seven raw memory probes, the separate raw matrix-extent probe,
+and all 27 inherited cases. The common-kernel and raw-probe records match
+exactly between backends. Every inherited case field matches the previous
+compute checkpoint.
 
-The expanded programmable bank contains 256 uint16 words, or 512 bytes.
-Vector addition supports 0 through 64 uint32 elements, and reduction
-supports 0 through 128 uint32 elements. All four larger vector lengths
-33, 47, 63, and 64 pass. Expanded reductions of 65, 79, 95, 127, and 128
-inputs pass; 128 maximum uint32 inputs produce `0xffffff80`.
-Each reduction uses two launches in one inference cache, with 1024 initial
-memory tokens and zero memory re-upload for the consumer.
+Vector addition supports 0 through 64 uint32 elements. Reduction supports
+0 through 128 uint32 inputs in two launches with one cache: 1,024 initial
+memory tokens and zero consumer memory re-upload. Frozen larger vectors
+33, 47, 63, and 64 and reductions 65, 79, 95, 127, and 128 pass. The
+128-input all-maximum reduction returns `0xffffff80`. Independent JSON
+checks recompute outputs and every word of the 256-word memory image.
 
-The raw probes cover paired addresses 0/128, 63/191, 64/192, and 127/255,
-lowest-active-lane collision priority, masked collisions, and a cross-warp
-barrier handoff using both 32-bit limbs. Every completed workgroup audits
-all 256 words in all eight indexed-port copies of the recurrent state.
-The bank-boundary handoff produces and copies the wrapped value 9.
+Raw bank probes cover addresses 0/128, 63/191, 64/192, and 127/255,
+masked collisions, lowest-active-lane priority, and a cross-warp barrier
+handoff with both uint32 limbs. The handoff wraps and copies value 9.
+Memory audits inspect all 256 words in all eight indexed-port copies of
+recurrent state at initialization and workgroup boundaries. The separate
+matrix-extent program checks all 64 lane IDs and untouched memory across
+four groups. Public fixed-transport vector64 and reduction128 records
+match their planned-transport execution records.
 
-All 38 unit checks pass. The new reference checks cover every word address,
-every vector length 0 through 64, every reduction length 0 through 128,
-and all 128 extended low/high XOR-mask encodings. These exhaustive scalar
-checks are distinct from the frozen actual-inference cases above.
+The one-cache 16x16 modular uint16 kernel also passes on both backends.
+All eight tile traces, transitions, memory audits, and transport records
+match the previous checkpoint. The checker assembles the four 8x8 tiles
+for each K bank and independently recomputes both whole-matrix scalar
+passes. The report contains eight tile-level passes, rather than two
+whole-matrix entries.
 
-The standalone graph has 34 layers, 8,873 dimensions, and 290 heads. Its
-merge has 35 processor layers, hidden width 7,680, and 3,383 live slots.
-Preflight preserves the previous compute graph's complete IR and ROM
-semantics and keeps every attention-head row index at or below 127.
-The initial unoptimized allocation needed hidden width 11,008; shared
-row/nibble/bank loading features avoid that expansion.
+Fresh native text retains 24/24 first-token matches, 21/24 greedy
+continuations of at most 16 tokens, and zero generated chip tokens. All
+24 merged generated sequences match the previous compute checkpoint;
+diagnostic logit measurements are not identical. Four text-cache resets
+and a legacy full-width GPU-to-text-to-GPU arithmetic relaunch match their
+fresh controls exactly. A separate reduction127 pauses for native text
+between producer and consumer. All 8,192 expanded-bank port nibbles remain
+exact, the retained consumer re-uploads zero memory, and its record matches
+the primary reduction and cold control. These are frozen, bounded checks
+of text behavior, rather than a general language-quality guarantee.
 
-`results/memory512_checkpoint_manifest.json` records the tested stock
-configuration, generation configuration, metadata, weight index, and hashes
-for all 27 shards. Actual tensor storage is 66,769,140,352 bytes, about
-62.184 GiB. This exceeds the uniform-BF16 meta estimate by 7,680 bytes
-because 3,840 pretrained attention parameters retain float32 storage.
-The binary weights are rebuilt from the pinned compiler and base revisions.
+The standalone graph has 34 layers, 8,752 dimensions, and 290 heads. The
+merge has 35 processor layers, 8,753 dimensions including its exit marker,
+hidden width 7,424, and 3,262 live slots. No head row exceeds index 127.
+Preflight confirms that the earlier compute layout's complete IR and ROM
+semantics remain unchanged when the memory512 flag is absent.
 
-Primary evidence is in `results/memory512_mps.json`,
-`results/memory512_9b_cuda_fla.json`, and
-`results/memory512_primary_check.txt`. Reproduction commands and the
-implemented ABI are in REPRODUCE.md and MEMORY512_DESIGN.md.
+Actual checkpoint tensor storage is 64,543,632,512 bytes, or 60.111 GiB.
+The uniform-BF16 meta estimate is 7,680 bytes smaller because 3,840
+pretrained attention parameters retain float32 storage. The stock config,
+generation config, metadata, index, and hashes of all 26 shards are in
+`results/memory512_checkpoint_manifest.json`. Binary weights are rebuilt
+from the pinned source, compiler, and base revision; they are not in Git.
 
-Native-text qualification retains the prior frozen-corpus gate: 24/24
-first-token matches and at least 21/24 greedy continuations of at most
-16 generated tokens, plus exact reset and arithmetic-relaunch controls.
+All 38 unit checks pass. Scalar checks cover every word address, every
+vector length 0 through 64, every reduction length 0 through 128, and the
+extended XOR-mask encodings. Actual inference coverage is the frozen set
+above. The audit reader caches head locations without changing reference
+column or bit validation. A synthetic CPU comparison covers all 290 heads
+and 1,160 row reads against the pinned old reader, plus append invalidation
+and unwritten/invalid-bit behavior. Model runs still inspect the actual
+recurrent values at every audited position.
 
-Full compatibility qualification remains in progress. The merged model
-already matches all 27 inherited case records; the MPS suite, long tiled
-replays, and text/cache boundary checks are still running. SCOPE.md keeps
-the earlier fully qualified baseline until those checks finish.
+`results/memory512_qualification.txt` records the complete offline check.
+The MPS and CUDA reports, host details, exact commands, and rebuild
+manifest use the `memory512_` prefix. The RunPod pipeline validates native
+text before the expensive arithmetic gates.
 
-The initial memory512 merge fails the retained first-token threshold:
-23/24 first tokens, 21/24 short greedy continuations, and zero generated
-chip tokens. Its exact frozen text report is retained as
-`results/memory512_initial_text_9b_cuda_fla.json`. The arithmetic-qualified
-candidate is not promoted; the compact-key replacement restores the retained text gate. Full
-replacement-checkpoint qualification is now running.
+### Initial candidate and correction
 
-## Compact 512-byte candidate requalification
+The initial implementation used 128 one-hot RAM-row features and needed
+3,383 slots and hidden width 7,680. It passed the expanded arithmetic
+cases but lost one frozen first-token match: 23/24, with 21/24 short greedy
+continuations. It was not promoted. Encoding rows with seven address bits
+removes 121 live slots and restores the previously qualified hidden width
+of 7,424 and the 24/24 first-token gate. The selected weights are about
+2.07 GiB smaller. Completed initial evidence is retained under
+`results/memory512_initial/`, including the text regression and the active
+RAM handoff. Its unfinished local tiled follow-ups were cancelled before
+requalifying the compact replacement.
 
-Encoding RAM rows with seven address bits removes 121 live slots. The
-compact candidate has 3,262 merge slots, hidden width 7,424, and 35 processor
-layers. MPS smoke tests for the barrier handoff, vector64, and reduction128
-produce exactly the same records as the initial candidate.
+The final saved-evidence checker initially treated two tile entries as
+whole matrices. Correcting its tile assembly restores the intended direct
+scalar comparison without changing model outputs or relaxing the check.
 
-The rebuilt 9B merge restores 24/24 first tokens, 21/24 short greedy
-continuations, and zero generated chip tokens. The retained match counts equal the previous compute checkpoint; the
-complete per-prompt records are not identical.
-See `results/memory512_opt/memory512_text_9b_cuda_fla.json`. This resolves
-the initial widened model's additional first-token mismatch without changing
-the text threshold. Complete arithmetic and compatibility requalification
-remains in progress on both backends.
+### Compute accounting
+
+The task pod was quoted at $1.79/hour and terminated at
+2026-11-07 07:58:47 UTC after results were copied and checked. It is absent
+from the subsequent live pod list. Compute is estimated at $3.79; a $4.00
+total reserve covers pending billing and storage/rounding allowance.
+Posted project charges plus conservative reserves total about $29.68 of
+the approved $74 cap, leaving about $44.32 of project authorization. This
+is not a live account-credit balance. Exact posted records and estimates
+are in `results/memory512_runpod_cost.json`; unrelated resources are
+excluded and were not changed.

@@ -8,30 +8,35 @@ refer to simulated machines inside model state, not physical hardware.
 The processor weights are constructed by the compiler; this experiment does
 not fine-tune the pretrained model.
 
-The newest compute interface runs uploaded vector-add, reduction, and
-matrix programs with model-scheduled warps and indexed global memory.
-See [COMPUTE_DESIGN.md](COMPUTE_DESIGN.md) for the supported dimensions,
-arithmetic, and memory map; [REPRODUCE.md](REPRODUCE.md#run-variable-size-common-kernels)
-has standalone MPS and merged Qwen3.5-9B commands.
-The current checkpoint passes 22 frozen common requests and 27 inherited
-GPU cases on both backends, plus the one-cache 16×16 demo and cache handoffs.
-Fresh text matches base on 24/24 first tokens and 21/24 short continuations.
-[VALIDATION.md](VALIDATION.md) records measured gates, and
-[SCOPE.md](SCOPE.md) lists the remaining architecture work.
+The current qualified layout, `qwengpu-resident-memory512-9b-v1`, has 512
+bytes of programmable global memory. The same constructed checkpoint runs
+uint32 vector addition up to 64 elements, reduction up to 128 inputs, and
+byte-input matrix programs with uint32 accumulation.
+[MEMORY512_DESIGN.md](MEMORY512_DESIGN.md) specifies the memory and ISA;
+[REPRODUCE.md](REPRODUCE.md#run-the-512-byte-memory-layout) gives MPS and
+merged Qwen3.5-9B commands.
+
+All 31 frozen common requests, eight raw probes, and 27 inherited cases
+match on standalone MPS and merged 9B CUDA. The same checkpoint preserves
+the one-cache 16x16 tiled demo. Fresh text matches base on 24/24 first
+tokens and 21/24 short greedy continuations; reset and relaunch controls
+are exact. The expanded bank also survives native text between reduction
+launches with zero memory re-upload. [VALIDATION.md](VALIDATION.md) records
+the evidence, and [SCOPE.md](SCOPE.md) lists remaining architecture work.
 
 ```sh
 export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
 ../qwenputer/experimental/riscv/.venv/bin/python -m qwengpu.run_compute \
-  examples/compute_matmul.json --device mps
+  examples/memory512_reduce_128.json --resident-memory512 --device mps
 ```
 
-This remains a bounded GPU experiment: two eight-lane warps per group,
-sixteen ROM slots per warp, sequential groups, 256 bytes of programmable
-global memory, and host forwarding of model-generated state and stores.
-The specialized tiled mode also has separate fixed matrix banks and
-16-bit modular outputs. The common small-matrix runner accumulates in
-32 bits. There
-is no acceleration or complete general-purpose GPU claim.
+This remains a bounded SIMT engine: two eight-lane warps per group, sixteen
+ROM slots per warp, one to four sequential groups, and host forwarding of
+model-generated state and stores. Specialized tiled mode uses separate
+fixed matrix banks and modular uint16 outputs. The common small-matrix
+runner accumulates in uint32. These finite tests establish supported
+behavior within those bounds; they do not establish arbitrary-program
+correctness or useful acceleration.
 
 ## Original SIMT variant
 

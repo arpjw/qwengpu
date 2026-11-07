@@ -1776,7 +1776,7 @@ Exact executed RunPod pipelines and their source revisions are recorded in
 
 ## Run the 512-byte memory layout
 
-The memory512 candidate doubles programmable capacity and the vector/reduction
+The qualified memory512 layout doubles programmable capacity and the vector/reduction
 bounds. MEMORY512_DESIGN.md defines its address and compatibility semantics.
 The existing compute layout remains available with its original dimensions.
 
@@ -1797,7 +1797,7 @@ bash scripts/qualify_resident_add32.sh --resident-memory512 --device mps \
 ```
 
 Build from the pinned base/compiler revisions using the existing bootstrap.
-Preflight estimates 62.2 GiB of BF16 weights; the merge needs adequate host
+The selected checkpoint stores 60.11 GiB of tensors; the merge needs adequate host
 RAM and disk, and validation uses an 80GB A100. Keep the allocator setting
 for the long tiled replay. Binary weights are rebuilt, not checked into Git.
 
@@ -1819,7 +1819,7 @@ bash scripts/qualify_resident_add32.sh --resident-memory512 "$model" \
 With `--model`, public runners detect the layout automatically.
 `results/memory512_local_commands.sh` and
 `results/memory512_runpod_commands.sh` record the complete validation pipeline.
-Use `python3 scripts/check_memory512.py --cuda --inherited --matrix --text --global-memory --public --bounds`
+Use `python3 scripts/check_memory512.py --cuda --inherited --matrix --text --global-memory --public --bounds --ram-handoff`
 to check saved full evidence after both pipelines finish. This check uses
 only JSON and independent scalar calculations, with no inference or billing.
 
@@ -1828,3 +1828,19 @@ all out-of-extent matrix lanes and all 256 memory words across four groups.
 Run it with `qwengpu.run_resident --check-reference --trace`, selecting
 `--resident-memory512` on MPS or `--model "$model"` on CUDA. Its exact CUDA
 command is saved in `results/memory512_bounds_runpod_commands.sh`.
+
+The selected RunPod pipeline checks the retained 24/24 first-token and
+21/24 short-greedy text thresholds before the arithmetic regressions.
+Run
+`qwengpu.eval_memory512_handoff "$model" --device cuda --out /tmp/ram-text.json`
+to preserve the active bank across native text between reduction launches.
+This checks all 8,192 port nibbles and compares the consumer with a cold
+control. The JSON checker above verifies the saved handoff independently.
+
+The bit auditor caches only immutable head locations. Its differential
+CPU check uses synthetic state against the pinned old reader, with no
+model weights or paid compute:
+
+```sh
+"$QWENGPU_PYTHON" scripts/check_head_lookup_cache.py --out /tmp/head-lookup.json
+```
