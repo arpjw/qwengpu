@@ -250,6 +250,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=FIXTURE)
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--resident-memory512", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--ids-only", action="store_true")
     parser.add_argument("--out", type=Path, required=True)
@@ -275,6 +276,7 @@ def main() -> None:
         args.device,
         resident_add32=True,
         resident_globalgrid=True,
+        resident_memory512=args.resident_memory512,
     )
     result = qualify(
         model,

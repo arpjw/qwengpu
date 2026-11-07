@@ -23,14 +23,14 @@ def lanes(step: dict) -> list[int]:
     ]
 
 
-def check(report: dict, layout: str = LAYOUT) -> None:
+def check(report: dict, layout: str = LAYOUT, *, memory_words: int = 128) -> None:
     payload = FIXTURE.read_bytes()
     values = json.loads(payload)
     assert report["input_sha256"] == hashlib.sha256(payload).hexdigest()
     assert report["input"] == values
     if report["merge"] is not None:
         assert report["merge"]["layout"] == layout
-    sentinel = [0xFFF0 + i % 16 for i in range(128)]
+    sentinel = [0xFFF0 + i % 16 for i in range(memory_words)]
     for count, probe in enumerate(report["id_probes"], 1):
         expected = sentinel[:]
         expected[: 32 * count : 2] = range(16 * count)
@@ -74,7 +74,7 @@ def check(report: dict, layout: str = LAYOUT) -> None:
     assert len(producer["trace"]) == 64 and len(consumer["trace"]) == 12
     assert len(producer["workgroup_transitions"]) == 1
     assert producer["transport"]["fresh_caches"] == 1
-    assert producer["transport"]["matrix_initial_tokens"] == 512
+    assert producer["transport"]["matrix_initial_tokens"] == 4 * memory_words
     assert (
         consumer["transport"]["fresh_caches"]
         == consumer["transport"]["matrix_initial_tokens"]

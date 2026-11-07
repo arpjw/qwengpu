@@ -1773,3 +1773,52 @@ are saved in `results/compute_checkpoint_manifest.json`. The large binary
 weights are rebuilt from the pinned base and compiler; they are not in Git.
 Exact executed RunPod pipelines and their source revisions are recorded in
 `results/compute_*_runpod_commands.sh` and the corresponding host reports.
+
+## Run the 512-byte memory layout
+
+The memory512 candidate doubles programmable capacity and the vector/reduction
+bounds. MEMORY512_DESIGN.md defines its address and compatibility semantics.
+The existing compute layout remains available with its original dimensions.
+
+```sh
+export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
+export QWENGPU_PYTHON="$PWD/../qwenputer/experimental/riscv/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/memory512_vector_64.json \
+  --resident-memory512 --device mps
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/memory512_reduce_128.json \
+  --resident-memory512 --device mps
+"$QWENGPU_PYTHON" -m qwengpu.eval_memory512 --device mps \
+  --out /tmp/qwengpu-memory512-mps.json
+bash scripts/qualify_resident_add32.sh --resident-memory512 --device mps \
+  --out /tmp/qwengpu-memory512-inherited-mps.json
+"$QWENGPU_PYTHON" -m qwengpu.run_matmul16 \
+  eval/frozen/matmul16_gate_v1/dense_seeded.json --grid-2x2 \
+  --resident-memory512 --device mps --out /tmp/qwengpu-memory512-matmul-mps.json
+```
+
+Build from the pinned base/compiler revisions using the existing bootstrap.
+Preflight estimates 62.2 GiB of BF16 weights; the merge needs adequate host
+RAM and disk, and validation uses an 80GB A100. Keep the allocator setting
+for the long tiled replay. Binary weights are rebuilt, not checked into Git.
+
+```sh
+export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+base=/path/to/Qwen3.5-9B
+model=/path/to/Qwen3.5-9B-qwengpu-resident-memory512
+"$QWENGPU_PYTHON" -m qwengpu.merge9b "$base" --resident-memory512 --out "$model"
+"$QWENGPU_PYTHON" -m qwengpu.eval_memory512 --model "$model" --device cuda \
+  --out /tmp/qwengpu-memory512-9b.json
+"$QWENGPU_PYTHON" -m qwengpu.run_compute examples/memory512_reduce_128.json \
+  --model "$model" --device cuda --transport fixed --trace \
+  --out /tmp/qwengpu-memory512-reduce-9b.json
+bash scripts/qualify_resident_add32.sh --resident-memory512 "$model" \
+  --device cuda --out /tmp/qwengpu-memory512-inherited-9b.json
+```
+
+With `--model`, public runners detect the layout automatically.
+`results/memory512_local_commands.sh` and
+`results/memory512_runpod_commands.sh` record the complete validation pipeline.
+Use `python3 scripts/check_memory512.py --cuda --inherited --matrix --text`
+to check saved full evidence after both pipelines finish. This check uses
+only JSON and independent scalar calculations, with no inference or billing.
