@@ -175,7 +175,7 @@ def main() -> None:
             == preflight["estimated_weight_bytes_bf16"] + sizes["F32"] // 2
         )
         print(
-            "Checkpoint metadata, all 27 shard hashes, and preflight allocation recorded"
+            f"Checkpoint metadata, all {len(shards)} shard hashes, and preflight allocation recorded"
         )
         for field in ("raw", "cases", "manifest_sha256"):
             assert cuda[field] == mps[field], field

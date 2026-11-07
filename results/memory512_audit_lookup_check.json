@@ -1,0 +1,9 @@
+{
+  "reference": "9948a57",
+  "heads": 290,
+  "row_comparisons": 1160,
+  "append_invalidates_cache": true,
+  "unwritten_and_invalid_bit_checks_identical": true,
+  "weights_allocated": false,
+  "all_exact": true
+}

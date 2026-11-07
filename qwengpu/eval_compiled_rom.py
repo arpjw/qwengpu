@@ -21,12 +21,25 @@ from qwengpu.reference import LANES, WarpState, step
 from qwengpu.run_kernel import parse_kernel
 
 
+def _head_location(circuit, name: str) -> tuple[int, int]:
+    # Inference uses a completed IR. Rebuild after compiler appends so a
+    # reused circuit cannot retain locations from its earlier shape.
+    cached = getattr(circuit, "_qwengpu_head_location_cache", None)
+    if cached is None or cached[0] != len(circuit.nodes):
+        counts: dict[int, int] = {}
+        locations: dict[str, tuple[int, int]] = {}
+        for node in circuit.nodes:
+            if isinstance(node, Head):
+                index = counts.get(node.level, 0)
+                locations.setdefault(node.name, ((node.level - 1) // 2, index))
+                counts[node.level] = index + 1
+        cached = (len(circuit.nodes), locations)
+        circuit._qwengpu_head_location_cache = cached
+    return cached[1][name]
+
+
 def head_row(cache, circuit, name: str, slot: int, bits: int) -> int | None:
-    node = next(node for node in circuit.nodes
-                if isinstance(node, Head) and node.name == name)
-    layer = (node.level - 1) // 2
-    index = sum(isinstance(previous, Head) and previous.level == node.level
-                for previous in circuit.nodes[:circuit.nodes.index(node)])
+    layer, index = _head_location(circuit, name)
     ratio = circuit.target.value_heads // circuit.target.key_heads
     row = cache.layers[layer].recurrent_states[0][0, index * ratio, slot, :2 + bits].float().tolist()
     if tuple(row[:2]) == (0.0, 0.0):
