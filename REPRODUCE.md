@@ -1565,3 +1565,19 @@ Add `--right-panel` to use different B inputs as well. With
 `--row-pairs 4 --right-panel`, this runs an 8×16 output panel with
 an inner dimension of 16. The evaluator checks the combined readout
 against scalar multiplication.
+
+Run the four-workgroup 16×16 case with one upload and one cache.
+Use a custom 16×16 input by passing `--input` with the same JSON schema
+as the dense fixture.
+
+```sh
+fixture=eval/frozen/matmul16_gate_v1/dense_seeded.json
+"$QWENGPU_PYTHON" -m qwengpu.eval_tilegrid --grid-2x2 --row-pairs 4 \
+  --input "$fixture" --device mps --out /tmp/qwengpu-tilegrid-2x2-mps.json
+base=/path/to/Qwen3.5-9B
+model=/path/to/Qwen3.5-9B-qwengpu-resident-tilegrid
+"$QWENGPU_PYTHON" -m qwengpu.merge9b "$base" --resident-tilegrid --out "$model"
+"$QWENGPU_PYTHON" -m qwengpu.eval_tilegrid --grid-2x2 --row-pairs 4 \
+  --input "$fixture" --model "$model" --device cuda \
+  --out /tmp/qwengpu-tilegrid-2x2-9b.json
+```

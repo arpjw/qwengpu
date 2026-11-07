@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
@@ -27,6 +28,7 @@ from qwengpu.compiled_tile8 import (
     ADDMEM32_OPS,
     ADVANCE,
     ALT_OPERAND,
+    BOTTOM_OPERANDS,
     BRANCH_NIBBLES,
     BRANCH_OFFSET,
     BRANCH_OPS,
@@ -50,10 +52,10 @@ from qwengpu.compiled_tile8 import (
     MASK_OPS,
     MASK_REGISTER,
     NEXT_BANK,
-    NEXT_WORKGROUP,
     NO_WRITE,
     OPERAND,
     OPS,
+    OUTPUT_BANKS,
     PLAN_TAG,
     READ_BRANCH,
     READ_HIGH,
@@ -69,6 +71,7 @@ from qwengpu.compiled_tile8 import (
     RESIDENT_LOOP32_LAYOUT,
     RESIDENT_SHARED32_LAYOUT,
     RESIDENT_TILEBANKS_LAYOUT,
+    RESIDENT_TILEGRID_LAYOUT,
     RESIDENT_TILEPIPE_LAYOUT,
     RIGHT_OPERANDS,
     ROM_BANK,
@@ -83,6 +86,7 @@ from qwengpu.compiled_tile8 import (
     WARP_TAGS,
     WIDE_DIRTY_OFFSET,
     WIDE_WARP_TAGS,
+    WORKGROUP_TICKETS,
     build,
     build_standalone,
     nibbles,
@@ -115,7 +119,8 @@ RESIDENT_IO_LAYOUT = "qwengpu-resident-io9b-v1"
 RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
-RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, RESIDENT_TILEPIPE_LAYOUT)
+RESIDENT_TILEPIPE_LAYOUTS = (RESIDENT_TILEPIPE_LAYOUT, RESIDENT_TILEGRID_LAYOUT)
+RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, *RESIDENT_TILEPIPE_LAYOUTS)
 RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, *RESIDENT_TILEBANKS_LAYOUTS)
 RESIDENT_BRANCH32_LAYOUTS = (RESIDENT_BRANCH32_LAYOUT, *RESIDENT_LOOP32_LAYOUTS)
 RESIDENT_ADDMEM32_LAYOUTS = (RESIDENT_ADDMEM32_LAYOUT, *RESIDENT_BRANCH32_LAYOUTS)
@@ -142,6 +147,12 @@ PROGRAM = (
     ("STORE_TILE", 0),
     ("HALT", 0),
 )
+
+
+@dataclass(frozen=True)
+class BottomRow:
+    operands: tuple[list[int], list[int]]
+    outputs: tuple[list[int], list[int]]
 
 
 def _control_links(program: list[tuple[str, int]]) -> dict[int, int]:
@@ -399,6 +410,7 @@ def execute(
     auto_workgroups: bool = False,
     second_output: list[int] | None = None,
     right_operands: tuple[list[int], list[int]] | None = None,
+    bottom: BottomRow | None = None,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
@@ -461,6 +473,13 @@ def execute(
             raise ValueError("right operand panels require a second output")
         for panel in right_operands:
             _unsigned(panel, 64, 255, "right operand panel")
+    if bottom is not None:
+        if second_output is None:
+            raise ValueError("a second workgroup row requires separate outputs")
+        for panel in bottom.operands:
+            _unsigned(panel, 64, 255, "bottom operand panel")
+        for panel in bottom.outputs:
+            _unsigned(panel, 64, 65535, "bottom output")
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 8 * first_row_pair + 1
@@ -484,6 +503,19 @@ def execute(
         if right_operands is not None
         else []
     )
+    output_memories = [memory]
+    if second_memory:
+        output_memories.append(second_memory)
+    bottom_tokens = []
+    if bottom is not None:
+        output_memories.extend(
+            nibbles(base, _digits(panel, 16))
+            for base, panel in zip(OUTPUT_BANKS[2:], bottom.outputs, strict=True)
+        )
+        bottom_tokens = [
+            nibbles(base, _digits(panel, 8))
+            for base, panel in zip(BOTTOM_OPERANDS, bottom.operands, strict=True)
+        ]
     initial_registers = case.get("initial_registers", [[0] * 8, [0] * 8])
     registers = [
         nibbles(REGISTER, _digits([word & 65535 for word in bank], 16))
@@ -535,7 +567,7 @@ def execute(
     schedules = []
     trace = []
     bank_transitions = []
-    workgroup_transition = None
+    workgroup_transitions = []
     cache = resident_cache
     pending = [*controls, previous] if resident else []
     uploads = []
@@ -544,9 +576,7 @@ def execute(
             uploads.extend(operands)
         if resident_cache is None:
             uploads.extend(alternate)
-            uploads.extend(memory)
-            uploads.extend(second_memory)
-            for panel in right_tokens:
+            for panel in output_memories + right_tokens + bottom_tokens:
                 uploads.extend(panel)
     pending.extend(uploads)
     transport = {
@@ -564,6 +594,7 @@ def execute(
             + 2 * ROW_PAIRS * int(auto_operand_bank)
             + 4 * ROW_PAIRS * int(auto_workgroups)
             + 8 * ROW_PAIRS * int(second_output is not None)
+            + 16 * ROW_PAIRS * int(bottom is not None)
         )
         transport["grid_initial_tokens"] = 1
 
@@ -615,9 +646,12 @@ def execute(
         return (
             _check_resident_memory(cache, circuit, operands, memory, indexed=indexed)
             and all(
-                head_row(cache, circuit, f"C.{address % 32}", 8 + address // 32, 4)
+                head_row(
+                    cache, circuit, f"C.{address % 32}", 8 * group + address // 32, 4
+                )
                 == token & 15
-                for address, token in enumerate(second_memory)
+                for group, output in enumerate(output_memories[1:], 1)
+                for address, token in enumerate(output)
             )
             and all(
                 head_row(cache, circuit, f"B.{column}.{nibble}", 16 + 8 * bank + row, 4)
@@ -626,6 +660,18 @@ def execute(
                 for address, token in enumerate(panel)
                 for row, position in [divmod(address, 16)]
                 for column, nibble in [divmod(position, 2)]
+            )
+            and all(
+                head_row(
+                    cache,
+                    circuit,
+                    f"A.bottom.{address % 2}",
+                    64 * bank + address // 2,
+                    4,
+                )
+                == token & 15
+                for bank, panel in enumerate(bottom_tokens)
+                for address, token in enumerate(panel)
             )
         )
 
@@ -640,16 +686,16 @@ def execute(
         if ticket in (DONE, DEADLOCK):
             outcome = "halted" if ticket == DONE else "deadlock"
             break
-        if ticket in (NEXT_BANK, NEXT_WORKGROUP):
+        group_index = len(workgroup_transitions)
+        if ticket == NEXT_BANK or ticket in WORKGROUP_TICKETS:
             if ticket == NEXT_BANK:
-                if not auto_operand_bank or len(bank_transitions) != int(
-                    workgroup_transition is not None
-                ):
+                if not auto_operand_bank or len(bank_transitions) != group_index:
                     raise ValueError("unexpected operand bank transition")
             elif (
                 not auto_workgroups
-                or workgroup_transition is not None
-                or len(bank_transitions) != 1
+                or group_index >= (3 if bottom is not None else 1)
+                or ticket != WORKGROUP_TICKETS[group_index]
+                or len(bank_transitions) != group_index + 1
             ):
                 raise ValueError("unexpected workgroup transition")
             if controls != [control_token(0), control_token(1)]:
@@ -659,7 +705,7 @@ def execute(
                 "instructions": len(trace),
                 "schedule_index": len(schedules) - 1,
                 "matrix": _matrix(
-                    second_memory if second_memory and workgroup_transition else memory
+                    output_memories[group_index] if second_memory else memory
                 ),
                 "resident_memory_exact": memory_exact(),
                 "bank_before": head_row(cache, circuit, "operand.bank", 0, 1),
@@ -667,12 +713,19 @@ def execute(
             if ticket == NEXT_BANK:
                 bank_transitions.append(transition)
             else:
-                workgroup_transition = {
-                    **transition,
-                    "group_before": head_row(cache, circuit, "workgroup", 0, 1),
-                }
+                workgroup_transitions.append(
+                    {
+                        **transition,
+                        "group_before": head_row(cache, circuit, "workgroup", 0, 2),
+                    }
+                )
+                group_index += 1
         tag = ticket - TICKET
-        if ticket not in (NEXT_BANK, NEXT_WORKGROUP) and (not 0 <= tag < 64 or tag & 4):
+        if (
+            ticket != NEXT_BANK
+            and ticket not in WORKGROUP_TICKETS
+            and (not 0 <= tag < 64 or tag & 4)
+        ):
             raise ValueError(f"invalid tile scheduling ticket {ticket}")
         if index == max_steps:
             break
@@ -816,17 +869,11 @@ def execute(
             raise ValueError("incomplete tagged C write")
         if len({token // 16 for token in updates}) != len(updates):
             raise ValueError("repeated tagged write address")
+        output_index = group_index if second_memory else 0
+        output_base = OUTPUT_BANKS[output_index]
         for token in updates:
-            if C_MEMORY <= token < C_MEMORY + 4096:
-                if second_memory and workgroup_transition:
-                    raise ValueError("second workgroup wrote the first output")
-                memory[(token - C_MEMORY) // 16] = token
-            elif (
-                second_memory
-                and workgroup_transition
-                and SECOND_OUTPUT <= token < SECOND_OUTPUT + 4096
-            ):
-                second_memory[(token - SECOND_OUTPUT) // 16] = token
+            if output_base <= token < output_base + 4096:
+                output_memories[output_index][(token - output_base) // 16] = token
             elif indexed and INDEX_OPERAND <= token < INDEX_OPERAND + 4096:
                 operands[(token - INDEX_OPERAND) // 16] = token
             else:
@@ -915,8 +962,8 @@ def execute(
         **(
             {
                 "bank_transitions": bank_transitions,
-                "workgroup_transition": workgroup_transition,
-                "workgroup_cursor": head_row(cache, circuit, "workgroup", 0, 1),
+                "workgroup_transitions": workgroup_transitions,
+                "workgroup_cursor": head_row(cache, circuit, "workgroup", 0, 2),
             }
             if auto_workgroups
             else {"bank_transition": bank_transitions[0] if bank_transitions else None}
@@ -926,9 +973,9 @@ def execute(
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
-        "matrix": _matrix(second_memory or memory),
+        "matrix": _matrix(output_memories[-1]),
         **(
-            {"workgroup_outputs": [_matrix(memory), _matrix(second_memory)]}
+            {"workgroup_outputs": [_matrix(output) for output in output_memories]}
             if second_memory
             else {}
         ),
@@ -963,6 +1010,7 @@ def launch_cached_tile(
     auto_workgroups: bool = False,
     second_output: list[int] | None = None,
     right_operands: tuple[list[int], list[int]] | None = None,
+    bottom: BottomRow | None = None,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
@@ -988,7 +1036,7 @@ def launch_cached_tile(
                         "grid": sum(
                             GRID
                             <= token
-                            < GRID + (16 if auto_workgroups else 4) * ROW_PAIRS
+                            < GRID + (32 if auto_workgroups else 4) * ROW_PAIRS
                             for token in tokens
                         ),
                         "transition": tokens.count(NEXT_BANK),
@@ -997,7 +1045,11 @@ def launch_cached_tile(
                     else {}
                 ),
                 **(
-                    {"workgroup_transition": tokens.count(NEXT_WORKGROUP)}
+                    {
+                        "workgroup_transition": sum(
+                            token in WORKGROUP_TICKETS for token in tokens
+                        )
+                    }
                     if auto_workgroups
                     else {}
                 ),
@@ -1026,6 +1078,22 @@ def launch_cached_tile(
                     if banked
                     else {}
                 ),
+                **(
+                    {
+                        "bottom_operands": sum(
+                            base <= token < base + 2048
+                            for token in tokens
+                            for base in BOTTOM_OPERANDS
+                        ),
+                        "bottom_outputs": sum(
+                            base <= token < base + 4096
+                            for token in tokens
+                            for base in OUTPUT_BANKS[2:]
+                        ),
+                    }
+                    if bottom is not None
+                    else {}
+                ),
             }
         )
 
@@ -1036,7 +1104,7 @@ def launch_cached_tile(
             circuit,
             case,
             device,
-            512 if auto_workgroups else 256,
+            1024 if bottom is not None else 512 if auto_workgroups else 256,
             offset,
             resident_add32=True,
             resident_io=True,
@@ -1048,6 +1116,7 @@ def launch_cached_tile(
             auto_workgroups=auto_workgroups,
             second_output=second_output,
             right_operands=right_operands,
+            bottom=bottom,
         )
     finally:
         handle.remove()
@@ -1056,6 +1125,9 @@ def launch_cached_tile(
     initial_operands = 0 if banked and start is not None else 256
     initial_counts = {"operands": initial_operands, "c": initial_c}
     initial_second = 256 if second_output is not None else 0
+    initial_bottom = 768 if bottom is not None else 0
+    if bottom is not None:
+        initial_counts.update(bottom_operands=256, bottom_outputs=512)
     if second_output is not None:
         initial_counts["second_output"] = initial_second
         initial_counts["right_operands"] = 256
@@ -1074,11 +1146,23 @@ def launch_cached_tile(
             banked
             and sum(call["alternate_operands"] for call in audit) != initial_operands
         )
-        or sum(call["c"] + call.get("second_output", 0) for call in audit)
-        != initial_c + initial_second + transport["matrix_patch_tokens"]
-        or any(call.get("right_operands", 0) for call in audit[1:])
+        or sum(
+            call["c"] + call.get("second_output", 0) + call.get("bottom_outputs", 0)
+            for call in audit
+        )
+        != initial_c
+        + initial_second
+        + (512 if bottom is not None else 0)
+        + transport["matrix_patch_tokens"]
+        or any(
+            call.get("right_operands", 0) or call.get("bottom_operands", 0)
+            for call in audit[1:]
+        )
         or transport["matrix_initial_tokens"]
-        != initial_c + 2 * initial_second + initial_operands * (1 + int(banked))
+        != initial_c
+        + 2 * initial_second
+        + initial_bottom
+        + initial_operands * (1 + int(banked))
         or transport["fresh_caches"] != int(start is None)
     ):
         raise ValueError("tile slice memory transport audit failed")
@@ -1438,10 +1522,12 @@ def load_tile_model(
     resident_loop32: bool = False,
     resident_tilebanks: bool = False,
     resident_tilepipe: bool = False,
+    resident_tilegrid: bool = False,
 ):
     if checkpoint is not None and resident_add32:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        resident_tilepipe = layout == RESIDENT_TILEPIPE_LAYOUT
+        resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
+        resident_tilegrid = layout == RESIDENT_TILEGRID_LAYOUT
         resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
@@ -1468,6 +1554,7 @@ def load_tile_model(
             resident_loop32=resident_loop32,
             resident_tilebanks=resident_tilebanks,
             resident_tilepipe=resident_tilepipe,
+            resident_tilegrid=resident_tilegrid,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1499,6 +1586,7 @@ def load_tile_model(
             resident_loop32=resident_loop32,
             resident_tilebanks=resident_tilebanks,
             resident_tilepipe=resident_tilepipe,
+            resident_tilegrid=resident_tilegrid,
         )
     return model.to(device).eval(), circuit
 
@@ -1575,7 +1663,7 @@ def main() -> None:
             *RESIDENT_ADD32_LAYOUTS,
         ):
             raise ValueError("not an 8x8 tile checkpoint")
-        resident_tilepipe = layout == RESIDENT_TILEPIPE_LAYOUT
+        resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
         resident_tilebanks = layout in RESIDENT_TILEBANKS_LAYOUTS
         resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
         resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS

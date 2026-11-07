@@ -38,6 +38,9 @@ INDEX_OPERAND = 0xA000
 ALT_OPERAND = 0xE000
 SECOND_OUTPUT = 0xF000
 RIGHT_OPERANDS = (0xB800, 0xC800)
+BOTTOM_OPERANDS = (0x10000, 0x10800)
+OUTPUT_BANKS = (C_MEMORY, SECOND_OUTPUT, C_MEMORY + 0x10000, SECOND_OUTPUT + 0x10000)
+TILEGRID_VOCAB = 1 << 17
 INDEX_WORDS = 128
 READ_MASK = READ_INDEX + 16
 MASK_REGISTER = 0x9100
@@ -68,6 +71,7 @@ RESIDENT_BRANCH32_LAYOUT = "qwengpu-resident-branch32-9b-v1"
 RESIDENT_LOOP32_LAYOUT = "qwengpu-resident-loop32-9b-v1"
 RESIDENT_TILEBANKS_LAYOUT = "qwengpu-resident-tilebanks-9b-v1"
 RESIDENT_TILEPIPE_LAYOUT = "qwengpu-resident-tilepipe-9b-v1"
+RESIDENT_TILEGRID_LAYOUT = "qwengpu-resident-tilegrid-9b-v1"
 WHILE_HI_OP = "WHILE_HI_BIT"
 WHILE_HI_WIRE_OFFSET = 9
 RESIDENT_SHARED32_LAYOUT = "qwengpu-resident-shared32-9b-v1"
@@ -102,6 +106,7 @@ DEADLOCK = TICKET + 5
 ADVANCE = 32
 NEXT_BANK = TICKET + 64 + ADVANCE
 NEXT_WORKGROUP = TICKET + 128 + ADVANCE
+WORKGROUP_TICKETS = (NEXT_WORKGROUP, NEXT_WORKGROUP + 64, NEXT_WORKGROUP + 256)
 SNAPSHOT_BITS = 132
 CHUNK_BITS = 120
 
@@ -355,7 +360,7 @@ def build(
             lambda t, bit=bit: CODE_AMP * (2 * ((t >> bit) & 1) - 1),
             full=True,
         )
-        for bit in range(16)
+        for bit in range(16 + int(resident_tilegrid))
     ]
     c.code = code
     c.keep = {next(iter(expr.terms)) for expr in code}
@@ -364,7 +369,7 @@ def build(
 
     raw = [
         c.token_feature(f"raw.{bit}", lambda t, bit=bit: (t >> bit) & 1, full=True)
-        for bit in range(6)
+        for bit in range(6 + int(resident_tilegrid))
     ]
     controls = []
     for warp in range(2):
@@ -383,7 +388,7 @@ def build(
     load_ticket = between(
         "ticket.load",
         TICKET,
-        TICKET + (256 if resident_tilegrid else 128 if resident_tilepipe else 64),
+        TICKET + (512 if resident_tilegrid else 128 if resident_tilepipe else 64),
     )
     last, tile0, tile1 = c.slot_head(
         "ticket",
@@ -406,7 +411,7 @@ def build(
                 << (
                     int(resident_tilebanks)
                     + int(resident_tilepipe)
-                    + 2 * int(resident_tilegrid)
+                    + 3 * int(resident_tilegrid)
                 )
             ),
         )
@@ -420,6 +425,7 @@ def build(
         if resident_tilegrid:
             grid_value[6] = raw[4]
             grid_value[7] = raw[5]
+            grid_value[8] = raw[6]
         grid = c.slot_head(
             "grid", {0: load_grid}, {0: grid_queries}, grid_value, load_grid
         )
@@ -427,11 +433,15 @@ def build(
         last_tile = c.node(c.t_eq(difference, 0, -3, 3), "schedule.last_tile")
         if resident_tilepipe:
             relayed_switch = match("operand.bank.advance", NEXT_BANK)
-            relayed_group = (
-                match("workgroup.advance", NEXT_WORKGROUP)
+            group_tickets = (
+                [
+                    match(f"workgroup.advance.{index}", token)
+                    for index, token in enumerate(WORKGROUP_TICKETS)
+                ]
                 if resident_tilegrid
-                else Expr()
+                else []
             )
+            relayed_group = sum(group_tickets, Expr())
             load_bank = load_grid + relayed_switch + relayed_group
             (bank_bit,) = c.slot_head(
                 "operand.bank",
@@ -448,18 +458,24 @@ def build(
             )
             if resident_tilegrid:
                 load_group = load_grid + relayed_group
-                (group,) = c.slot_head(
+                group_low, group_high = c.slot_head(
                     "workgroup",
                     {0: load_group},
                     {0: grid_queries},
-                    {2: relayed_group},
+                    {
+                        2: group_tickets[0] + group_tickets[2],
+                        3: group_tickets[1] + group_tickets[2],
+                    },
                     load_group,
                 )
+                more_rows = c.and_([grid[6], one - group_high], "workgroup.more_rows")
+                last_group = c.and_([group_low, one - more_rows], "workgroup.last")
                 group_switch = c.and_(
-                    [both_halted, last_tile, grid[4], bank_bit, one - group],
+                    [both_halted, last_tile, grid[4], bank_bit, one - last_group],
                     "schedule.next_workgroup",
                 )
-                second_output = c.and_([group, grid[5]], "workgroup.second_output")
+                second_output = c.and_([group_low, grid[5]], "workgroup.right_output")
+                bottom_output = c.and_([group_high, grid[6]], "workgroup.bottom_output")
         elif resident_tilebanks:
             bank_bit = grid[2]
     else:
@@ -499,7 +515,13 @@ def build(
     if resident_tilepipe:
         decision.append(switch)
     if resident_tilegrid:
-        decision.append(group_switch)
+        decision[-1] += c.and_([group_switch, group_low], "schedule.group.ticket.low")
+        decision.extend(
+            [
+                group_switch,
+                c.and_([group_switch, group_high], "schedule.group.ticket.high"),
+            ]
+        )
 
     # Resident calls retain both control rows. The emitted ticket selects the active one.
     warp_bit = last if resident else controls[1][6]
@@ -681,12 +703,21 @@ def build(
     ]
     output_offsets = [0]
     if resident_tilegrid:
-        output_offsets.append((SECOND_OUTPUT - C_MEMORY) // 16)
+        output_offsets = [(base - C_MEMORY) // 16 for base in OUTPUT_BANKS]
         row_queries = [
-            c.and_([query, gate], f"C.query.bank.{bank}.{row}")
-            for bank, gate in enumerate((one - second_output, second_output))
+            c.and_([query, horizontal, vertical], f"C.query.bank.{y}.{x}.{row}")
+            for y, vertical in enumerate((one - bottom_output, bottom_output))
+            for x, horizontal in enumerate((one - second_output, second_output))
             for row, query in enumerate(row_queries)
         ]
+    top_a_queries = (
+        [
+            c.and_([query, one - bottom_output], f"A.top.{i}")
+            for i, query in enumerate(a_queries)
+        ]
+        if resident_tilegrid
+        else a_queries
+    )
     a = [
         bit
         for nib in range(2)
@@ -694,9 +725,29 @@ def build(
             f"A.{nib}",
             operand_base,
             [offset + 2 * i + nib for offset in bank_offsets for i in range(64)],
-            a_queries,
+            top_a_queries,
         )
     ]
+    if resident_tilegrid:
+        bottom_a_queries = [
+            c.and_([query, bottom_output], f"A.bottom.{i}")
+            for i, query in enumerate(a_queries)
+        ]
+        bottom_a = [
+            bit
+            for nib in range(2)
+            for bit in lookup(
+                f"A.bottom.{nib}",
+                0,
+                [
+                    base // 16 + 2 * i + nib
+                    for base in BOTTOM_OPERANDS
+                    for i in range(64)
+                ],
+                bottom_a_queries,
+            )
+        ]
+        a = [top + bottom for top, bottom in zip(a, bottom_a, strict=True)]
     b = [
         [
             bit
@@ -1106,11 +1157,11 @@ def build(
         )
 
     if resident_tilegrid:
-        (store_second_output,) = c.slot_head(
+        store_second_output, store_bottom_output = c.slot_head(
             "workgroup.output",
             {0: tick},
             {0: sum(writes, Expr())},
-            {2: second_output},
+            {2: second_output, 3: bottom_output},
             tick,
         )
     halted = ops["HALT"]
@@ -1183,6 +1234,8 @@ def build(
                     terms += c.t_and([*tile_write, saved[129 + bit - 9]], 2 * KAPPA)
                 elif bit == 15 and resident_tilegrid:
                     terms += c.t_and([*tile_write, store_second_output], 2 * KAPPA)
+                elif bit == 16 and resident_tilegrid:
+                    terms += c.t_and([*tile_write, store_bottom_output], 2 * KAPPA)
                 elif (C_MEMORY + 16 * nib) >> bit & 1:
                     terms += c.t_and(tile_write, 2 * KAPPA)
         if indexed:
@@ -1297,6 +1350,10 @@ def build(
             into=expr,
             min_level=floor + (5 if resident_wide else 3 if divergent else 1),
         )
+    if resident_tilegrid:
+        # The compiler clears live chip slots at the last exit layer. Give
+        # cleanup its own layer to fit the standalone 3,584-unit MLP.
+        c.ffn([], "exit.cleanup", into=code[0], min_level=max(c.units))
     return c
 
 
@@ -1349,7 +1406,7 @@ def build_standalone(
     )
     return build_qwen(
         circuit,
-        list(range(VOCAB)),
+        list(range(TILEGRID_VOCAB if resident_tilegrid else VOCAB)),
         [next(iter(expr.terms)) for expr in circuit.code],
         share=True,
     ), circuit

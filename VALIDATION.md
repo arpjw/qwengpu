@@ -1337,3 +1337,11 @@ The full 8×16 panel also matched on MPS. Four passes executed
 464 instructions and 465 decisions in one cache, with one initial
 upload and no operand reloads. See
 `results/tilegrid_right_panel_full_mps.json`.
+
+The 2×2 variant passed the MPS row-pair check across all four
+workgroups. All 232 instructions matched, and the host audited four
+bank switches and three workgroup switches in one cache. Both A panels,
+both B panels, and the four C images were uploaded in the first call.
+The interpreter and scalar check agreed with the model's active
+rows and all inactive output rows. See
+`results/tilegrid_2x2_row_pair_mps.json`.
