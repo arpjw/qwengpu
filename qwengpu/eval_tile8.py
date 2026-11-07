@@ -73,6 +73,7 @@ from qwengpu.compiled_tile8 import (
     ROM_BANK,
     ROM_PAYLOAD_BITS,
     ROW_PAIRS,
+    SECOND_OUTPUT,
     SHARED32_OPS,
     SNAPSHOT_BITS,
     STORE_INDEX_HI,
@@ -395,6 +396,7 @@ def execute(
     operand_bank: int = 0,
     auto_operand_bank: bool = False,
     auto_workgroups: bool = False,
+    second_output: list[int] | None = None,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
@@ -444,6 +446,12 @@ def execute(
         raise ValueError(
             "automatic workgroups require the tilegrid circuit and bank selection"
         )
+    if second_output is not None:
+        if not auto_workgroups:
+            raise ValueError("a second output requires automatic workgroups")
+        _unsigned(second_output, 64, 65535, "second output")
+        if any(op not in OPS for program in case["programs"] for op, _ in program):
+            raise ValueError("separate outputs require tile-only programs")
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
     previous = TICKET + 8 * first_row_pair + 1
@@ -454,6 +462,11 @@ def execute(
         else []
     )
     memory = nibbles(C_MEMORY, _digits(case["c"], 16))
+    second_memory = (
+        nibbles(SECOND_OUTPUT, _digits(second_output, 16))
+        if second_output is not None
+        else []
+    )
     initial_registers = case.get("initial_registers", [[0] * 8, [0] * 8])
     registers = [
         nibbles(REGISTER, _digits([word & 65535 for word in bank], 16))
@@ -515,6 +528,7 @@ def execute(
         if resident_cache is None:
             uploads.extend(alternate)
             uploads.extend(memory)
+            uploads.extend(second_memory)
     pending.extend(uploads)
     transport = {
         "input_tokens": 0,
@@ -530,6 +544,7 @@ def execute(
             + ROW_PAIRS * operand_bank
             + 2 * ROW_PAIRS * int(auto_operand_bank)
             + 4 * ROW_PAIRS * int(auto_workgroups)
+            + 8 * ROW_PAIRS * int(second_output is not None)
         )
         transport["grid_initial_tokens"] = 1
 
@@ -577,6 +592,15 @@ def execute(
         cache = out.past_key_values
         return [token - offset for token in out.logits[0].argmax(dim=-1).tolist()]
 
+    def memory_exact() -> bool:
+        return _check_resident_memory(
+            cache, circuit, operands, memory, indexed=indexed
+        ) and all(
+            head_row(cache, circuit, f"C.{address % 32}", 8 + address // 32, 4)
+            == token & 15
+            for address, token in enumerate(second_memory)
+        )
+
     outcome = "step_limit"
     for index in range(max_steps + 1):
         prefix = pending if resident else [*controls, previous]
@@ -606,10 +630,10 @@ def execute(
                 "ticket": ticket,
                 "instructions": len(trace),
                 "schedule_index": len(schedules) - 1,
-                "matrix": _matrix(memory),
-                "resident_memory_exact": _check_resident_memory(
-                    cache, circuit, operands, memory, indexed=True
+                "matrix": _matrix(
+                    second_memory if second_memory and workgroup_transition else memory
                 ),
+                "resident_memory_exact": memory_exact(),
                 "bank_before": head_row(cache, circuit, "operand.bank", 0, 1),
             }
             if ticket == NEXT_BANK:
@@ -766,7 +790,15 @@ def execute(
             raise ValueError("repeated tagged write address")
         for token in updates:
             if C_MEMORY <= token < C_MEMORY + 4096:
+                if second_memory and workgroup_transition:
+                    raise ValueError("second workgroup wrote the first output")
                 memory[(token - C_MEMORY) // 16] = token
+            elif (
+                second_memory
+                and workgroup_transition
+                and SECOND_OUTPUT <= token < SECOND_OUTPUT + 4096
+            ):
+                second_memory[(token - SECOND_OUTPUT) // 16] = token
             elif indexed and INDEX_OPERAND <= token < INDEX_OPERAND + 4096:
                 operands[(token - INDEX_OPERAND) // 16] = token
             else:
@@ -797,9 +829,7 @@ def execute(
             head_row(cache, circuit, "grid", 0, 2) == last_row_pair
         )
     if resident:
-        transport["resident_memory_exact"] = _check_resident_memory(
-            cache, circuit, operands, memory, indexed=indexed
-        )
+        transport["resident_memory_exact"] = memory_exact()
     if alternate:
         expected_grid = last_row_pair + ROW_PAIRS * operand_bank
         bank_exact = head_row(cache, circuit, "grid", 0, 3) == expected_grid
@@ -868,7 +898,12 @@ def execute(
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
-        "matrix": _matrix(memory),
+        "matrix": _matrix(second_memory or memory),
+        **(
+            {"workgroup_outputs": [_matrix(memory), _matrix(second_memory)]}
+            if second_memory
+            else {}
+        ),
         **({"shared_words": _words(operands + memory)} if indexed else {}),
         **(
             {
@@ -898,6 +933,7 @@ def launch_cached_tile(
     operand_bank: int = 0,
     auto_operand_bank: bool = False,
     auto_workgroups: bool = False,
+    second_output: list[int] | None = None,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
@@ -923,7 +959,7 @@ def launch_cached_tile(
                         "grid": sum(
                             GRID
                             <= token
-                            < GRID + (8 if auto_workgroups else 4) * ROW_PAIRS
+                            < GRID + (16 if auto_workgroups else 4) * ROW_PAIRS
                             for token in tokens
                         ),
                         "transition": tokens.count(NEXT_BANK),
@@ -934,6 +970,16 @@ def launch_cached_tile(
                 **(
                     {"workgroup_transition": tokens.count(NEXT_WORKGROUP)}
                     if auto_workgroups
+                    else {}
+                ),
+                **(
+                    {
+                        "second_output": sum(
+                            SECOND_OUTPUT <= token < SECOND_OUTPUT + 4096
+                            for token in tokens
+                        )
+                    }
+                    if second_output is not None
                     else {}
                 ),
                 **(
@@ -966,6 +1012,7 @@ def launch_cached_tile(
             operand_bank=operand_bank,
             auto_operand_bank=auto_operand_bank,
             auto_workgroups=auto_workgroups,
+            second_output=second_output,
         )
     finally:
         handle.remove()
@@ -973,6 +1020,9 @@ def launch_cached_tile(
     initial_c = 256 if start is None else 0
     initial_operands = 0 if banked and start is not None else 256
     initial_counts = {"operands": initial_operands, "c": initial_c}
+    initial_second = 256 if second_output is not None else 0
+    if second_output is not None:
+        initial_counts["second_output"] = initial_second
     if auto_operand_bank:
         initial_counts.update(grid=1, transition=0)
     if auto_workgroups:
@@ -988,10 +1038,10 @@ def launch_cached_tile(
             banked
             and sum(call["alternate_operands"] for call in audit) != initial_operands
         )
-        or sum(call["c"] for call in audit)
-        != initial_c + transport["matrix_patch_tokens"]
+        or sum(call["c"] + call.get("second_output", 0) for call in audit)
+        != initial_c + initial_second + transport["matrix_patch_tokens"]
         or transport["matrix_initial_tokens"]
-        != initial_c + initial_operands * (1 + int(banked))
+        != initial_c + initial_second + initial_operands * (1 + int(banked))
         or transport["fresh_caches"] != int(start is None)
     ):
         raise ValueError("tile slice memory transport audit failed")

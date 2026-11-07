@@ -10,13 +10,28 @@ from pathlib import Path
 import torch
 import transformers
 
-from qwengpu.compiled_tile8 import NEXT_BANK, NEXT_WORKGROUP, TICKET, build_standalone
+from qwengpu.compiled_tile8 import (
+    C_MEMORY,
+    NEXT_BANK,
+    NEXT_WORKGROUP,
+    SECOND_OUTPUT,
+    TICKET,
+    build_standalone,
+)
 from qwengpu.eval_cached_tile import FIXTURE
 from qwengpu.eval_tile8 import launch_cached_tile, oracle, parse_launch
 from qwengpu.run_matmul16 import TILE, _tile, _trace_digest, parse_inputs
 
 
-def qualify(model, circuit, case: dict, alternate: list[int], device: str) -> dict:
+def qualify(
+    model,
+    circuit,
+    case: dict,
+    alternate: list[int],
+    device: str,
+    *,
+    second_output: list[int] | None = None,
+) -> dict:
     _, observed, audit = launch_cached_tile(
         model,
         circuit,
@@ -26,6 +41,7 @@ def qualify(model, circuit, case: dict, alternate: list[int], device: str) -> di
         alternate_operands=alternate,
         auto_operand_bank=True,
         auto_workgroups=True,
+        second_output=second_output,
     )
     banks = observed["bank_transitions"]
     group = observed["workgroup_transition"]
@@ -45,6 +61,10 @@ def qualify(model, circuit, case: dict, alternate: list[int], device: str) -> di
         or sum(call["transition"] for call in audit) != 2
         or sum(call["workgroup_transition"] for call in audit) != 1
         or sum(call["grid"] for call in audit) != 1
+        or (
+            second_output is not None
+            and observed["workgroup_outputs"][0] != group["matrix"]
+        )
     ):
         raise ValueError("workgroup or bank transition audit failed")
     boundaries = [banks[0], group, banks[1]]
@@ -61,6 +81,8 @@ def qualify(model, circuit, case: dict, alternate: list[int], device: str) -> di
     results = []
     reference_case = case.copy()
     for index, end in enumerate([*boundaries, None]):
+        if index == 2 and second_output is not None:
+            reference_case["c"] = second_output
         trace = observed["trace"][
             instruction_index : end["instructions"] if end else None
         ]
@@ -75,6 +97,14 @@ def qualify(model, circuit, case: dict, alternate: list[int], device: str) -> di
             alternate_operands=alternate,
             operand_bank=bank,
         )
+        if index >= 2 and second_output is not None:
+            for step in reference["trace"]:
+                step["patch"] = [
+                    token + SECOND_OUTPUT - C_MEMORY
+                    if C_MEMORY <= token < C_MEMORY + 4096
+                    else token
+                    for token in step["patch"]
+                ]
         if index:
             schedules[0] = {**schedules[0], "ticket": TICKET}
         if end:
@@ -119,6 +149,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="mps")
     parser.add_argument("--row-pairs", type=int, choices=range(1, 5), default=1)
+    parser.add_argument("--separate-outputs", action="store_true")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     payload = FIXTURE.read_bytes()
@@ -135,10 +166,18 @@ def main() -> None:
     alternate = _tile(a, 0, TILE) + _tile(b, TILE, 0)
     model, circuit = build_standalone(resident_tilegrid=True)
     model.to(args.device).eval()
-    result = qualify(model, circuit, case, alternate, args.device)
+    result = qualify(
+        model,
+        circuit,
+        case,
+        alternate,
+        args.device,
+        second_output=_tile(initial, 0, TILE) if args.separate_outputs else None,
+    )
     report = {
         "device": args.device,
         "row_pairs": args.row_pairs,
+        "separate_outputs": args.separate_outputs,
         "torch": torch.__version__,
         "transformers": transformers.__version__,
         "fixture_sha256": hashlib.sha256(payload).hexdigest(),

@@ -36,6 +36,7 @@ READ_INDEX = 2176
 INDEX_REGISTER = 0x9000
 INDEX_OPERAND = 0xA000
 ALT_OPERAND = 0xE000
+SECOND_OUTPUT = 0xF000
 INDEX_WORDS = 128
 READ_MASK = READ_INDEX + 16
 MASK_REGISTER = 0x9100
@@ -404,7 +405,7 @@ def build(
                 << (
                     int(resident_tilebanks)
                     + int(resident_tilepipe)
-                    + int(resident_tilegrid)
+                    + 2 * int(resident_tilegrid)
                 )
             ),
         )
@@ -417,6 +418,7 @@ def build(
             grid_value[5] = raw[3]
         if resident_tilegrid:
             grid_value[6] = raw[4]
+            grid_value[7] = raw[5]
         grid = c.slot_head(
             "grid", {0: load_grid}, {0: grid_queries}, grid_value, load_grid
         )
@@ -456,6 +458,7 @@ def build(
                     [both_halted, last_tile, grid[4], bank_bit, one - group],
                     "schedule.next_workgroup",
                 )
+                second_output = c.and_([group, grid[5]], "workgroup.second_output")
         elif resident_tilebanks:
             bank_bit = grid[2]
     else:
@@ -667,6 +670,14 @@ def build(
     row_queries = [
         c.and_([tick, hot], f"C.query.{row}") for row, hot in enumerate(rows)
     ]
+    output_offsets = [0]
+    if resident_tilegrid:
+        output_offsets.append((SECOND_OUTPUT - C_MEMORY) // 16)
+        row_queries = [
+            c.and_([query, gate], f"C.query.bank.{bank}.{row}")
+            for bank, gate in enumerate((one - second_output, second_output))
+            for row, query in enumerate(row_queries)
+        ]
     a = [
         bit
         for nib in range(2)
@@ -708,7 +719,10 @@ def build(
         bit
         for nib in range(32)
         for bit in lookup(
-            f"C.{nib}", C_MEMORY, [32 * row + nib for row in range(8)], row_queries
+            f"C.{nib}",
+            C_MEMORY,
+            [offset + 32 * row + nib for offset in output_offsets for row in range(8)],
+            row_queries,
         )
     ]
 
@@ -1082,6 +1096,14 @@ def build(
             )
         )
 
+    if resident_tilegrid:
+        (store_second_output,) = c.slot_head(
+            "workgroup.output",
+            {0: tick},
+            {0: sum(writes, Expr())},
+            {2: second_output},
+            tick,
+        )
     halted = ops["HALT"]
     pc_sources = [([halted], pc)]
     increment = one - halted
@@ -1150,6 +1172,8 @@ def build(
                     terms += c.t_and([read], 2 * KAPPA)
                 if 9 <= bit < 12:
                     terms += c.t_and([*tile_write, saved[129 + bit - 9]], 2 * KAPPA)
+                elif bit == 15 and resident_tilegrid:
+                    terms += c.t_and([*tile_write, store_second_output], 2 * KAPPA)
                 elif (C_MEMORY + 16 * nib) >> bit & 1:
                     terms += c.t_and(tile_write, 2 * KAPPA)
         if indexed:

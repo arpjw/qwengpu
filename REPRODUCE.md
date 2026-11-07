@@ -1555,3 +1555,8 @@ This runs one row pair per workgroup. Add `--row-pairs 4` to run
 all rows. The evaluator checks each pass independently and audits
 all model calls for cache identity, one initial descriptor, two
 bank switches, and one workgroup switch.
+
+Add `--separate-outputs` to preload two distinct initial C tiles. The
+model selects the second C tile after the workgroup transition and
+emits its store addresses. The evaluator checks both physical output
+regions and verifies that the second group leaves the first intact.

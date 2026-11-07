@@ -1319,3 +1319,10 @@ See `results/tilegrid_row_pair_mps.json`.
 The full eight-row run also matched on MPS with 464 instructions
 and 465 scheduler decisions in one cache. See
 `results/tilegrid_full_mps.json`.
+
+The separate-output variant passed the 116-instruction row-pair
+check on MPS. One prefill supplied both initial C images. The
+second workgroup loaded and wrote its own C image and left the
+first group's result unchanged. Both physical output regions
+matched the interpreter at each boundary. See
+`results/tilegrid_separate_outputs_mps.json`.
