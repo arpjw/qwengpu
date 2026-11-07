@@ -1627,6 +1627,10 @@ Primary evidence is in `results/memory512_mps.json`,
 `results/memory512_primary_check.txt`. Reproduction commands and the
 implemented ABI are in REPRODUCE.md and MEMORY512_DESIGN.md.
 
+Native-text qualification retains the prior frozen-corpus gate: 24/24
+first-token matches and at least 21/24 greedy continuations of at most
+16 generated tokens, plus exact reset and arithmetic-relaunch controls.
+
 Full compatibility qualification remains in progress. The merged model
 already matches all 27 inherited case records; the MPS suite, long tiled
 replays, and text/cache boundary checks are still running. SCOPE.md keeps

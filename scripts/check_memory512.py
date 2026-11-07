@@ -294,6 +294,10 @@ def main() -> None:
     if args.text:
         assert cuda is not None
         check_text(cuda["merge"], "memory512")
+        fresh = load_report("memory512_text_9b_cuda_fla")
+        previous = load_report("compute_text_9b_cuda_fla")
+        assert fresh["next_top1_same"] >= previous["next_top1_same"] == 24
+        assert fresh["greedy_identical"] >= previous["greedy_identical"] == 21
 
 
 if __name__ == "__main__":
