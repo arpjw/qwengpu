@@ -1580,7 +1580,7 @@ config, generation config, weight index, metadata, and hashes for all 25
 weight shards. The binary weights are not stored in Git. Rebuild them
 from the pinned base revision and compiler using the recorded merge command.
 
-## 512-byte primary memory and workload gate
+## Initial 512-byte primary memory and workload gate
 
 The `qwengpu-resident-memory512-9b-v1` primary gate passes on standalone
 Apple MPS and merged Qwen3.5-9B on an A100-SXM4-80GB. Each backend completes
@@ -1640,5 +1640,20 @@ The initial memory512 merge fails the retained first-token threshold:
 23/24 first tokens, 21/24 short greedy continuations, and zero generated
 chip tokens. Its exact frozen text report is retained as
 `results/memory512_initial_text_9b_cuda_fla.json`. The arithmetic-qualified
-candidate is not promoted; allocation compression is under investigation
-before any replacement checkpoint qualification.
+candidate is not promoted; the compact-key replacement restores the retained text gate. Full
+replacement-checkpoint qualification is now running.
+
+## Compact 512-byte candidate requalification
+
+Encoding RAM rows with seven address bits removes 121 live slots. The
+compact candidate has 3,262 merge slots, hidden width 7,424, and 35 processor
+layers. MPS smoke tests for the barrier handoff, vector64, and reduction128
+produce exactly the same records as the initial candidate.
+
+The rebuilt 9B merge restores 24/24 first tokens, 21/24 short greedy
+continuations, and zero generated chip tokens. Every frozen native-text
+record matches the previous compute checkpoint, with updated merge metadata.
+See `results/memory512_opt/memory512_text_9b_cuda_fla.json`. This resolves
+the initial widened model's additional first-token mismatch without changing
+the text threshold. Complete arithmetic and compatibility requalification
+remains in progress on both backends.

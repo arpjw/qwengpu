@@ -29,8 +29,10 @@ namespace, with the existing chip offset applied at the transport boundary.
 
 Each indexed port uses two 128-row attention heads. Both banks reuse the
 low seven query bits; address bit seven selects the returned value.
-Loading keys share word-row, nibble, and bank features instead of allocating
-a separate feature for every token address. No attention head needs a
+Loading keys share seven word-address bits, nibble, and bank features instead of allocating
+a separate feature for every token address. Row keys have preactivation one
+for all nine matching address/nibble/bank fields, and at most zero otherwise.
+This removes 121 live slots relative to one-hot word-row features. No head needs a
 larger row count than the qualified 128-row limit.
 
 The original 388 snapshot bits retain their positions. Eight additional
