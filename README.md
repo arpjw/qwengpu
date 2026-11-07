@@ -333,6 +333,15 @@ python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
   --schedule-k --device mps
 ```
 
+The tilegrid checkpoint selects all four workgroups and both K slices
+in one cache. It uploads the full operands once and addresses four
+resident output regions.
+
+```sh
+python3 -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --grid-2x2 --device mps
+```
+
 The independent interpreter checks traces; it does not compute model outputs.
 See [SCOPE.md](SCOPE.md), [VALIDATION.md](VALIDATION.md), and
 [REPRODUCE.md](REPRODUCE.md) for limits, evidence, and pinned commands.

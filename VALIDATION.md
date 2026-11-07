@@ -1361,6 +1361,20 @@ tickets, and each audited model call. The run took 6 minutes
 and completed with exact output. See
 `results/tilegrid_2x2_full_9b_cuda_fla.json`.
 
+The public MPS launcher reproduced the qualification report's matrices,
+passes, transitions, and call audit. Its result SHA-256 is
+`31d7f01824d6b90be7ebd39b74b7912b9410fd5ec109df87286399eff60d4e4b`.
+
+On the same tilegrid merge, the assembled two-warp example matched the
+standalone trace and final memory across all 16 instructions. The
+24-prompt corpus matched 24 first tokens and 22 greedy continuations,
+with zero chip tokens. The Moon and multiplication prompts diverged
+after the first token. Four cache resets matched their fresh-cache
+logits and continuations exactly. The 20-instruction arithmetic
+consumer relaunched after text with zero shared-memory uploads.
+See `results/tilegrid_assembled_9b_cuda_fla.json` and the tilegrid text,
+handoff, and relaunch reports.
+
 The same standalone tilegrid circuit matched six seeded programs on
 MPS, covering 70 instructions. Two carry loops, two diverging
 scatter collisions, and two deliberate barrier deadlocks agreed with
