@@ -1651,8 +1651,8 @@ layers. MPS smoke tests for the barrier handoff, vector64, and reduction128
 produce exactly the same records as the initial candidate.
 
 The rebuilt 9B merge restores 24/24 first tokens, 21/24 short greedy
-continuations, and zero generated chip tokens. Every frozen native-text
-record matches the previous compute checkpoint, with updated merge metadata.
+continuations, and zero generated chip tokens. The retained match counts equal the previous compute checkpoint; the
+complete per-prompt records are not identical.
 See `results/memory512_opt/memory512_text_9b_cuda_fla.json`. This resolves
 the initial widened model's additional first-token mismatch without changing
 the text threshold. Complete arithmetic and compatibility requalification
