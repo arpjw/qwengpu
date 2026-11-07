@@ -43,8 +43,11 @@ def check(report: dict, names: set[str], fixture=FIXTURE) -> None:
         elif kind == "reduce":
             values = request["values"]
             expected_output = sum(values) & 0xFFFFFFFF
+            padded = max(32, len(values))
             expected_words = limbs(
-                values + [0] * (32 - len(values)) + [GUARD + i for i in range(32)]
+                values
+                + [0] * (padded - len(values))
+                + [GUARD + i for i in range(64 - padded)]
             )
             for start in range(0, len(values), 8):
                 expected_words[2 * start : 2 * start + 2] = limbs(
@@ -92,12 +95,15 @@ def main() -> None:
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--cuda", action="store_true")
     parser.add_argument("--decode", action="store_true")
+    parser.add_argument("--extent", action="store_true")
     args = parser.parse_args()
-    if args.smoke and args.decode:
-        parser.error("choose smoke or decode")
+    if sum((args.smoke, args.decode, args.extent)) > 1:
+        parser.error("choose smoke, decode, or extent")
     fixture = (
         FIXTURE.parent.parent / "compute_decode_v1/cases.json"
         if args.decode
+        else FIXTURE.parent.parent / "compute_extent_v1/cases.json"
+        if args.extent
         else FIXTURE
     )
     names = (
@@ -105,7 +111,13 @@ def main() -> None:
         if args.smoke
         else set(json.loads(fixture.read_bytes()))
     )
-    stem = "compute_decode" if args.decode else "compute"
+    stem = (
+        "compute_decode"
+        if args.decode
+        else "compute_extent"
+        if args.extent
+        else "compute"
+    )
 
     def selected(report: dict) -> dict:
         return (

@@ -25,11 +25,12 @@ The public runner compiles three request types to these bounded programs:
 | Request | Supported extent | Semantics |
 | --- | --- | --- |
 | `vector_add` | 0 through 32 values per operand | Elementwise unsigned addition modulo 2³² |
-| `reduce` | 0 through 32 values | Sum modulo 2³²; two launches in one cache |
+| `reduce` | 0 through 64 values | Sum modulo 2³²; two launches in one cache |
 | `matmul` | A is M×K and B is K×N; M ≤ 8, K ≤ 4, N ≤ 4 | Unsigned byte inputs; optional uint32 initial C; uint32 modular accumulation |
 
 A workgroup contains two eight-lane warps. Vector and matrix programs use
-one or two sequential workgroups. Reduction first stores each active warp's
+one or two sequential workgroups. Reduction uses up to four groups and
+first stores each active warp's
 partial sum in global memory. Its second uploaded program consumes those
 partials without uploading the memory image again. Empty vectors are valid;
 an empty reduction returns zero.
@@ -41,7 +42,8 @@ performs arithmetic, and emits stores. Scalar code is a validation oracle.
 
 Every saved case checks the complete 128-word global image, including operand
 areas and guard words. The frozen manifest precedes model execution. Unit
-checks cover all vector/reduction lengths and 48 matrix shapes; actual model
+checks cover vector lengths 0 through 32, reduction lengths 0 through 64,
+and 48 matrix shapes; actual model
 evidence is recorded separately in VALIDATION.md.
 
 This remains a bounded experimental machine. Global memory is 256 bytes;

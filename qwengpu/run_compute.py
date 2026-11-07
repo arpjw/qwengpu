@@ -27,9 +27,9 @@ def words32(words: list[int]) -> list[int]:
     return [lo | hi << 16 for lo, hi in zip(words[::2], words[1::2], strict=True)]
 
 
-def vector(values: object, name: str) -> list[int]:
-    if not isinstance(values, list) or len(values) > 32:
-        raise ValueError(f"{name} must contain 0 through 32 words")
+def vector(values: object, name: str, limit: int = 32) -> list[int]:
+    if not isinstance(values, list) or len(values) > limit:
+        raise ValueError(f"{name} must contain 0 through {limit} words")
     return _unsigned(values, len(values), MASK32, name)
 
 
@@ -60,7 +60,7 @@ def parse_request(data: object) -> dict:
             raise ValueError("vector operands must have equal length")
         return {"kernel": kernel, "a": a, "b": b}
     if kernel == "reduce":
-        return {"kernel": kernel, "values": vector(data.get("values"), "values")}
+        return {"kernel": kernel, "values": vector(data.get("values"), "values", 64)}
     if kernel == "matmul":
         a = matrix(data.get("a"), None, None, 255, "a")
         m, k = len(a), len(a[0])
@@ -132,7 +132,10 @@ def compile_request(request: dict) -> list[dict]:
             "HALT",
         ]
         return [assemble_launch(body, words, groups)]
-    words = words16(values + [0] * (32 - count) + [GUARD + i for i in range(32)])
+    padded = max(32, count)
+    words = words16(
+        values + [0] * (padded - count) + [GUARD + i for i in range(64 - padded)]
+    )
     producer = prefix + [
         "WARP_SUM",
         "MASK_LANES 1",

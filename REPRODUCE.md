@@ -1701,7 +1701,10 @@ export QWENGPU_PYTHON="$PWD/../qwenputer/experimental/riscv/.venv/bin/python"
 ```
 
 Each standalone command constructs the model. `eval_compute` loads it once
-and runs all eighteen frozen cases. Vector lengths are 0 through 32;
+and runs the original eighteen frozen cases. Vector lengths are 0 through 32;
+reduction supports 0 through 64 values in up to four workgroups. The separate
+`compute_extent_v1` manifest covers 33, 63, and 64 values, and
+`compute_decode_v1` covers a maximum-product matrix with K=N=2.
 matrix limits are M ≤ 8, K ≤ 4, N ≤ 4, with byte inputs and uint32 C.
 `--trace` retains full execution and memory records in the public result.
 
@@ -1737,6 +1740,14 @@ Saved-evidence checks use no model or paid compute:
 
 ```sh
 python3 scripts/check_compute.py --cuda
+python3 scripts/check_compute.py --decode --cuda
+python3 scripts/check_compute.py --extent --cuda
 python3 scripts/check_checkpoint_full.py --cuda --matrix --text
 python3 scripts/check_checkpoint_full.py --stem compute --cuda --matrix --text
 ```
+
+Run the additional manifests through `qwengpu.eval_compute --cases
+eval/frozen/compute_decode_v1/cases.json` or `--cases
+eval/frozen/compute_extent_v1/cases.json`, with the same `--device`, `--model`,
+and `--out` arguments as above. The 64-value reduction changes only request
+packing and validation; it uses the already constructed compute weights.

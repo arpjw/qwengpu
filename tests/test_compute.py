@@ -26,10 +26,10 @@ def interpret(request):
 class ComputeTests(unittest.TestCase):
     def test_vector_and_reduction_boundaries(self):
         rng = random.Random(81827)
-        for count in range(33):
+        for count in range(65):
             a = [rng.getrandbits(32) for _ in range(count)]
             b = [rng.getrandbits(32) for _ in range(count)]
-            with self.subTest(count=count, kernel="vector_add"):
+            if count <= 32:
                 words, initial = interpret({"kernel": "vector_add", "a": a, "b": b})
                 expected = initial[:]
                 expected[: 2 * count] = words16(
@@ -72,7 +72,7 @@ class ComputeTests(unittest.TestCase):
     def test_invalid_requests(self):
         for request in (
             {"kernel": "vector_add", "a": [1], "b": []},
-            {"kernel": "reduce", "values": [0] * 33},
+            {"kernel": "reduce", "values": [0] * 65},
             {"kernel": "matmul", "a": [[1]], "b": [[256]]},
             {"kernel": "matmul", "a": [[1]], "b": [[1] * 5]},
             {"kernel": "matmul", "a": [[1, 2]], "b": [[1]]},
