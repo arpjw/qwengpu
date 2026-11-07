@@ -1705,7 +1705,7 @@ and runs the original eighteen frozen cases. Vector lengths are 0 through 32;
 reduction supports 0 through 64 values in up to four workgroups. The separate
 `compute_extent_v1` manifest covers 33, 63, and 64 values, and
 `compute_decode_v1` covers a maximum-product matrix with K=N=2.
-matrix limits are M ≤ 8, K ≤ 4, N ≤ 4, with byte inputs and uint32 C.
+Matrix limits are M ≤ 8, K ≤ 4, N ≤ 4, with byte inputs and uint32 C.
 `--trace` retains full execution and memory records in the public result.
 
 For the merged checkpoint, use the pinned compiler and base revision from

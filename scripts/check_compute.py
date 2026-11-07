@@ -96,9 +96,12 @@ def main() -> None:
     parser.add_argument("--cuda", action="store_true")
     parser.add_argument("--decode", action="store_true")
     parser.add_argument("--extent", action="store_true")
+    parser.add_argument("--public", action="store_true")
     args = parser.parse_args()
     if sum((args.smoke, args.decode, args.extent)) > 1:
         parser.error("choose smoke, decode, or extent")
+    if args.public and not (args.extent and args.cuda):
+        parser.error("--public requires --extent --cuda")
     fixture = (
         FIXTURE.parent.parent / "compute_decode_v1/cases.json"
         if args.decode
@@ -137,6 +140,26 @@ def main() -> None:
         check(cuda, names, fixture)
         assert cuda["cases"] == mps["cases"]
         print("Merged 9B CUDA: outputs, traces, cache state, and transport match MPS")
+        if args.public:
+            public = load_report("compute_public_reduce64_9b_cuda_fla")
+            request = json.loads(fixture.read_bytes())["reduce_64"]
+            payload = (json.dumps(request, indent=2) + "\n").encode()
+            assert public["input_sha256"] == hashlib.sha256(payload).hexdigest()
+            assert public["merge"] == cuda["merge"]
+            assert public["transport_mode"] == "fixed"
+            expected = next(
+                case for case in cuda["cases"] if case["name"] == "reduce_64"
+            )
+            for field in ("output", "global_words", "exact"):
+                assert public[field] == expected[field]
+            for run, old in zip(public["launches"], expected["launches"], strict=True):
+                assert {
+                    k: v for k, v in run.items() if k not in ("transport", "audit")
+                } == {k: v for k, v in old.items() if k not in ("transport", "audit")}
+            assert public["launches"][1]["transport"]["matrix_initial_tokens"] == 0
+            print(
+                "Public fixed-transport CLI: exact 64-value reduction, same cache, zero re-upload"
+            )
 
 
 if __name__ == "__main__":
