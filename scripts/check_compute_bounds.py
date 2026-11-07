@@ -8,9 +8,10 @@ import json
 
 from check_resident_add32_full import RESULTS, load_report
 
+FIXTURE = RESULTS.parent / "eval/frozen/compute_bounds_v1/matrix_extent.json"
 
-def check(report: dict) -> None:
-    fixture = RESULTS.parent / "eval/frozen/compute_bounds_v1/matrix_extent.json"
+
+def check(report: dict, fixture=FIXTURE) -> None:
     payload = fixture.read_bytes()
     inputs = json.loads(payload)
     assert report["kernel_sha256"] == hashlib.sha256(payload).hexdigest()
@@ -20,7 +21,9 @@ def check(report: dict) -> None:
     assert report["outcome"] == "halted" and report["workgroup_cursor"] == 3
     assert all(report["reference"].values())
     assert report["transport"]["fresh_caches"] == 1
-    assert report["transport"]["matrix_initial_tokens"] == 512
+    assert report["transport"]["matrix_initial_tokens"] == 4 * len(
+        inputs["global_words"]
+    )
     for index, step in enumerate(report["trace"]):
         if index % 6 not in (2, 3):
             continue

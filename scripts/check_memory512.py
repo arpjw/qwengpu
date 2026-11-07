@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from check_compute_bounds import check as check_bounds
 from check_globalgrid import check as check_globalgrid
 from check_resident_add32_full import cases_by_name, load_report
 from check_tilepipe_matmul16 import check_text
@@ -130,6 +131,7 @@ def main() -> None:
     parser.add_argument("--text", action="store_true")
     parser.add_argument("--global-memory", action="store_true")
     parser.add_argument("--public", action="store_true")
+    parser.add_argument("--bounds", action="store_true")
     args = parser.parse_args()
     mps = load_report("memory512_mps")
     check(mps)
@@ -216,6 +218,25 @@ def main() -> None:
         print(
             "Workgroup IDs and retained two-pass reduction: exact with all 256 guard words"
         )
+    if args.bounds:
+        fixture = ROOT / "eval/frozen/memory512_extent_v1/matrix_extent.json"
+        bounds = load_report("memory512_bounds_mps")
+        check_bounds(bounds, fixture)
+        assert bounds["checkpoint"] == "standalone-resident-memory512"
+        if cuda:
+            other = load_report("memory512_bounds_9b_cuda_fla")
+            check_bounds(other, fixture)
+            assert other["checkpoint"] == cuda["merge"]["layout"]
+            for field in (
+                "trace",
+                "schedules",
+                "global_words",
+                "warp_registers",
+                "transport",
+                "workgroup_transitions",
+            ):
+                assert other[field] == bounds[field], field
+        print("Raw matrix extent: all 64 lane IDs and 256 untouched words exact")
     if args.public:
         assert cuda is not None
         cases = {case["name"]: case for case in cuda["cases"]}

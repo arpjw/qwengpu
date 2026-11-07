@@ -1,5 +1,9 @@
 # Common compute interface
 
+This document describes the original 256-byte compute layout. The expanded
+512-byte layout and its larger request bounds are specified in
+[MEMORY512_DESIGN.md](MEMORY512_DESIGN.md).
+
 The `qwengpu-resident-compute-9b-v1` layout extends globalgrid with two
 operations. The same constructed weights accept different uploaded programs,
 operands, and supported shapes. Shape selection does not rebuild the model.

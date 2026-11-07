@@ -16,6 +16,8 @@ toggle bit zero. `ADD_INDEX_LO/HI` XOR an even immediate into the address;
 all even masks 0 through 254 are supported. Distinct addresses with equal
 low seven bits remain distinct for both reads and write arbitration.
 Within a warp, the lowest active lane wins a same-address store.
+A uint32 pair is not an atomic store: explicit barriers or launch boundaries
+are needed to publish both limbs before a cooperating consumer reads them.
 
 New memory tokens occupy `[0x20000, 0x24000)`. This range is disjoint from
 the older ROM, state, request, and specialized tile tags. Each token packs
@@ -69,7 +71,8 @@ or remove its fixed scheduling structure.
 
 The frozen set includes seven raw bank/barrier/collision probes and 31
 common requests, including 64-element vector addition and a 128-element
-all-maximum reduction. Unit checks cover every memory address and every
+all-maximum reduction. A separate raw matrix-extent probe covers all 64
+lanes across four workgroups. Unit checks cover every memory address and every
 supported vector and reduction length against independent scalar results.
 Actual inference must verify both MPS and merged 9B, all inherited traces,
 the long tiled matrix kernel, and merged-model text/cache handoffs.

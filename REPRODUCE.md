@@ -1819,6 +1819,12 @@ bash scripts/qualify_resident_add32.sh --resident-memory512 "$model" \
 With `--model`, public runners detect the layout automatically.
 `results/memory512_local_commands.sh` and
 `results/memory512_runpod_commands.sh` record the complete validation pipeline.
-Use `python3 scripts/check_memory512.py --cuda --inherited --matrix --text`
+Use `python3 scripts/check_memory512.py --cuda --inherited --matrix --text --global-memory --public --bounds`
 to check saved full evidence after both pipelines finish. This check uses
 only JSON and independent scalar calculations, with no inference or billing.
+
+The separate `memory512_extent_v1/matrix_extent.json` regression preserves
+all out-of-extent matrix lanes and all 256 memory words across four groups.
+Run it with `qwengpu.run_resident --check-reference --trace`, selecting
+`--resident-memory512` on MPS or `--model "$model"` on CUDA. Its exact CUDA
+command is saved in `results/memory512_bounds_runpod_commands.sh`.
