@@ -1542,3 +1542,16 @@ export QWENGPU_PYTHON="$QWENPUTER_DIR/.venv/bin/python"
 The second warp should finish with
 `[4, 65541, 8, 65545, 12, 65549, 16, 65553]`. The reference check
 compares every instruction, scheduling decision, and final state field.
+
+## Verify the tiled workgroup transition
+
+```sh
+cd "$QWENGPU_DIR"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_tilegrid --device mps \
+  --out /tmp/qwengpu-tilegrid-mps.json
+```
+
+This runs one row pair per workgroup. Add `--row-pairs 4` to run
+all rows. The evaluator checks each pass independently and audits
+all model calls for cache identity, one initial descriptor, two
+bank switches, and one workgroup switch.

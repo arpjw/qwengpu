@@ -50,6 +50,7 @@ from qwengpu.compiled_tile8 import (
     MASK_OPS,
     MASK_REGISTER,
     NEXT_BANK,
+    NEXT_WORKGROUP,
     NO_WRITE,
     OPERAND,
     OPS,
@@ -393,6 +394,7 @@ def execute(
     alternate_operands: list[int] | None = None,
     operand_bank: int = 0,
     auto_operand_bank: bool = False,
+    auto_workgroups: bool = False,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
     resident_shared32 = circuit.resident_shared32
@@ -437,6 +439,10 @@ def execute(
     ):
         raise ValueError(
             "automatic bank selection requires a fresh tilepipe launch from row zero"
+        )
+    if auto_workgroups and (not auto_operand_bank or not circuit.resident_tilegrid):
+        raise ValueError(
+            "automatic workgroups require the tilegrid circuit and bank selection"
         )
     operand_base = INDEX_OPERAND if indexed else OPERAND
     controls = [control_token(warp) for warp in range(2)]
@@ -498,7 +504,8 @@ def execute(
     reads = state_reads + store_reads
     schedules = []
     trace = []
-    bank_transition = None
+    bank_transitions = []
+    workgroup_transition = None
     cache = resident_cache
     pending = [*controls, previous] if resident else []
     uploads = []
@@ -522,6 +529,7 @@ def execute(
             + last_row_pair
             + ROW_PAIRS * operand_bank
             + 2 * ROW_PAIRS * int(auto_operand_bank)
+            + 4 * ROW_PAIRS * int(auto_workgroups)
         )
         transport["grid_initial_tokens"] = 1
 
@@ -580,12 +588,21 @@ def execute(
         if ticket in (DONE, DEADLOCK):
             outcome = "halted" if ticket == DONE else "deadlock"
             break
-        if ticket == NEXT_BANK:
-            if not auto_operand_bank or bank_transition is not None:
-                raise ValueError("unexpected operand bank transition")
+        if ticket in (NEXT_BANK, NEXT_WORKGROUP):
+            if ticket == NEXT_BANK:
+                if not auto_operand_bank or len(bank_transitions) != int(
+                    workgroup_transition is not None
+                ):
+                    raise ValueError("unexpected operand bank transition")
+            elif (
+                not auto_workgroups
+                or workgroup_transition is not None
+                or len(bank_transitions) != 1
+            ):
+                raise ValueError("unexpected workgroup transition")
             if controls != [control_token(0), control_token(1)]:
-                raise ValueError("bank transition did not reset both PCs")
-            bank_transition = {
+                raise ValueError("transition did not reset both PCs")
+            transition = {
                 "ticket": ticket,
                 "instructions": len(trace),
                 "schedule_index": len(schedules) - 1,
@@ -595,8 +612,15 @@ def execute(
                 ),
                 "bank_before": head_row(cache, circuit, "operand.bank", 0, 1),
             }
+            if ticket == NEXT_BANK:
+                bank_transitions.append(transition)
+            else:
+                workgroup_transition = {
+                    **transition,
+                    "group_before": head_row(cache, circuit, "workgroup", 0, 1),
+                }
         tag = ticket - TICKET
-        if ticket != NEXT_BANK and (not 0 <= tag < 64 or tag & 4):
+        if ticket not in (NEXT_BANK, NEXT_WORKGROUP) and (not 0 <= tag < 64 or tag & 4):
             raise ValueError(f"invalid tile scheduling ticket {ticket}")
         if index == max_steps:
             break
@@ -781,7 +805,7 @@ def execute(
         bank_exact = head_row(cache, circuit, "grid", 0, 3) == expected_grid
         if circuit.resident_tilepipe:
             expected_bank = (
-                int(bank_transition is not None) if auto_operand_bank else operand_bank
+                int(bool(bank_transitions)) if auto_operand_bank else operand_bank
             )
             bank_exact = bank_exact and (
                 head_row(cache, circuit, "operand.bank", 0, 1) == expected_bank
@@ -830,7 +854,17 @@ def execute(
         )
     return {
         "transport": transport,
-        **({"bank_transition": bank_transition} if auto_operand_bank else {}),
+        **(
+            {
+                "bank_transitions": bank_transitions,
+                "workgroup_transition": workgroup_transition,
+                "workgroup_cursor": head_row(cache, circuit, "workgroup", 0, 1),
+            }
+            if auto_workgroups
+            else {"bank_transition": bank_transitions[0] if bank_transitions else None}
+            if auto_operand_bank
+            else {}
+        ),
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
@@ -863,6 +897,7 @@ def launch_cached_tile(
     alternate_operands: list[int] | None = None,
     operand_bank: int = 0,
     auto_operand_bank: bool = False,
+    auto_workgroups: bool = False,
 ) -> tuple[Cache, dict, list[dict[str, int]]]:
     """Run one ADD32 tile slice and audit actual cache and memory traffic."""
     start = cache
@@ -886,11 +921,19 @@ def launch_cached_tile(
                 **(
                     {
                         "grid": sum(
-                            GRID <= token < GRID + 4 * ROW_PAIRS for token in tokens
+                            GRID
+                            <= token
+                            < GRID + (8 if auto_workgroups else 4) * ROW_PAIRS
+                            for token in tokens
                         ),
                         "transition": tokens.count(NEXT_BANK),
                     }
                     if auto_operand_bank
+                    else {}
+                ),
+                **(
+                    {"workgroup_transition": tokens.count(NEXT_WORKGROUP)}
+                    if auto_workgroups
                     else {}
                 ),
                 **(
@@ -913,7 +956,7 @@ def launch_cached_tile(
             circuit,
             case,
             device,
-            256,
+            512 if auto_workgroups else 256,
             offset,
             resident_add32=True,
             resident_io=True,
@@ -922,6 +965,7 @@ def launch_cached_tile(
             alternate_operands=alternate_operands,
             operand_bank=operand_bank,
             auto_operand_bank=auto_operand_bank,
+            auto_workgroups=auto_workgroups,
         )
     finally:
         handle.remove()
@@ -931,6 +975,8 @@ def launch_cached_tile(
     initial_counts = {"operands": initial_operands, "c": initial_c}
     if auto_operand_bank:
         initial_counts.update(grid=1, transition=0)
+    if auto_workgroups:
+        initial_counts["workgroup_transition"] = 0
     if banked:
         initial_counts["alternate_operands"] = initial_operands
     if (

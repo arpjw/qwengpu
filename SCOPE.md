@@ -21,6 +21,13 @@ addresses, and commits 32-bit sums to resident memory on each step.
 The follow-on grid layout needs to bring this boundary into tilepipe and
 make global memory addressable by uploaded kernels.
 
+The standalone tilegrid variant advances to a second workgroup from
+inside tilepipe. It restarts the row scheduler and both PCs, resets
+operand selection, and keeps the ROM and accumulator memory in the
+same cache. The first gate deliberately reuses the output tile across
+both workgroups. Independent output regions and a full 2×2 grid remain
+open.
+
 The resident 8×8 tile engine holds its 256 shared bytes in one inference
 cache per launch. A, B, and initial C are uploaded once. The host relays
 model-tagged writes into the same cache. MPS and merged Qwen3.5-9B agree

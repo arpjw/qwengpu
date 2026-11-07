@@ -1304,3 +1304,14 @@ pairs, synchronizes, and reads them from the other warp. All 16
 instructions and every scheduler decision and final state field matched
 the independent interpreter. The launch used one cache and passed all
 four physical state checks. See `results/assembled_cooperative_pair_mps.json`.
+
+## Workgroup scheduling in the two-warp tile circuit
+
+The standalone tilegrid circuit on MPS ran 116 instructions and 117
+scheduling decisions in a single cache. The model emitted both bank
+changes and the workgroup transition. At the workgroup boundary the
+model reset the operand bank, row pair, and both warp PCs, then reused
+the uploaded operands, ROM, and resident output tile. The four pass
+traces and matrices matched the interpreter. The host audited one
+initial memory upload, two bank tickets, and one workgroup ticket.
+See `results/tilegrid_row_pair_mps.json`.
