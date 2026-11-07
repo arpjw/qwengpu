@@ -4,7 +4,7 @@
   "transformers": "5.19.0",
   "circuit": {
     "layers": 34,
-    "dims": 8873,
+    "dims": 8752,
     "heads": 290,
     "ffn_units": 21661,
     "max_units": 3577,

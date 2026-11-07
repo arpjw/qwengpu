@@ -1,0 +1,22 @@
+NVIDIA A100-SXM4-80GB, 595.91.07, 81920 MiB
+source_commit=225913c
+compiler_commit=ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+base_revision=c202236235762e1c871ad0ccb60c8ee5ba337b9a
+PYTORCH_ALLOC_CONF=expandable_segments:True
+6074d1550bafc284e2500777e8d14ca54fa1432e9e99fc9b1563adebc197b436  qwengpu/compiled_tile8.py
+7035a041e900243278197163f94a20eb95771c60d65ff5538e432d4b7f9ae425  qwengpu/memory_geometry.py
+f9d2102b1b1cf47ce620a9aff9530b7043a2932d35255ffd57224a592df8c691  qwengpu/eval_tile8.py
+25723c047253266715491f784215dd41d253c01396e447a4599edbc346b99ffb  qwengpu/run_compute.py
+3aa676e2eab6b9ea4ee7c602806924f2b1b8d1088db785db6a60a8a2af5f3c62  eval/frozen/memory512_compute_v1/cases.json
+merge_started_utc=2026-11-07T06:56:43Z
+merge_finished_utc=2026-11-07T07:01:31Z
+text_gate_passed_utc=2026-11-07T07:02:49Z
+memory512_finished_utc=2026-11-07T07:23:00Z
+inherited_finished_utc=2026-11-07T07:35:19Z
+matmul_finished_utc=2026-11-07T07:41:29Z
+globalgrid_finished_utc=2026-11-07T07:43:52Z
+public_finished_utc=2026-11-07T07:45:37Z
+handoff_reset_finished_utc=2026-11-07T07:49:40Z
+arithmetic_relaunch_finished_utc=2026-11-07T07:50:27Z
+bounds_finished_utc=2026-11-07T07:50:58Z
+ram_handoff_finished_utc=2026-11-07T07:52:15Z

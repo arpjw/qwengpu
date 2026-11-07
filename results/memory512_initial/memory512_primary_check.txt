@@ -1,0 +1,4 @@
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+Checkpoint metadata, all 27 shard hashes, and preflight allocation recorded
+Merged 9B: all raw and common-kernel records match MPS exactly

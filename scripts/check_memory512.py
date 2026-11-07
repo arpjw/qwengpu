@@ -214,7 +214,10 @@ def main() -> None:
                 (ROOT / "eval/frozen/matmul16_gate_v1/dense_seeded.json").read_bytes()
             )
             a, b, c = (inputs[key] for key in ("a", "b", "c"))
-            for i, k in enumerate((8, 16)):
+            assert [(step["workgroup"], step["bank"]) for step in actual["passes"]] == [
+                (group, bank) for group in range(4) for bank in range(2)
+            ]
+            for bank, k in enumerate((8, 16)):
                 scalar = [
                     [
                         (c[row][col] + sum(a[row][j] * b[j][col] for j in range(k)))
@@ -223,7 +226,16 @@ def main() -> None:
                     ]
                     for row in range(16)
                 ]
-                assert actual["passes"][i]["matrix"] == scalar
+                tiles = [
+                    step["matrix"] for step in actual["passes"] if step["bank"] == bank
+                ]
+                assembled = [
+                    left + right
+                    for row in (0, 2)
+                    for left, right in zip(tiles[row], tiles[row + 1], strict=True)
+                ]
+                assert assembled == scalar
+            assert actual["matrix"] == scalar
             assert actual["merge"] == (cuda["merge"] if "_9b_" in name else None)
             assert actual["checkpoint"] == (
                 cuda["merge"]["layout"]

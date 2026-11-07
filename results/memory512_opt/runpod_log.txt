@@ -1,0 +1,124 @@
+merge_started_utc=2026-11-07T06:56:43Z
+Loading weights:   0%|          | 0/760 [00:00<?, ?it/s]Loading weights:  71%|███████   | 537/760 [00:00<00:00, 5345.13it/s]Loading weights: 100%|██████████| 760/760 [00:00<00:00, 5453.15it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+{"layout": "qwengpu-resident-memory512-9b-v1", "chip_token_offset": 248320, "chip_vocab": 147456, "chip_layers": 35, "hidden": 7424, "slots": 3262, "code_dims": [4271, 4272, 4273, 4274, 4275, 4276, 4277, 4278, 4279, 4280, 4281, 4282, 4283, 4284, 4285, 4286, 4287, 4288], "tau_dim": 4125, "mute_dim": 6592, "fit_anti_sink": true, "circuit": {"layers": 35, "dims": 8753, "heads": 290, "ffn_units": 21662, "max_units": 5593, "max_heads": 16}, "output_head_tied": false}
+merge_finished_utc=2026-11-07T07:01:31Z
+[transformers] The tokenizer you are loading from '/workspace/Qwen3.5-9B-qwengpu-resident-memory512' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+Loading weights:   0%|          | 0/760 [00:00<?, ?it/s]Loading weights:  77%|███████▋  | 585/760 [00:00<00:00, 5813.00it/s]Loading weights: 100%|██████████| 760/760 [00:00<00:00, 5941.10it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  46%|████▌     | 424/917 [00:00<00:00, 4211.36it/s]Loading weights:  92%|█████████▏| 846/917 [00:00<00:00, 3707.89it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3748.21it/s]
+{"prompt_count": 24, "next_top1_same": 24, "greedy_identical": 21, "merged_chip_tokens": 0}
+text_gate_passed_utc=2026-11-07T07:02:49Z
+Saved metadata and hashes for 26 weight shards
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  49%|████▉     | 448/917 [00:00<00:00, 4455.60it/s]Loading weights:  97%|█████████▋| 894/917 [00:00<00:00, 3594.20it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3712.17it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+{"raw": "barrier_pair", "exact": true}
+{"raw": "collision", "exact": true}
+{"raw": "collision_masked", "exact": true}
+{"raw": "edge_0_128", "exact": true}
+{"raw": "edge_127_255", "exact": true}
+{"raw": "edge_63_191", "exact": true}
+{"raw": "edge_64_192", "exact": true}
+{"case": "vector_0", "exact": true}
+{"case": "reduce_0", "exact": true}
+{"case": "vector_1", "exact": true}
+{"case": "reduce_1", "exact": true}
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+{"case": "vector_7", "exact": true}
+{"case": "reduce_7", "exact": true}
+{"case": "vector_13", "exact": true}
+{"case": "reduce_13", "exact": true}
+{"case": "vector_17", "exact": true}
+{"case": "reduce_17", "exact": true}
+{"case": "vector_31", "exact": true}
+{"case": "reduce_31", "exact": true}
+{"case": "vector_32", "exact": true}
+{"case": "reduce_32", "exact": true}
+{"case": "matmul_1x1x1", "exact": true}
+{"case": "matmul_3x3x3", "exact": true}
+{"case": "matmul_5x4x3", "exact": true}
+{"case": "matmul_8x4x4", "exact": true}
+{"case": "matmul_5x2x2_max_wrap", "exact": true}
+{"case": "reduce_33", "exact": true}
+{"case": "reduce_63", "exact": true}
+{"case": "reduce_64", "exact": true}
+{"case": "vector_33", "exact": true}
+{"case": "vector_47", "exact": true}
+{"case": "vector_63", "exact": true}
+{"case": "vector_64", "exact": true}
+{"case": "reduce_65", "exact": true}
+{"case": "reduce_79", "exact": true}
+{"case": "reduce_95", "exact": true}
+{"case": "reduce_127", "exact": true}
+{"case": "reduce_128", "exact": true}
+memory512_finished_utc=2026-11-07T07:23:00Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  49%|████▊     | 445/917 [00:00<00:00, 4438.25it/s]Loading weights:  97%|█████████▋| 889/917 [00:00<00:00, 4185.10it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 4249.78it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+{"fixture": "deadlock.json", "exact": true, "instructions": 2, "outcome": "deadlock"}
+{"fixture": "dense_seeded.json", "exact": true, "instructions": 116, "outcome": "halted"}
+{"fixture": "store_reload.json", "exact": true, "instructions": 48, "outcome": "halted"}
+{"fixture": "address_sweep.json", "exact": true, "instructions": 128, "outcome": "halted"}
+{"fixture": "scatter_gather.json", "exact": true, "instructions": 56, "outcome": "halted"}
+{"fixture": "masked_scatter.json", "exact": true, "instructions": 128, "outcome": "halted"}
+{"fixture": "empty_then.json", "exact": true, "instructions": 112, "outcome": "halted"}
+{"fixture": "nested.json", "exact": true, "instructions": 128, "outcome": "halted"}
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+{"fixture": "cooperative_matmul.json", "exact": true, "instructions": 132, "outcome": "halted"}
+{"fixture": "nested_loops.json", "exact": true, "instructions": 47, "outcome": "halted"}
+{"fixture": "scatter_trip_counts.json", "exact": true, "instructions": 76, "outcome": "halted"}
+{"fixture": "step_limit.json", "exact": true, "instructions": 256, "outcome": "step_limit"}
+{"fixture": "partial_1_pair.json", "exact": true, "instructions": 29, "outcome": "halted"}
+{"fixture": "partial_2_pairs.json", "exact": true, "instructions": 58, "outcome": "halted"}
+{"fixture": "partial_3_pairs.json", "exact": true, "instructions": 87, "outcome": "halted"}
+{"fixture": "seeded_cooperative.json", "exact": true, "instructions": 132, "outcome": "halted"}
+{"fixture": "seeded_warps.json", "exact": true, "instructions": 26, "outcome": "halted"}
+{"fixture": "cooperative_add32.json", "exact": true, "instructions": 140, "outcome": "halted"}
+{"fixture": "masked_carry.json", "exact": true, "instructions": 17, "outcome": "halted"}
+{"fixture": "back_two.json", "exact": true, "instructions": 58, "outcome": "halted"}
+{"fixture": "front_two.json", "exact": true, "instructions": 58, "outcome": "halted"}
+{"fixture": "last_one.json", "exact": true, "instructions": 29, "outcome": "halted"}
+{"fixture": "middle_one.json", "exact": true, "instructions": 29, "outcome": "halted"}
+{"fixture": "cooperative_shared32.json", "exact": true, "instructions": 20, "outcome": "halted"}
+{"fixture": "cooperative_addmem32.json", "exact": true, "instructions": 15, "outcome": "halted"}
+{"fixture": "cooperative_branch32.json", "exact": true, "instructions": 21, "outcome": "halted"}
+{"fixture": "cooperative_loop32.json", "exact": true, "instructions": 24, "outcome": "halted"}
+inherited_finished_utc=2026-11-07T07:35:19Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  59%|█████▉    | 545/917 [00:00<00:00, 5448.75it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 5703.68it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+matmul_finished_utc=2026-11-07T07:41:29Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  50%|████▉     | 458/917 [00:00<00:00, 4577.16it/s]Loading weights: 100%|█████████▉| 916/917 [00:00<00:00, 3711.98it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3818.21it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Four ID and global memory probes exact on cuda
+Cross-workgroup reduction exact, sum = 0x8b9ad658
+globalgrid_finished_utc=2026-11-07T07:43:52Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  45%|████▌     | 413/917 [00:00<00:00, 4120.33it/s]Loading weights:  90%|█████████ | 826/917 [00:00<00:00, 3419.73it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3495.90it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  51%|█████▏    | 471/917 [00:00<00:00, 4649.92it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3645.02it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+public_finished_utc=2026-11-07T07:45:37Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  53%|█████▎    | 488/917 [00:00<00:00, 4876.60it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 4138.26it/s]
+[transformers] The tokenizer you are loading from '/workspace/Qwen3.5-9B-qwengpu-resident-memory512' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+{"prompt_index": 0, "native_next_top1_same": true, "greedy_identical": true, "greedy_prefix_tokens": 16, "next_max_abs_logit_difference": 0.0, "next_mean_abs_logit_difference": 0.0}
+{"prompt_index": 1, "native_next_top1_same": true, "greedy_identical": true, "greedy_prefix_tokens": 16, "next_max_abs_logit_difference": 0.0, "next_mean_abs_logit_difference": 0.0}
+{"prompt_index": 21, "native_next_top1_same": true, "greedy_identical": true, "greedy_prefix_tokens": 15, "next_max_abs_logit_difference": 0.0, "next_mean_abs_logit_difference": 0.0}
+{"prompt_index": 23, "native_next_top1_same": true, "greedy_identical": true, "greedy_prefix_tokens": 5, "next_max_abs_logit_difference": 0.0, "next_mean_abs_logit_difference": 0.0}
+handoff_reset_finished_utc=2026-11-07T07:49:40Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  49%|████▊     | 446/917 [00:00<00:00, 4459.61it/s]Loading weights:  97%|█████████▋| 892/917 [00:00<00:00, 3583.96it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3703.63it/s]
+[transformers] The tokenizer you are loading from '/workspace/Qwen3.5-9B-qwengpu-resident-memory512' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Exact GPU-to-text-to-GPU, 20 consumer instructions, 512 upload tokens saved
+arithmetic_relaunch_finished_utc=2026-11-07T07:50:27Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  47%|████▋     | 432/917 [00:00<00:00, 4312.30it/s]Loading weights:  94%|█████████▍| 864/917 [00:00<00:00, 3560.26it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3638.84it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+bounds_finished_utc=2026-11-07T07:50:58Z
+Loading weights:   0%|          | 0/917 [00:00<?, ?it/s]Loading weights:  48%|████▊     | 442/917 [00:00<00:00, 4400.15it/s]Loading weights:  96%|█████████▋| 883/917 [00:00<00:00, 3575.20it/s]Loading weights: 100%|██████████| 917/917 [00:00<00:00, 3685.93it/s]
+[transformers] The tokenizer you are loading from '/workspace/Qwen3.5-9B-qwengpu-resident-memory512' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Expanded RAM: 8192 port nibbles preserved across native text; retained reduction exact
+ram_handoff_finished_utc=2026-11-07T07:52:15Z

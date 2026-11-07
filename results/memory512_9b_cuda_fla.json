@@ -7,9 +7,10 @@
     "chip_token_offset": 248320,
     "chip_vocab": 147456,
     "chip_layers": 35,
-    "hidden": 7680,
-    "slots": 3383,
+    "hidden": 7424,
+    "slots": 3262,
     "code_dims": [
+      4271,
       4272,
       4273,
       4274,
@@ -26,15 +27,14 @@
       4285,
       4286,
       4287,
-      4288,
-      4289
+      4288
     ],
-    "tau_dim": 4126,
-    "mute_dim": 6714,
+    "tau_dim": 4125,
+    "mute_dim": 6592,
     "fit_anti_sink": true,
     "circuit": {
       "layers": 35,
-      "dims": 8874,
+      "dims": 8753,
       "heads": 290,
       "ffn_units": 21662,
       "max_units": 5593,
@@ -44,7 +44,7 @@
   },
   "circuit": {
     "layers": 34,
-    "dims": 8873,
+    "dims": 8752,
     "heads": 290,
     "ffn_units": 21661,
     "max_units": 5593,

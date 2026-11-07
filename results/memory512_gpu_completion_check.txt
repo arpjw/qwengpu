@@ -1,0 +1,8 @@
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+Checkpoint metadata, all 26 shard hashes, and preflight allocation recorded
+Merged 9B: all raw and common-kernel records match MPS exactly
+All 27 inherited case records match the previous checkpoint
+Public fixed transport: vector64 and reduction128 match all planned execution records
+Native-text RAM handoff: all 8192 nibbles and retained reduction match the primary control
+Text: 24/24 first tokens, 21/24 greedy continuations; four exact resets and an exact full-width GPU relaunch

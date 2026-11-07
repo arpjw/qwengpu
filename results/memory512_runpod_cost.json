@@ -1,0 +1,476 @@
+{
+  "asof_utc": "2026-11-07T07:59:40Z",
+  "project_cap_usd": 74,
+  "pod_id": "rzjdl84vtyup6a",
+  "quote_usd_per_hour": 1.79,
+  "started_utc": "2026-11-07T05:51:37.223Z",
+  "terminated_utc": "2026-11-07T07:58:47Z",
+  "termination_status": 204,
+  "task_pod_absent_from_live_list": true,
+  "elapsed_seconds": 7629.777,
+  "compute_estimate_usd": 3.7936946750000002,
+  "pod_posted_usd": 1.9248091104673222,
+  "pod_total_reserve_usd": 4,
+  "pending_reserve_usd": 2.075190889532678,
+  "prior_reserved_pod_id": "lcs8xcxtr8ezrj",
+  "prior_pod_total_reserve_usd": 2.5,
+  "prior_pod_posted_usd": 2.460300753242336,
+  "prior_pending_reserve_usd": 0.039699246757663786,
+  "project_posted_usd": 27.56722226156853,
+  "project_tracked_usd": 29.682112397858873,
+  "remaining_project_cap_usd": 44.31788760214113,
+  "account_balance_verified": false,
+  "notes": "Posted billing lags termination. Tracked spend includes conservative pending reserves and storage/rounding allowance. This is remaining project authorization, not live account credit. Unrelated resources are excluded and were not modified.",
+  "records": [
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.001041666604578495,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.08348067849874496,
+      "podId": "08m7vfhv4m2r26",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.08452234510332346
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.004513888852670789,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.44916668348014355,
+      "podId": "0an76y516vonqw",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.45368057233281434
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.27551431208848953,
+      "podId": "3f8xz3lqh43ja8",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.27782912692055106
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.23103977739810944,
+      "podId": "4423pqr6lhu0mz",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.23335459223017097
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.07327912002801895,
+      "podId": "4vqekx2tdst3uz",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.07443652744404972
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0027777778450399637,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.7407656610012054,
+      "podId": "6uboyzo7zyt0ii",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.7435434388462454
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.26554252579808235,
+      "podId": "96stm71qzgxsm2",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.2678573406301439
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.2312416397035122,
+      "podId": "cdlyro9kdlgyjp",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.23355645453557372
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0034722222480922937,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.42683026287704706,
+      "podId": "dhifh5im6qr6ql",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.43030248512513936
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.00208333320915699,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.2662237100303173,
+      "podId": "dq1b7ch0c20s5w",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.2683070432394743
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.21208921447396278,
+      "podId": "f1p3hnt69n3t7n",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.21324662188999355
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0069444440305233,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 2.195314034819603,
+      "podId": "fwn759qm8qlepr",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 2.2022584788501263
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0013888889225199819,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.554710865020752,
+      "podId": "guroiogxqgl6g7",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.5560997539432719
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0016203701961785555,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.4791216403245926,
+      "podId": "iteq656mks0tq6",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.48074201052077115
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.001041666604578495,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.14956892281770706,
+      "podId": "ttbmr62niu7yjw",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.15061058942228556
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0015046296175569296,
+      "endTime": "2026-11-06T00:00:00Z",
+      "gpuAmount": 0.4210713505744934,
+      "podId": "yj3zp8mnqzzjft",
+      "startTime": "2026-11-05T00:00:00Z",
+      "totalAmount": 0.42257598019205034
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.004340277519077063,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 1.3965988457202911,
+      "podId": "05o4r8o4duazn3",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 1.4009391232393682
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0026041665114462376,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.8622678006067872,
+      "podId": "30mh7vnuymrpdk",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.8648719671182334
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.40963801741600037,
+      "podId": "4usv1zb1tssh0w",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.4119528322480619
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.24022844433784485,
+      "podId": "4vqekx2tdst3uz",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.2413858517538756
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.00347222201526165,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.6687161698937416,
+      "podId": "7ag8r4iy5e2exr",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.6721883919090033
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.3417612165212631,
+      "podId": "8ntzzjatpnm2q4",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.34407603135332465
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0008680555038154125,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.22909612953662872,
+      "podId": "bkgbc6rveup6to",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.22996418504044414
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.2507491670548916,
+      "podId": "d77qwi6198u2f1",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.2530639818869531
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0026041665114462376,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.5642378330230713,
+      "podId": "e28q01ftnq770h",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.5668419995345175
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.213716559112072,
+      "podId": "e7dircqgmin263",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.21487396652810276
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.00347222201526165,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.6099579147994518,
+      "podId": "ev84g71gc7yn2n",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.6134301368147135
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.2599766217172146,
+      "podId": "icyks8qxc6uuwd",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.2622914365492761
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.004629629664123058,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.5929360203444958,
+      "podId": "izc2or1pmn2hyu",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.5975656500086188
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.33676066249608994,
+      "podId": "mimr8xs3ebeqeb",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.33907547732815146
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.2575645884498954,
+      "podId": "mj8lm4qnjz9kcb",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.2598794032819569
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.004340278101153672,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 1.5064134076237679,
+      "podId": "nbqqwl22xu1sa0",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 1.5107536857249215
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.26401158003136516,
+      "podId": "pg2ix4z275np5a",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.2663263948634267
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.19223058968782425,
+      "podId": "pjb7usdcbldw80",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.193387997103855
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0034722222480922937,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.3717730715870857,
+      "podId": "pyh42o27vq2rux",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.375245293835178
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.00347222201526165,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.702004685997963,
+      "podId": "q07e1z7zdcgywv",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.7054769080132246
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0034722222480922937,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.3366532642394304,
+      "podId": "rg0clhnajboc7f",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.3401254864875227
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.20107517018914223,
+      "podId": "spczei5clluhi2",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.202232577605173
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.22879978083074093,
+      "podId": "tzsvs2wb4ztt3w",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.23111459566280246
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0034722222480922937,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.3898321557790041,
+      "podId": "ufiwd1ajdkif9d",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.3933043780270964
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.001736111007630825,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.2752144895493984,
+      "podId": "ulujgufwzoo34a",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.27695060055702925
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.17402678728103638,
+      "podId": "uv3u7eqvj0xh65",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.17518419469706714
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.004340278101153672,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 1.4706375263631344,
+      "podId": "v6b971ophoua68",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 1.474977804464288
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.004629629664123058,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.6232998706400394,
+      "podId": "xu7m4p6hee9a0w",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.6279295003041625
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.002314814832061529,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.37501195818185806,
+      "podId": "yr7ft6o0sdf34z",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.3773267730139196
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0011574074160307646,
+      "endTime": "2026-11-07T00:00:00Z",
+      "gpuAmount": 0.2274543046951294,
+      "podId": "yvpz8kd8flarzs",
+      "startTime": "2026-11-06T00:00:00Z",
+      "totalAmount": 0.22861171211116016
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.008912036777473986,
+      "endTime": "2026-11-08T00:00:00Z",
+      "gpuAmount": 1.119631566107273,
+      "podId": "d3vvbd3rvgwktg",
+      "startTime": "2026-11-07T00:00:00Z",
+      "totalAmount": 1.128543602884747
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.02164351788815111,
+      "endTime": "2026-11-08T00:00:00Z",
+      "gpuAmount": 2.438657235354185,
+      "podId": "lcs8xcxtr8ezrj",
+      "startTime": "2026-11-07T00:00:00Z",
+      "totalAmount": 2.460300753242336
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.0025462962221354246,
+      "endTime": "2026-11-08T00:00:00Z",
+      "gpuAmount": 0.306750800460577,
+      "podId": "mcla5c112zcnxu",
+      "startTime": "2026-11-07T00:00:00Z",
+      "totalAmount": 0.30929709668271244
+    },
+    {
+      "cpuAmount": 0,
+      "diskAmount": 0.021666665677912533,
+      "endTime": "2026-11-08T00:00:00Z",
+      "gpuAmount": 1.9031424447894096,
+      "podId": "rzjdl84vtyup6a",
+      "startTime": "2026-11-07T00:00:00Z",
+      "totalAmount": 1.9248091104673222
+    }
+  ]
+}
