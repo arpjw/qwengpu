@@ -1315,3 +1315,7 @@ the uploaded operands, ROM, and resident output tile. The four pass
 traces and matrices matched the interpreter. The host audited one
 initial memory upload, two bank tickets, and one workgroup ticket.
 See `results/tilegrid_row_pair_mps.json`.
+
+The full eight-row run also matched on MPS with 464 instructions
+and 465 scheduler decisions in one cache. See
+`results/tilegrid_full_mps.json`.
