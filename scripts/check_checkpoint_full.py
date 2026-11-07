@@ -44,7 +44,7 @@ def main() -> None:
         assert matrix["merge"] == cuda["merge"]
         old = load_report("tilegrid_2x2_full_mps")
         # The public runner uses different report headers from eval_tilegrid.
-        for field in (
+        fields = (
             "matrix",
             "passes",
             "transitions",
@@ -54,8 +54,16 @@ def main() -> None:
             "scheduler_decisions",
             "workgroup_outputs",
             "exact",
-        ):
+        )
+        for field in fields:
             assert matrix[field] == old[field], field
+        if stem == "compute":
+            latest_mps = load_report("compute_matmul16_mps")
+            assert latest_mps["merge"] is None
+            assert latest_mps["checkpoint"] == "standalone-resident-compute"
+            assert latest_mps["input_sha256"] == matrix["input_sha256"]
+            for field in fields:
+                assert latest_mps[field] == matrix[field], field
         # Reuse the independent scalar, boundary, and upload audit with its
         # original report header, after checking every execution field above.
         check(old, load_report("resident_tilepipe_matmul16_mps"))

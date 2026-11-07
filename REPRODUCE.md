@@ -1745,8 +1745,9 @@ Saved-evidence checks use no model or paid compute:
 python3 scripts/check_compute.py --cuda
 python3 scripts/check_compute.py --decode --cuda
 python3 scripts/check_compute.py --extent --cuda
+python3 scripts/check_compute_transport.py
 python3 scripts/check_checkpoint_full.py --cuda --matrix --text
-python3 scripts/check_checkpoint_full.py --stem compute --cuda --matrix --text
+python3 scripts/check_checkpoint_full.py --stem compute --cuda --matrix --text --global-memory
 ```
 
 Run the additional manifests through `qwengpu.eval_compute --cases

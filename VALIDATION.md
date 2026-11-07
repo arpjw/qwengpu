@@ -1508,9 +1508,17 @@ Reduction input packing now supports 64 values in four workgroups without
 changing constructed weights. All eighteen original request programs and
 memory images remain identical to the preceding runtime. See
 `results/compute_extent_compatibility.json`. The 33-, 63-, and 64-value
-model gates in `compute_extent_v1` remain pending on MPS; all three pass
-on merged 9B. The public fixed-transport runner also completes the
-64-value case. Cross-backend saved-evidence comparison will follow MPS.
+model gates in `compute_extent_v1` pass on MPS and merged 9B with identical
+case records. The public fixed-transport runner reproduces the 64-value
+case's complete execution on the same merged weights, including a second
+launch with zero memory uploads. Run
+`python3 scripts/check_compute.py --extent --cuda --public`.
+
+The common interface therefore has 22 frozen requests verified on both
+backends: eighteen original cases, one matrix decode/overflow case, and
+three larger reductions. The latter use three or four sequential groups;
+the 64-value all-maximum-word case returns `0xffffffc0` modulo 2³².
+See `results/compute_extent_mps.json`.
 
 The complete 27-case inherited replay passes on the compute MPS circuit
 and exactly reproduces the tilegrid baseline. The maximum-byte-product
@@ -1539,3 +1547,10 @@ result. The public interface retains its planned default and exposes
 `--transport fixed` for the measured tradeoff. See
 `results/compute_transport_9b_cuda_fla.json`. The first benchmark's
 optional-counter error is retained separately; this is a fresh complete run.
+`python3 scripts/check_compute_transport.py` recomputes medians and matches
+every benchmark execution digest to the independently saved primary cases.
+
+`results/compute_checkpoint_manifest.json` saves the tested model's stock
+config, generation config, weight index, metadata, and hashes for all 25
+weight shards. The binary weights are not stored in Git. Rebuild them
+from the pinned base revision and compiler using the recorded merge command.
