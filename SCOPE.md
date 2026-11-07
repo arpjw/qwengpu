@@ -362,6 +362,8 @@ The next architectural gates, after qualifying the compute candidate, are:
 These are remaining implementation gates. Passing the small common-kernel
 suite does not close them. Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
+NEXT_MEMORY_DESIGN.md records the first capacity step, the seven-bit
+index/snapshot constraints, and token/ROM encoding hazards found in source.
 
 For each gate, freeze programs before the model run, compare generated tokens
 and actual recurrent state to the independent interpreter, and test both the

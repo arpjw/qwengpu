@@ -1,0 +1,9 @@
+{
+  "device": "cuda",
+  "checkpoint_source_commit": "e6be9c58ca2af1cc57654f2aa662e0957fb71831",
+  "stage": "First transport benchmark, fixed-mode warmup after planned-mode warmup",
+  "error": "KeyError: forward_calls",
+  "cause": "The benchmark assumed all transport records exposed an internal forward_calls counter. Fixed transport does not. The independently registered model hook counted calls, and kernel execution completed before the reporting failure.",
+  "fix": "Cross-check the internal counter only when present for every launch; retain the independent forward hook's measured count for all modes.",
+  "status": "Pending full benchmark replay; no latency comparison is claimed from the interrupted run."
+}

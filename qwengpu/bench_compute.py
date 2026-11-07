@@ -83,8 +83,11 @@ def main() -> None:
                 fingerprint = digest(result)
                 if fingerprint != reference.setdefault(name, fingerprint):
                     raise ValueError("transport modes changed kernel execution")
-                if calls != sum(
-                    run["transport"]["forward_calls"] for run in result["launches"]
+                reported = [
+                    run["transport"].get("forward_calls") for run in result["launches"]
+                ]
+                if all(count is not None for count in reported) and calls != sum(
+                    reported
                 ):
                     raise ValueError("model hook and transport counters disagree")
                 record = {

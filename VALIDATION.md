@@ -1481,6 +1481,13 @@ heads. These are compiler graph statistics, not pretrained model parameter
 counts. The source, compiler revision, package versions, and MPS hardware
 are pinned in `results/compute_host_mps.json`.
 
+The merged Qwen3.5-9B compute checkpoint reproduces all eighteen MPS case
+records exactly. The constructed merge uses 31 chip layers, hidden size
+7,424, and 3,238 allocated slots; anti-sink fitting adds a layer relative
+to the standalone graph statistics above. See
+`results/compute_9b_cuda_fla.json` and run
+`python3 scripts/check_compute.py --cuda`.
+
 The first matrix smoke run found a bit-130 snapshot disagreement caused
 by the independent oracle reusing its scheduler-row variable for output
 addressing. The model retained the correct scheduler row. A distinct
@@ -1488,8 +1495,17 @@ addressing. The model retained the correct scheduler row. A distinct
 fresh MPS replay above includes the failing case. The diagnostic is kept
 in `results/compute_smoke_failure_mps.json`.
 
-Reference tests also cover every vector and reduction length from 0 through
-32 and 48 matrix shapes, including modular overflow. These interpreter
+Reference tests also cover vector lengths 0 through 32, reduction lengths
+0 through 64, and 48 matrix shapes, including modular overflow. These interpreter
 checks are separate from the eighteen actual model cases. A separate
-decode/max-product/wrap manifest is frozen in `compute_decode_v1`; its
-model run and merged 9B qualification are pending at this checkpoint.
+decode/max-product/wrap manifest is frozen in `compute_decode_v1`. Its
+5×2×2 maximum-byte-product case passes on merged 9B; MPS is queued.
+The inherited, full-matrix, and text qualification on this merge remains
+in progress. The first benchmark hit an optional-counter reporting bug;
+`results/compute_benchmark_failure.json` records it. It changed no weights.
+
+Reduction input packing now supports 64 values in four workgroups without
+changing constructed weights. All eighteen original request programs and
+memory images remain identical to the preceding runtime. See
+`results/compute_extent_compatibility.json`. The 33-, 63-, and 64-value
+model gates in `compute_extent_v1` remain pending.
