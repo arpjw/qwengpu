@@ -14,6 +14,10 @@ adds their product to the lane's 32-bit accumulator, modulo 2³². Encode
 `0 <= k < K`. Global ID identifies the output row and column. A occupies
 word addresses 0 through 31 and B occupies addresses 32 through 47. The
 circuit computes `row * K + k` and `k * N + column` and performs both reads.
+For a global ID at or above `8 * N`, both matrix operands read as zero,
+so this instruction preserves the accumulator. This defines raw uploaded
+instructions outside the eight-row operand extent; public kernels also
+mask their requested output extent explicitly.
 The accumulator's existing indexed instructions load and store C.
 
 Both operations use previously reserved BARRIER immediates in the sixteen-slot

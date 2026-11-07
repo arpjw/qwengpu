@@ -4,7 +4,13 @@ import random
 import unittest
 
 from qwengpu.eval_tile8 import oracle, parse_launch
-from qwengpu.run_compute import compile_request, parse_request, words16, words32
+from qwengpu.run_compute import (
+    assemble_launch,
+    compile_request,
+    parse_request,
+    words16,
+    words32,
+)
 
 
 def interpret(request):
@@ -79,3 +85,36 @@ class ComputeTests(unittest.TestCase):
         ):
             with self.subTest(request=request), self.assertRaises(ValueError):
                 parse_request(request)
+
+    def test_raw_matrix_extent(self):
+        memory = [255] * 32 + [3] * 16 + [0xABCD] * 80
+        for k in range(1, 5):
+            for n in range(1, 5):
+                for position in range(k):
+                    arg = (k - 1) * 16 + (n - 1) * 4 + position
+                    program = ["GLOBAL_ID", f"MATRIX_MAC8 {arg}", "HALT"]
+                    case = parse_launch(
+                        assemble_launch(program, memory, 4), resident_compute=True
+                    )
+                    result = oracle(case, 256, looping=True)
+                    self.assertEqual(result["shared_words"], memory)
+                    for index, step in enumerate(result["trace"]):
+                        if index % 6 not in (2, 3):
+                            continue
+                        ids = [
+                            16 * step["workgroup"] + 8 * step["warp"] + lane
+                            for lane in range(8)
+                        ]
+                        expected = [
+                            value + 765 if value < 8 * n else value for value in ids
+                        ]
+                        registers = [
+                            sum(
+                                (token & 15) << (4 * digit)
+                                for digit, token in enumerate(
+                                    step["registers"][start : start + 4]
+                                )
+                            )
+                            for start in range(0, 32, 4)
+                        ]
+                        self.assertEqual(registers, expected)

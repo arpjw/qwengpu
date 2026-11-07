@@ -1431,8 +1431,8 @@ def oracle(
             words = []
             for lane, (low, upper) in enumerate(zip(before, high[warp], strict=True)):
                 value = low | upper << 16
-                if active >> lane & 1:
-                    output_row, col = divmod(16 * group + 8 * warp + lane, n_size)
+                output_row, col = divmod(16 * group + 8 * warp + lane, n_size)
+                if active >> lane & 1 and output_row < 8:
                     left = (
                         int.from_bytes(
                             operands[

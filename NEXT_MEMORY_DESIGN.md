@@ -27,6 +27,14 @@ from 0 through 126. The reserved ROM encoding also assumes that bound.
 An eighth address bit needs an explicit encoding decision and loader checks;
 changing the range alone would collide with other instruction encodings.
 
+The pinned compiler's `chipformer/q35/ir.py` fixes key/value head dimension
+at 128. Each current indexed gather uses exactly 128 key slots through
+`lookup` and `Circ.slot_head`. A 256-word gather must partition its table
+across two existing heads, with an address-bank predicate and a gated
+combination of read bits. It cannot simply add key indices above 127 to
+the existing head. Check the partitioned read and write rules before
+integrating the rest of the machine.
+
 The merge allocator uses circuit live slots to select widened hidden size.
 More memory and address queries can therefore grow pretrained weights and
 cache cost. Linear extrapolation from logical memory bytes is insufficient.
