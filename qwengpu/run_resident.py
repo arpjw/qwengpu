@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.alu32 import ALU_VOCAB
+from qwengpu.alu32 import ALU_VOCAB, FULL_INTEGER_LAYOUT
 from qwengpu.scoped_memory import SCOPED_LAYOUT
 from qwengpu.resident_scheduler import RESIDENT_LAYOUT
 from qwengpu.compiled_tile8 import (
@@ -160,12 +160,14 @@ def main() -> int:
         action="store_true",
         help="compare the execution trace and final state to the reference interpreter",
     )
+    variants.add_argument("--full-integer", action="store_true")
     args = parser.parse_args()
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_interleaved = args.resident_interleaved
+    full_integer = args.full_integer
+    resident_interleaved = args.resident_interleaved or full_integer
     resident_scoped = args.resident_scoped or resident_interleaved
     resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
@@ -187,7 +189,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-interleaved"
+        "standalone-full-integer"
+        if full_integer
+        else "standalone-resident-interleaved"
         if resident_interleaved
         else "standalone-resident-scoped"
         if resident_scoped
@@ -274,8 +278,9 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_interleaved = layout == RESIDENT_LAYOUT
-            resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
+            full_integer = layout == FULL_INTEGER_LAYOUT
+            resident_interleaved = layout in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+            resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
             resident_alu32 = layout in ALU32_LAYOUTS
             resident_rom32 = layout in ROM32_LAYOUTS
             resident_memory512 = layout in MEMORY512_LAYOUTS
@@ -341,6 +346,8 @@ def main() -> int:
                 raise ValueError(
                     "--resident-globalgrid requires a globalgrid checkpoint"
                 )
+            if args.full_integer and not full_integer:
+                raise ValueError("--full-integer requires a full integer checkpoint")
             if args.resident_interleaved and not resident_interleaved:
                 raise ValueError(
                     "--resident-interleaved requires an interleaved checkpoint"
@@ -375,6 +382,7 @@ def main() -> int:
             resident_alu32=resident_alu32,
             resident_scoped=resident_scoped,
             resident_interleaved=resident_interleaved,
+            full_integer=full_integer,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -413,6 +421,7 @@ def main() -> int:
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
         resident_interleaved=resident_interleaved,
+        full_integer=full_integer,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]

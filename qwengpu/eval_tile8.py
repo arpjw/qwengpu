@@ -13,7 +13,9 @@ import transformers
 from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
-from qwengpu.alu32 import ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, LOGIC_OPS
+from qwengpu.alu32 import (
+    ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_LAYOUT, LOGIC_OPS, WIDE_INDEX_OPS,
+)
 from qwengpu.compiled_tile import (
     READY0,
     READY1,
@@ -284,7 +286,9 @@ def parse_launch(
     resident_alu32: bool = False,
     resident_scoped: bool = False,
     resident_interleaved: bool = False,
+    full_integer: bool = False,
 ) -> dict:
+    resident_interleaved = resident_interleaved or full_integer
     resident_scoped = resident_scoped or resident_interleaved
     resident_alu32 = resident_alu32 or resident_scoped
     resident_rom32 = resident_rom32 or resident_alu32
@@ -396,6 +400,7 @@ def parse_launch(
             + (COMPUTE_OPS if workgroups and resident_compute else ())
             + (ALU_OPS if resident_alu32 else ())
             + (SCOPED_OPS if resident_scoped and workgroups else ())
+            + (WIDE_INDEX_OPS if full_integer and workgroups else ())
         )
         slots = 32 if resident_rom32 else 16
         for warp, program in enumerate(raw):
@@ -491,6 +496,7 @@ def _parse_case(
     resident_alu32: bool = False,
     resident_scoped: bool = False,
     resident_interleaved: bool = False,
+    full_integer: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -510,6 +516,7 @@ def _parse_case(
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
         resident_interleaved=resident_interleaved,
+        full_integer=full_integer,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -748,7 +755,8 @@ def execute(
     )
     rom = [
         program_tokens(
-            program, resident_rom32=rom32, resident_alu32=alu32, resident_scoped=scoped
+            program, resident_rom32=rom32, resident_alu32=alu32, resident_scoped=scoped,
+            full_integer=circuit.full_integer,
         )
         for program in case["programs"]
     ]
@@ -1239,6 +1247,7 @@ def execute(
                 resident_rom32=rom32,
                 resident_alu32=alu32,
                 resident_scoped=scoped,
+                full_integer=circuit.full_integer,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1763,6 +1772,29 @@ def oracle(
                 scoped_ram[physical_word(op, group, local_warp, lane, addr)]
                 for lane, addr in enumerate(indices[warp])
             ]
+        elif op in WIDE_INDEX_OPS:
+            from operator import and_, lt, mul, or_, xor
+
+            def signed(word):
+                return word if word < 1 << 31 else word - (1 << 32)
+
+            apply = {
+                "MUL_INDEX32": mul,
+                "SLTU_INDEX32": lt,
+                "SLT_INDEX32": lambda a, b: signed(a) < signed(b),
+                "AND_INDEX32": and_,
+                "OR_INDEX32": or_,
+                "XOR_INDEX32": xor,
+            }[op]
+            words = [
+                apply(lo | hi << 16, ram[addr] | ram[addr ^ 1] << 16) & 0xFFFFFFFF
+                for lo, hi, addr in zip(before, high[warp], indices[warp], strict=True)
+            ]
+            candidate = [word & 65535 for word in words]
+            high[warp] = [
+                word >> 16 if active >> lane & 1 else high[warp][lane]
+                for lane, word in enumerate(words)
+            ]
         elif op == "ADDIDX":
             indices[warp] = [
                 (addr + arg) % (256 if global512 else INDEX_WORDS)
@@ -2064,15 +2096,19 @@ def load_tile_model(
     resident_alu32: bool = False,
     resident_scoped: bool = False,
     resident_interleaved: bool = False,
+    full_integer: bool = False,
 ):
     if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        if resident_interleaved and layout != RESIDENT_LAYOUT:
+        if full_integer and layout != FULL_INTEGER_LAYOUT:
+            raise ValueError("expected a full integer checkpoint")
+        full_integer = layout == FULL_INTEGER_LAYOUT
+        if resident_interleaved and layout not in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT):
             raise ValueError("expected an interleaved checkpoint")
-        resident_interleaved = layout == RESIDENT_LAYOUT
-        if resident_scoped and layout not in (SCOPED_LAYOUT, RESIDENT_LAYOUT):
+        resident_interleaved = layout in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+        if resident_scoped and layout not in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT):
             raise ValueError("expected a merged scoped-memory checkpoint")
-        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
+        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
         if resident_alu32 and layout not in ALU32_LAYOUTS:
             raise ValueError("expected a merged ALU32 checkpoint")
         resident_alu32 = layout in ALU32_LAYOUTS
@@ -2122,6 +2158,7 @@ def load_tile_model(
             resident_alu32=resident_alu32,
             resident_scoped=resident_scoped,
             resident_interleaved=resident_interleaved,
+            full_integer=full_integer,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -2161,6 +2198,7 @@ def load_tile_model(
             resident_alu32=resident_alu32,
             resident_scoped=resident_scoped,
             resident_interleaved=resident_interleaved,
+            full_integer=full_integer,
         )
     return model.to(device).eval(), circuit
 
@@ -2197,6 +2235,7 @@ def main() -> None:
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
+    variants.add_argument("--full-integer", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -2206,7 +2245,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_interleaved = args.resident_interleaved
+    full_integer = args.full_integer
+    resident_interleaved = args.resident_interleaved or full_integer
     resident_scoped = args.resident_scoped or resident_interleaved
     resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
@@ -2254,8 +2294,9 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_interleaved = layout == RESIDENT_LAYOUT
-        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
+        resident_interleaved = layout in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+        full_integer = layout == FULL_INTEGER_LAYOUT
+        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
         resident_alu32 = layout in ALU32_LAYOUTS
         resident_rom32 = layout in ROM32_LAYOUTS
         resident_memory512 = layout in MEMORY512_LAYOUTS
@@ -2385,6 +2426,7 @@ def main() -> None:
                     resident_alu32=resident_alu32,
                     resident_scoped=resident_scoped,
                     resident_interleaved=resident_interleaved,
+                    full_integer=full_integer,
                 ),
             )
         )
@@ -2422,6 +2464,7 @@ def main() -> None:
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
         resident_interleaved=resident_interleaved,
+        full_integer=full_integer,
     )
     report = {
         "device": args.device,

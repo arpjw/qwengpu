@@ -266,6 +266,7 @@ def main() -> None:
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
+    variants.add_argument("--full-integer", action="store_true")
     parser.add_argument("--device", default="mps", choices=("mps", "cuda", "cpu"))
     parser.add_argument("--trace", action="store_true")
     parser.add_argument(
@@ -282,6 +283,7 @@ def main() -> None:
         or args.resident_alu32
         or args.resident_scoped
         or args.resident_interleaved
+        or args.full_integer
         or (meta is not None and meta.get("layout") in MEMORY512_LAYOUTS)
     )
     try:
@@ -316,6 +318,7 @@ def main() -> None:
         resident_alu32=args.resident_alu32,
         resident_scoped=args.resident_scoped,
         resident_interleaved=args.resident_interleaved,
+        full_integer=args.full_integer,
     )
     result = execute_request(
         model,

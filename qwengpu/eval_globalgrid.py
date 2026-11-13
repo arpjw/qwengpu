@@ -69,6 +69,7 @@ def launch(
         resident_alu32=circuit.resident_alu32,
         resident_scoped=circuit.resident_scoped,
         resident_interleaved=circuit.resident_interleaved,
+        full_integer=circuit.full_integer,
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None
@@ -288,6 +289,7 @@ def main() -> None:
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
+    variants.add_argument("--full-integer", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--ids-only", action="store_true")
     parser.add_argument("--out", type=Path, required=True)
@@ -322,6 +324,7 @@ def main() -> None:
         resident_alu32=args.resident_alu32,
         resident_scoped=args.resident_scoped,
         resident_interleaved=args.resident_interleaved,
+        full_integer=args.full_integer,
     )
     result = qualify(
         model,

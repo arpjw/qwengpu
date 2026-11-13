@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.alu32 import ALU_VOCAB
+from qwengpu.alu32 import ALU_VOCAB, FULL_INTEGER_LAYOUT
 from qwengpu.scoped_memory import SCOPED_LAYOUT
 from qwengpu.resident_scheduler import RESIDENT_LAYOUT
 from qwengpu.compiled_tile8 import (
@@ -329,6 +329,7 @@ def main() -> None:
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
+    variants.add_argument("--full-integer", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute",
@@ -382,7 +383,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_interleaved = args.resident_interleaved
+    full_integer = args.full_integer
+    resident_interleaved = args.resident_interleaved or full_integer
     resident_scoped = args.resident_scoped or resident_interleaved
     resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
@@ -445,8 +447,9 @@ def main() -> None:
                 RESIDENT_COMPUTE_LAYOUT,
                 *MEMORY512_LAYOUTS,
             )
-            resident_interleaved = meta["layout"] == RESIDENT_LAYOUT
-            resident_scoped = meta["layout"] in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
+            full_integer = meta["layout"] == FULL_INTEGER_LAYOUT
+            resident_interleaved = meta["layout"] in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+            resident_scoped = meta["layout"] in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
             resident_alu32 = meta["layout"] in ALU32_LAYOUTS
             resident_rom32 = meta["layout"] in ROM32_LAYOUTS
             resident_memory512 = meta["layout"] in MEMORY512_LAYOUTS
@@ -516,6 +519,7 @@ def main() -> None:
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
         resident_interleaved=resident_interleaved,
+        full_integer=full_integer,
     )
     standalone = (
         "standalone-resident-memory512"

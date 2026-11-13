@@ -10,6 +10,8 @@ from qwengpu.alu32 import (
     ALU_OPS,
     ALU_VOCAB,
     LOGIC_OPS,
+    WIDE_INDEX_OPS,
+    indexed_word_results,
     alu_token,
     decode_alu_token,
     lane_results,
@@ -155,6 +157,7 @@ def rom_address(
     resident_rom32: bool,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    full_integer: bool = False,
 ) -> int | None:
     if ROM <= token < C_MEMORY:
         return (token - ROM) // STRIDE
@@ -164,7 +167,7 @@ def rom_address(
         if ROM32_LOOP <= token < ROM32_VOCAB:
             return (token - ROM32_LOOP) // ROM32_LOOP_STRIDE
     decoded = (
-        decode_alu_token(token, scoped=resident_scoped)
+        decode_alu_token(token, scoped=resident_scoped, full_integer=full_integer)
         if resident_alu32 or resident_scoped
         else None
     )
@@ -177,6 +180,7 @@ def program_tokens(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    full_integer: bool = False,
 ) -> list[int]:
     slots = 32 if resident_rom32 or resident_alu32 or resident_scoped else 16
     if not 1 <= len(program) <= slots:
@@ -251,12 +255,14 @@ def program_tokens(
 
     tokens = []
     for address, (op, arg) in enumerate(padded):
-        if op in ALU_OPS or op in SCOPED_OPS:
+        if op in ALU_OPS or op in SCOPED_OPS or op in WIDE_INDEX_OPS:
+            if op in WIDE_INDEX_OPS and not full_integer:
+                raise ValueError(f"{op} requires the full integer layout")
             if op in SCOPED_OPS and not resident_scoped:
                 raise ValueError(f"{op} requires the scoped-memory layout")
             if not (resident_alu32 or resident_scoped):
                 raise ValueError(f"{op} requires the ALU32 layout")
-            tokens.append(alu_token(address, op, arg, scoped=resident_scoped))
+            tokens.append(alu_token(address, op, arg, scoped=resident_scoped, full_integer=full_integer))
         elif op == "WHILE_BIT" and links[address] >= 16:
             tokens.append(
                 ROM32_LOOP
@@ -288,9 +294,10 @@ def rom_payload(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    full_integer: bool = False,
 ) -> int:
     decoded = (
-        decode_alu_token(token, scoped=resident_scoped)
+        decode_alu_token(token, scoped=resident_scoped, full_integer=full_integer)
         if resident_alu32 or resident_scoped
         else None
     )
@@ -413,8 +420,10 @@ def build(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    full_integer: bool = False,
     resident_interleaved: bool = False,
 ) -> Circ:
+    resident_interleaved = resident_interleaved or full_integer
     resident_scoped = resident_scoped or resident_interleaved
     resident_alu32 = resident_alu32 or resident_scoped
     resident_rom32 = resident_rom32 or resident_alu32
@@ -463,6 +472,7 @@ def build(
     c.resident_alu32 = resident_alu32
     c.resident_scoped = resident_scoped
     c.resident_interleaved = resident_interleaved
+    c.full_integer = full_integer
     c.memory_geometry = geometry
     one = c.one
     warp_banks = (
@@ -830,6 +840,7 @@ def build(
                     resident_rom32=True,
                     resident_alu32=resident_alu32,
                     resident_scoped=resident_scoped,
+                    full_integer=full_integer,
                 )
                 is not None
             ),
@@ -846,6 +857,7 @@ def build(
                                 resident_rom32=True,
                                 resident_alu32=resident_alu32,
                                 resident_scoped=resident_scoped,
+                                full_integer=full_integer,
                             )
                             or 0
                         )
@@ -909,6 +921,7 @@ def build(
                         resident_rom32=resident_rom32,
                         resident_alu32=resident_alu32,
                         resident_scoped=resident_scoped,
+                        full_integer=full_integer,
                     )
                     >> bit
                 )
@@ -957,7 +970,7 @@ def build(
     decode_groups = [(op_names, [one - payload[14]] if resident_alu32 else [])]
     if resident_alu32:
         decode_groups.append(
-            (ALU_OPS + (SCOPED_OPS if resident_scoped else ()), [payload[14]])
+            (ALU_OPS + (SCOPED_OPS if resident_scoped else ()) + (WIDE_INDEX_OPS if full_integer else ()), [payload[14]])
         )
     ops = {
         op: c.and_(
@@ -1450,6 +1463,7 @@ def build(
     scoped_addresses = []
     grants = []
     indexed_values = []
+    indexed_pair_values = []
     load_high = ops.get(LOAD_INDEX_HI, Expr())
     store_high = ops.get(STORE_INDEX_HI, Expr())
     add_low = ops.get(ADD_INDEX_LO, Expr())
@@ -1461,6 +1475,9 @@ def build(
         private = ops.get("LOAD_PRIVATE", Expr()) + ops.get("STORE_PRIVATE", Expr())
         load_index = ops["LOAD_INDEX"] + scoped_load + load_high + add_low + add_high
         read_high = load_high + add_high
+        wide_index = sum((ops[op] for op in WIDE_INDEX_OPS), Expr()) if full_integer else Expr()
+        if full_integer:
+            load_index += wide_index
         if resident_alu32:
             load_index += sum((ops[op] for op in LOGIC_OPS), Expr())
             read_high += sum((ops[op] for op in LOGIC_OPS[1::2]), Expr())
@@ -1557,6 +1574,22 @@ def build(
                     ),
                 ]
             for nib in range(4):
+                if full_integer:
+                    # Swapping adjacent query rows selects index XOR 1.
+                    pair_queries = [queries[word ^ 1] for word in range(128)]
+                    pair = c.select_bits(
+                        [
+                            ([ram_bank[bank]], ram_lookup(
+                                f"ram.pair.{lane}.{nib}.{bank}",
+                                [4 * word + nib for word in range(128 * bank, 128 * (bank + 1))],
+                                pair_queries,
+                            ))
+                            for bank in range(2)
+                        ],
+                        4,
+                        f"gather.pair_value.{lane}.{nib}",
+                    )
+                    indexed_pair_values.extend(pair)
                 slots = [
                     base // 16 + 4 * word + nib
                     for base in (INDEX_OPERAND, C_MEMORY)
@@ -1700,6 +1733,10 @@ def build(
                     f"shift.lane.{lane}",
                 )
                 extra = [([ops["SHL32I"]], shifted), ([ops["WARP_SUM"]], warp_sum)]
+            if full_integer:
+                start = 16 * lane
+                right = indexed_values[start : start + 16] + indexed_pair_values[start : start + 16]
+                extra += indexed_word_results(c, ops, word, right, lane)
             special = c.select_bits(
                 [
                     ([ops[op]], bits + [Expr()] * (32 - len(bits)))
@@ -1740,6 +1777,8 @@ def build(
             (ops[op] for op in ALU_OPS if op not in ("ADDIDX", "SUB32I")), Expr()
         )
         group_ops += alu_write
+        if full_integer:
+            group_ops += wide_index
     for lane in range(8):
         columns = []
         limits = []
@@ -1784,7 +1823,7 @@ def build(
                 columns
                 + (
                     [v + subtract_extend for v in upper_columns]
-                    if resident_alu32
+                    if resident_alu32 or full_integer
                     else upper_columns
                 ),
                 limits + [1 + int(resident_addmem32)] * 16,
@@ -2273,6 +2312,7 @@ def build_standalone(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    full_integer: bool = False,
     resident_interleaved: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
@@ -2304,6 +2344,7 @@ def build_standalone(
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
+        full_integer=full_integer,
         resident_interleaved=resident_interleaved,
     )
     return build_qwen(
@@ -2311,7 +2352,7 @@ def build_standalone(
         list(
             range(
                 ALU_VOCAB
-                if resident_alu32 or resident_scoped or resident_interleaved
+                if resident_alu32 or resident_scoped or resident_interleaved or full_integer
                 else ROM32_VOCAB
                 if resident_rom32
                 else WIDE_MEMORY.vocab
