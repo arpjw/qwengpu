@@ -1,0 +1,2 @@
+{'internal_stores': False, 'layers': 42, 'slots': 3347, 'hidden': 3584, 'minimum_weight_bytes': 8463056896}
+{'internal_stores': True, 'layers': 46, 'slots': 3226, 'hidden': 3328, 'minimum_weight_bytes': 9882828800}
