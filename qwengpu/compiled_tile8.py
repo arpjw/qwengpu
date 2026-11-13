@@ -57,6 +57,11 @@ LOOP_NIBBLES = 5
 WARP_DIRTY_OFFSET = LOOP_OFFSET + 4 * LOOP_NIBBLES
 ROM_BANK = READ_LOOP + LOOP_NIBBLES
 ROM_PAYLOAD_BITS = 12
+ROM32_UPPER = 0x11000
+ROM32_LOOP = WIDE_MEMORY.vocab
+ROM32_LOOP_STRIDE = 512
+ROM32_VOCAB = ROM32_LOOP + 32 * ROM32_LOOP_STRIDE
+ROM32_PC_HIGH = 128
 ADD32I_OP = "ADD32I"
 LOAD_INDEX_HI = "LOAD_INDEX_HI"
 STORE_INDEX_HI = "STORE_INDEX_HI"
@@ -120,8 +125,24 @@ SNAPSHOT_BITS = 132
 CHUNK_BITS = 120
 
 
-def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
-    padded = program + (("HALT", 0),) * (16 - len(program))
+def rom_address(token: int, *, resident_rom32: bool) -> int | None:
+    if ROM <= token < C_MEMORY:
+        return (token - ROM) // STRIDE
+    if resident_rom32:
+        if ROM32_UPPER <= token < ROM32_UPPER + 16 * STRIDE:
+            return 16 + (token - ROM32_UPPER) // STRIDE
+        if ROM32_LOOP <= token < ROM32_VOCAB:
+            return (token - ROM32_LOOP) // ROM32_LOOP_STRIDE
+    return None
+
+
+def program_tokens(
+    program: tuple[tuple[str, int], ...], *, resident_rom32: bool = False
+) -> list[int]:
+    slots = 32 if resident_rom32 else 16
+    if not 1 <= len(program) <= slots:
+        raise ValueError(f"program must contain 1 through {slots} instructions")
+    padded = program + (("HALT", 0),) * (slots - len(program))
 
     links = {}
     opens = []
@@ -189,10 +210,19 @@ def program_tokens(program: tuple[tuple[str, int], ...]) -> list[int]:
             return OPS.index("STORE_TILE") * 256 + arg if arg else ADD32I_ZERO_WIRE
         return OPS.index(op) * 256 + arg
 
-    return [
-        ROM + address * STRIDE + wire(address, op, arg)
-        for address, (op, arg) in enumerate(padded)
-    ]
+    tokens = []
+    for address, (op, arg) in enumerate(padded):
+        if op == "WHILE_BIT" and links[address] >= 16:
+            tokens.append(
+                ROM32_LOOP
+                + address * ROM32_LOOP_STRIDE
+                + 32 * (links[address] - 16)
+                + arg
+            )
+        else:
+            base = ROM if address < 16 else ROM32_UPPER - 16 * STRIDE
+            tokens.append(base + address * STRIDE + wire(address, op, arg))
+    return tokens
 
 
 def rom_payload(
@@ -210,10 +240,18 @@ def rom_payload(
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
     resident_memory512: bool = False,
+    resident_rom32: bool = False,
 ) -> int:
-    if not ROM <= token < ROM + 16 * STRIDE:
+    if resident_rom32 and ROM32_LOOP <= token < ROM32_VOCAB:
+        exit_pc, predicate = divmod((token - ROM32_LOOP) % ROM32_LOOP_STRIDE, 32)
+        tag = 21 if predicate >= 16 else 14
+        return (1 << 13) + 256 * tag + 16 * exit_pc + predicate % 16
+    if ROM <= token < C_MEMORY:
+        wire = (token - ROM) % STRIDE
+    elif resident_rom32 and ROM32_UPPER <= token < ROM32_UPPER + 16 * STRIDE:
+        wire = (token - ROM32_UPPER) % STRIDE
+    else:
         return 0
-    wire = (token - ROM) % STRIDE
     if resident_memory512 and wire in PAIR_DECODE:
         return PAIR_DECODE[wire]
     tag, arg = divmod(wire, 256)
@@ -283,7 +321,7 @@ def rom_payload(
         loop_tag = len(OPS) + len(INDEX_OPS) + len(MASK_OPS) + len(BRANCH_OPS)
         if OPS[tag] == "LOAD_TILE" and arg >= 32:
             return loop_tag * 256 + arg
-        if OPS[tag] == "BARRIER" and 1 <= arg <= 16:
+        if OPS[tag] == "BARRIER" and 1 <= arg <= (31 if resident_rom32 else 16):
             return (loop_tag + 1) * 256 + arg - 1
     return wire
 
@@ -318,7 +356,9 @@ def build(
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
     resident_memory512: bool = False,
+    resident_rom32: bool = False,
 ) -> Circ:
+    resident_memory512 = resident_memory512 or resident_rom32
     resident_compute = resident_compute or resident_memory512
     resident_globalgrid = resident_globalgrid or resident_compute
     resident_tilegrid = resident_tilegrid or resident_globalgrid
@@ -359,6 +399,7 @@ def build(
     c.resident_globalgrid = resident_globalgrid
     c.resident_compute = resident_compute
     c.resident_memory512 = resident_memory512
+    c.resident_rom32 = resident_rom32
     c.memory_geometry = geometry
     one = c.one
 
@@ -431,12 +472,21 @@ def build(
         load = between(
             f"control.load.{warp}", CONTROL + 64 * warp, CONTROL + 64 * (warp + 1)
         )
+        data = {**{2 + bit: value for bit, value in enumerate(raw[:6])}, 8: load}
+        if resident_rom32:
+            high = between(
+                f"control.load_high.{warp}",
+                CONTROL + ROM32_PC_HIGH + 64 * warp,
+                CONTROL + ROM32_PC_HIGH + 64 * (warp + 1),
+            )
+            load += high
+            data.update({8: load, 9: high})
         controls.append(
             c.slot_head(
                 f"control.{warp}",
                 {0: load},
                 {0: tick + schedule + sum(resets, Expr())},
-                {**{2 + bit: value for bit, value in enumerate(raw[:6])}, 8: load},
+                data,
                 load,
             )
         )
@@ -612,14 +662,41 @@ def build(
             + c.t_and([tick, controls[1][bit], *([warp_bit] if resident else [])]),
             f"pc.{bit}",
         )
-        for bit in range(4)
+        for bit in ((0, 1, 2, 3, 7) if resident_rom32 else range(4))
     ]
-    pc_hot = c.onehot_of_bits(pc, "pc", 16)
-    keys = {
-        i: between(f"rom.load.{i}", ROM + i * STRIDE, ROM + (i + 1) * STRIDE)
-        for i in range(16)
-    }
-    load_rom = between("rom.load", ROM, ROM + 16 * STRIDE)
+    slots = 32 if resident_rom32 else 16
+    pc_hot = c.onehot_of_bits(pc, "pc", slots)
+    if resident_rom32:
+        load_rom = c.token_feature(
+            "rom.load",
+            lambda t: int(rom_address(t, resident_rom32=True) is not None),
+            full=True,
+        )
+        address_bits = [
+            c.token_feature(
+                f"rom.address.{bit}",
+                lambda t, bit=bit: (
+                    ((rom_address(t, resident_rom32=True) or 0) >> bit) & 1
+                ),
+                full=True,
+            )
+            for bit in range(5)
+        ]
+        keys = {
+            address: load_rom
+            + sum(
+                bit if address >> i & 1 else one - bit
+                for i, bit in enumerate(address_bits)
+            )
+            - 5 * one
+            for address in range(slots)
+        }
+    else:
+        keys = {
+            i: between(f"rom.load.{i}", ROM + i * STRIDE, ROM + (i + 1) * STRIDE)
+            for i in range(slots)
+        }
+        load_rom = between("rom.load", ROM, C_MEMORY)
 
     op_names = (
         OPS
@@ -654,6 +731,7 @@ def build(
                         resident_globalgrid=resident_globalgrid,
                         resident_compute=resident_compute,
                         resident_memory512=resident_memory512,
+                        resident_rom32=resident_rom32,
                     )
                     >> bit
                 )
@@ -661,7 +739,7 @@ def build(
             ),
             full=True,
         )
-        for bit in range(8 + op_width)
+        for bit in range(8 + op_width + int(resident_rom32))
     ]
     if resident_rom:
         bank0 = match("rom.bank.0", ROM_BANK)
@@ -671,12 +749,16 @@ def build(
             "rom.bank", {0: bank_load}, {0: load_rom}, {2: bank1}, bank_load
         )
         keys = {
-            16 * warp + address: c.and_([key, selected], f"rom.write.{warp}.{address}")
+            slots * warp + address: (
+                key + selected - one
+                if resident_rom32
+                else c.and_([key, selected], f"rom.write.{warp}.{address}")
+            )
             for warp, selected in enumerate((one - upload_bank, upload_bank))
             for address, key in keys.items()
         }
         queries = {
-            16 * warp + address: c.and_(
+            slots * warp + address: c.and_(
                 [tick, active, selected], f"rom.query.{warp}.{address}"
             )
             for warp, selected in enumerate((one - warp_bit, warp_bit))
@@ -1520,11 +1602,18 @@ def build(
     pc_sources = [([halted], pc)]
     increment = one - halted
     if looping:
-        pc_sources.extend([([leave], arg[4:8]), ([ops["ENDWHILE"]], arg[:4])])
+        exit_pc = arg[4:8] + ([payload[13]] if resident_rom32 else [])
+        back_pc = arg[: len(pc)]
+        pc_sources.extend([([leave], exit_pc), ([ops["ENDWHILE"]], back_pc)])
         increment = increment - leave - ops["ENDWHILE"]
-    pc_sources.append(([increment], _increment4(c, pc)))
-    next_pc = c.select_bits(pc_sources, 4, "pc.next")
-    execution = next_pc + [halted, ops["BARRIER"], warp_bit]
+    stepped = _increment4(c, pc)
+    if resident_rom32:
+        carry = c.and_(pc[:4], "pc.carry.4")
+        both = c.and_([pc[4], carry], "pc.both.4")
+        stepped.append(pc[4] + carry - 2 * both)
+    pc_sources.append(([increment], stepped))
+    next_pc = c.select_bits(pc_sources, len(pc), "pc.next")
+    execution = next_pc[:4] + [halted, ops["BARRIER"], warp_bit] + next_pc[4:]
 
     if resident_delta:
         # State output requests are in packet order. Only changed fields
@@ -1562,7 +1651,7 @@ def build(
         value = decision[bit] if bit < len(decision) else (TICKET >> bit) & 1
         control_terms += c.t_and([schedule, value], 2 * KAPPA)
         for warp, reset in enumerate(resets):
-            if bit < 6:
+            if bit < 6 or (resident_rom32 and bit == 7):
                 gates = [reset, controls[warp][bit], one - advance]
                 if bit == 5:
                     gates.append(one - release)
@@ -1755,6 +1844,7 @@ def build_standalone(
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
     resident_memory512: bool = False,
+    resident_rom32: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1782,12 +1872,15 @@ def build_standalone(
         resident_globalgrid=resident_globalgrid,
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
+        resident_rom32=resident_rom32,
     )
     return build_qwen(
         circuit,
         list(
             range(
-                WIDE_MEMORY.vocab
+                ROM32_VOCAB
+                if resident_rom32
+                else WIDE_MEMORY.vocab
                 if resident_memory512
                 else TILEGRID_VOCAB
                 if resident_tilegrid

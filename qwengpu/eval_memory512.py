@@ -11,8 +11,9 @@ import torch
 import transformers
 
 from qwengpu.eval_globalgrid import launch
+from qwengpu.compiled_tile8 import ROM32_VOCAB
 from qwengpu.eval_tile8 import load_tile_model
-from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
 from qwengpu.run_compute import execute_request, parse_request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--device", default="mps")
+    parser.add_argument("--resident-rom32", action="store_true")
     parser.add_argument("--raw", action="append")
     parser.add_argument("--case", action="append")
     parser.add_argument("--raw-only", action="store_true")
@@ -31,7 +33,9 @@ def main() -> None:
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
     if meta and (
-        meta["layout"] != MEMORY512_LAYOUT or meta["chip_vocab"] != WIDE_MEMORY.vocab
+        meta["layout"] not in MEMORY512_LAYOUTS
+        or meta["chip_vocab"]
+        != (ROM32_VOCAB if meta["layout"] == ROM32_LAYOUT else WIDE_MEMORY.vocab)
     ):
         parser.error("expected a memory512 checkpoint")
     paths = sorted((ROOT / "eval/frozen/memory512_v1").glob("*.json"))
@@ -45,7 +49,12 @@ def main() -> None:
     names = [] if args.raw_only else (args.case or list(inputs))
     if len(set(names)) != len(names) or any(name not in inputs for name in names):
         parser.error("unknown or duplicate compute case")
-    model, circuit = load_tile_model(args.model, args.device, resident_memory512=True)
+    model, circuit = load_tile_model(
+        args.model,
+        args.device,
+        resident_memory512=True,
+        resident_rom32=args.resident_rom32,
+    )
     offset = meta["chip_token_offset"] if meta else 0
     raw = []
     for path in paths:

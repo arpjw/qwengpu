@@ -11,6 +11,7 @@ import torch
 import transformers
 
 from qwengpu.compiled_tile8 import (
+    ROM32_VOCAB,
     C_MEMORY,
     NEXT_BANK,
     OUTPUT_BANKS,
@@ -29,7 +30,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
 from qwengpu.run_matmul16 import TILE, _tile, _trace_digest, parse_inputs
 
 
@@ -277,12 +278,14 @@ def main() -> None:
             RESIDENT_TILEGRID_LAYOUT,
             RESIDENT_GLOBALGRID_LAYOUT,
             RESIDENT_COMPUTE_LAYOUT,
-            MEMORY512_LAYOUT,
+            *MEMORY512_LAYOUTS,
         )
         or meta.get("chip_vocab")
         != (
-            WIDE_MEMORY.vocab
-            if meta.get("layout") == MEMORY512_LAYOUT
+            ROM32_VOCAB
+            if meta.get("layout") == ROM32_LAYOUT
+            else WIDE_MEMORY.vocab
+            if meta.get("layout") in MEMORY512_LAYOUTS
             else TILEGRID_VOCAB
         )
     ):

@@ -9,7 +9,9 @@ from pathlib import Path
 from qwengpu.eval_tile8 import parse_launch
 
 
-def assemble(source: str, data: dict | None = None) -> dict:
+def assemble(
+    source: str, data: dict | None = None, *, resident_rom32: bool = False
+) -> dict:
     if data is not None and (not isinstance(data, dict) or "programs" in data):
         raise ValueError("launch data must be an object without a programs field")
     programs: dict[int, list[dict[str, str | int]]] = {}
@@ -46,6 +48,7 @@ def assemble(source: str, data: dict | None = None) -> dict:
         resident_compute="workgroups" in launch,
         resident_memory512=isinstance(launch.get("global_words"), list)
         and len(launch["global_words"]) == 256,
+        resident_rom32=resident_rom32,
     )
     return launch
 
@@ -53,6 +56,7 @@ def assemble(source: str, data: dict | None = None) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
+    parser.add_argument("--resident-rom32", action="store_true")
     parser.add_argument(
         "--data", type=Path, help="optional JSON with initial launch data"
     )
@@ -66,7 +70,11 @@ def main() -> None:
             data = json.loads(args.data.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("launch data must be a JSON object")
-        launch = assemble(args.source.read_text(encoding="utf-8"), data)
+        launch = assemble(
+            args.source.read_text(encoding="utf-8"),
+            data,
+            resident_rom32=args.resident_rom32,
+        )
         output = json.dumps(launch, indent=2) + "\n"
         if args.out:
             args.out.write_text(output, encoding="utf-8")

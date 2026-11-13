@@ -14,7 +14,7 @@ from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_globalgrid import launch
 from qwengpu.eval_text_handoff import CORPUS, clear_text_history, compare, measure_text
 from qwengpu.eval_tile8 import load_tile_model
-from qwengpu.memory_geometry import MEMORY512_LAYOUT
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS
 from qwengpu.run_compute import MASK32, compile_request, parse_request, words32
 from qwengpu.textcheck_9b import _ids, load_prompts
 
@@ -38,7 +38,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     meta = json.loads((args.model / "qwengpu9b.json").read_text())
-    if meta["layout"] != MEMORY512_LAYOUT:
+    if meta["layout"] not in MEMORY512_LAYOUTS:
         parser.error("expected a memory512 checkpoint")
     manifest = ROOT / "eval/frozen/memory512_compute_v1/cases.json"
     payload = manifest.read_bytes()

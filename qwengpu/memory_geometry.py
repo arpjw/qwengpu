@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 
 MEMORY512_LAYOUT = "qwengpu-resident-memory512-9b-v1"
+ROM32_LAYOUT = "qwengpu-resident-rom32-9b-v1"
+MEMORY512_LAYOUTS = (MEMORY512_LAYOUT, ROM32_LAYOUT)
 MEMORY512_BASE = 0x20000
 MEMORY512_VOCAB = 0x24000
 

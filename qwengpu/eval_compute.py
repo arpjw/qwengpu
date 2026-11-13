@@ -11,8 +11,9 @@ import torch
 import transformers
 
 from qwengpu.compiled_tile8 import RESIDENT_COMPUTE_LAYOUT, TILEGRID_VOCAB
+from qwengpu.compiled_tile8 import ROM32_VOCAB
 from qwengpu.eval_tile8 import load_tile_model
-from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
 from qwengpu.run_compute import execute_request, parse_request
 
 FIXTURE = Path(__file__).resolve().parents[1] / "eval/frozen/compute_v1/cases.json"
@@ -40,16 +41,22 @@ def main() -> None:
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
     memory512 = args.resident_memory512 or (
-        meta is not None and meta.get("layout") == MEMORY512_LAYOUT
+        meta is not None and meta.get("layout") in MEMORY512_LAYOUTS
     )
     requests = [
         (name, parse_request(raw[name], memory512=memory512)) for name in selected
     ]
     if meta is not None and (
         meta.get("layout")
-        != (MEMORY512_LAYOUT if memory512 else RESIDENT_COMPUTE_LAYOUT)
+        not in (MEMORY512_LAYOUTS if memory512 else (RESIDENT_COMPUTE_LAYOUT,))
         or meta.get("chip_vocab")
-        != (WIDE_MEMORY.vocab if memory512 else TILEGRID_VOCAB)
+        != (
+            ROM32_VOCAB
+            if meta.get("layout") == ROM32_LAYOUT
+            else WIDE_MEMORY.vocab
+            if memory512
+            else TILEGRID_VOCAB
+        )
     ):
         parser.error("expected a merged compute checkpoint")
     model, circuit = load_tile_model(

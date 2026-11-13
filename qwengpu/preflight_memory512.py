@@ -14,7 +14,7 @@ from chipformer.q35.ir import Target
 from chipformer.q35.merge import pick_hidden
 from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
 
-from qwengpu.compiled_tile8 import build, rom_payload
+from qwengpu.compiled_tile8 import ROM32_VOCAB, build, rom_payload
 from qwengpu.memory_geometry import WIDE_MEMORY
 from qwengpu.merge9b import merged_text_config
 
@@ -23,6 +23,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--legacy-ref")
+    parser.add_argument("--resident-rom32", action="store_true")
     args = parser.parse_args()
     legacy = None
     if args.legacy_ref:
@@ -78,6 +79,7 @@ def main() -> None:
             base["intermediate_size"],
         ),
         resident_memory512=True,
+        resident_rom32=args.resident_rom32,
     )
     marker = circuit.token_feature("simt.marker", lambda _t: 0, full=True)
     circuit.ffn(
@@ -89,11 +91,12 @@ def main() -> None:
     keep = set(circuit.keep) | set(marker.terms)
     allocation = allocate(circuit, None, keep, base["intermediate_size"])
     hidden, _m = pick_hidden(4096, allocation.n_slots + 1)
+    vocab = ROM32_VOCAB if args.resident_rom32 else WIDE_MEMORY.vocab
     config = merged_text_config(
         base,
         hidden=hidden,
         n_chip=circuit.n_layers(),
-        chip_vocab=WIDE_MEMORY.vocab,
+        chip_vocab=vocab,
         tied=False,
     )
     with torch.device("meta"):
@@ -112,7 +115,7 @@ def main() -> None:
         "estimated_weight_bytes_bf16": size,
         "estimated_weight_gib_bf16": size / 2**30,
         "maximum_head_row": maximum,
-        "vocab": WIDE_MEMORY.vocab,
+        "vocab": vocab,
         "weights_allocated": False,
         "naive_initial_preflight": {"slots": 6673, "merged_hidden": 11008},
         "optimization": "Shared row/nibble/bank features and read-value bank selection.",

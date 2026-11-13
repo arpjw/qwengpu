@@ -12,6 +12,7 @@ import transformers
 
 from qwengpu.assemble import assemble
 from qwengpu.compiled_tile8 import (
+    ROM32_VOCAB,
     C_MEMORY,
     INDEX_OPERAND,
     RESET_WARP,
@@ -28,7 +29,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
 
 FIXTURE = Path(__file__).resolve().parents[1] / "eval/frozen/globalgrid_v1/words.json"
 MASK32 = 0xFFFFFFFF
@@ -57,6 +58,7 @@ def launch(
         resident_globalgrid=True,
         resident_compute=circuit.resident_compute,
         resident_memory512=circuit.resident_memory512,
+        resident_rom32=circuit.resident_rom32,
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None
@@ -262,11 +264,13 @@ def main() -> None:
     )
     if meta is not None and (
         meta.get("layout")
-        not in (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
+        not in (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
         or meta.get("chip_vocab")
         != (
-            WIDE_MEMORY.vocab
-            if meta.get("layout") == MEMORY512_LAYOUT
+            ROM32_VOCAB
+            if meta.get("layout") == ROM32_LAYOUT
+            else WIDE_MEMORY.vocab
+            if meta.get("layout") in MEMORY512_LAYOUTS
             else TILEGRID_VOCAB
         )
     ):

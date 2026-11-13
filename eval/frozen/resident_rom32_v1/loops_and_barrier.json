@@ -1,0 +1,279 @@
+{
+  "row_pairs": 2,
+  "initial_registers": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      65535,
+      65535,
+      65535,
+      65535,
+      65535,
+      65535,
+      65535
+    ]
+  ],
+  "programs": [
+    [
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 40
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 7
+      },
+      {
+        "op": "ADD32I",
+        "arg": 128
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 6
+      },
+      {
+        "op": "ADD32I",
+        "arg": 64
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 2
+      },
+      {
+        "op": "ADD32I",
+        "arg": 3
+      },
+      {
+        "op": "ADD32I",
+        "arg": 4
+      },
+      {
+        "op": "ADD32I",
+        "arg": 5
+      },
+      {
+        "op": "ADD32I",
+        "arg": 6
+      },
+      {
+        "op": "ADD32I",
+        "arg": 7
+      },
+      {
+        "op": "ADD32I",
+        "arg": 8
+      },
+      {
+        "op": "ADD32I",
+        "arg": 9
+      },
+      {
+        "op": "ADD32I",
+        "arg": 10
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "ADD32I",
+        "arg": 1
+      },
+      {
+        "op": "WHILE_BIT",
+        "arg": 16
+      },
+      {
+        "op": "LOAD_INDEX_HI"
+      },
+      {
+        "op": "ENDWHILE"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "ADD32I",
+        "arg": 3
+      },
+      {
+        "op": "ADD32I",
+        "arg": 11
+      },
+      {
+        "op": "ADD32I",
+        "arg": 12
+      },
+      {
+        "op": "ADD32I",
+        "arg": 13
+      },
+      {
+        "op": "ADD32I",
+        "arg": 14
+      },
+      {
+        "op": "ADD32I",
+        "arg": 15
+      },
+      {
+        "op": "ADD32I",
+        "arg": 16
+      },
+      {
+        "op": "ADD32I",
+        "arg": 17
+      },
+      {
+        "op": "ADD32I",
+        "arg": 18
+      },
+      {
+        "op": "ADD32I",
+        "arg": 19
+      },
+      {
+        "op": "ADD32I",
+        "arg": 20
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+device="${1:?expected mps or cuda}"
+out="${2:?expected output directory}"
+model="${3:-}"
+py="${QWENGPU_PYTHON:-python3}"
+mkdir -p "$out"
+if [[ -n "$model" ]]; then
+  raw=(--model "$model")
+  inherited=("$model")
+else
+  raw=(--resident-rom32)
+  inherited=()
+fi
+
+for fixture in loops_and_barrier workgroup_reset; do
+  "$py" -m qwengpu.run_resident "eval/frozen/resident_rom32_v1/$fixture.json" \
+    "${raw[@]}" --device "$device" --check-reference --trace --out "$out/$fixture.json"
+done
+"$py" -m qwengpu.eval_memory512 "${raw[@]}" --device "$device" \
+  --out "$out/memory512.json"
+bash scripts/qualify_resident_add32.sh --resident-rom32 "${inherited[@]}" \
+  --device "$device" --out "$out/inherited.json"
+"$py" -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  "${raw[@]}" --grid-2x2 --device "$device" --out "$out/matmul16.json"

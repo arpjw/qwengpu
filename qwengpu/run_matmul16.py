@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 
 from qwengpu.compiled_tile8 import (
+    ROM32_VOCAB,
     NEXT_BANK,
     RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
@@ -35,7 +36,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
 
 SIZE = 16
 TILE = 8
@@ -316,6 +317,7 @@ def main() -> None:
         "--model", type=Path, help="merged resident grid or ADD32 checkpoint"
     )
     variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute",
@@ -369,7 +371,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_memory512 = args.resident_memory512
+    resident_rom32 = args.resident_rom32
+    resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
     resident_tilegrid = args.grid_2x2 or resident_compute
     resident_tilepipe = args.schedule_k or resident_tilegrid
@@ -403,8 +406,10 @@ def main() -> None:
                 not in (RESIDENT_GRID_LAYOUT, *RESIDENT_ADD32_LAYOUTS)
                 or meta.get("chip_vocab")
                 != (
-                    WIDE_MEMORY.vocab
-                    if meta.get("layout") == MEMORY512_LAYOUT
+                    ROM32_VOCAB
+                    if meta.get("layout") == ROM32_LAYOUT
+                    else WIDE_MEMORY.vocab
+                    if meta.get("layout") in MEMORY512_LAYOUTS
                     else TILEGRID_VOCAB
                     if meta.get("layout")
                     in (
@@ -422,12 +427,13 @@ def main() -> None:
                 RESIDENT_TILEGRID_LAYOUT,
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
-                MEMORY512_LAYOUT,
+                *MEMORY512_LAYOUTS,
             )
-            resident_memory512 = meta["layout"] == MEMORY512_LAYOUT
+            resident_rom32 = meta["layout"] == ROM32_LAYOUT
+            resident_memory512 = meta["layout"] in MEMORY512_LAYOUTS
             resident_compute = meta["layout"] in (
                 RESIDENT_COMPUTE_LAYOUT,
-                MEMORY512_LAYOUT,
+                *MEMORY512_LAYOUTS,
             )
             resident_tilepipe = meta["layout"] in RESIDENT_TILEPIPE_LAYOUTS
             resident_add32 = meta["layout"] in RESIDENT_ADD32_LAYOUTS
@@ -447,6 +453,8 @@ def main() -> None:
                 raise ValueError("--resident-branch32 requires a branch32 checkpoint")
             if args.resident_loop32 and not resident_loop32:
                 raise ValueError("--resident-loop32 requires a loop32 checkpoint")
+            if args.resident_rom32 and not resident_rom32:
+                raise ValueError("--resident-rom32 requires a ROM32 checkpoint")
             if args.resident_memory512 and not resident_memory512:
                 raise ValueError("--resident-memory512 requires a memory512 checkpoint")
             if args.resident_compute and not resident_compute:
@@ -483,6 +491,7 @@ def main() -> None:
         resident_tilegrid=resident_tilegrid,
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
+        resident_rom32=resident_rom32,
     )
     standalone = (
         "standalone-resident-memory512"

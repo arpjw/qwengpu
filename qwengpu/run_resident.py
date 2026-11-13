@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 
 from qwengpu.compiled_tile8 import (
+    ROM32_VOCAB,
     RESIDENT_COMPUTE_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
@@ -37,7 +38,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
@@ -51,6 +52,7 @@ def main() -> int:
     )
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-memory512", action="store_true")
+    variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument(
         "--resident-compute", action="store_true", help="use the common compute ISA"
     )
@@ -152,7 +154,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_memory512 = args.resident_memory512
+    resident_rom32 = args.resident_rom32
+    resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
     resident_globalgrid = args.resident_globalgrid or resident_compute
     resident_tilegrid = args.resident_tilegrid or resident_globalgrid
@@ -170,7 +173,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-memory512"
+        "standalone-resident-rom32"
+        if resident_rom32
+        else "standalone-resident-memory512"
         if resident_memory512
         else "standalone-resident-compute"
         if resident_compute
@@ -228,8 +233,10 @@ def main() -> int:
                 )
                 or meta.get("chip_vocab")
                 != (
-                    WIDE_MEMORY.vocab
-                    if meta.get("layout") == MEMORY512_LAYOUT
+                    ROM32_VOCAB
+                    if meta.get("layout") == ROM32_LAYOUT
+                    else WIDE_MEMORY.vocab
+                    if meta.get("layout") in MEMORY512_LAYOUTS
                     else TILEGRID_VOCAB
                     if meta.get("layout")
                     in (
@@ -245,18 +252,19 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_memory512 = layout == MEMORY512_LAYOUT
-            resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
+            resident_rom32 = layout == ROM32_LAYOUT
+            resident_memory512 = layout in MEMORY512_LAYOUTS
+            resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
             resident_globalgrid = layout in (
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
-                MEMORY512_LAYOUT,
+                *MEMORY512_LAYOUTS,
             )
             resident_tilegrid = layout in (
                 RESIDENT_TILEGRID_LAYOUT,
                 RESIDENT_GLOBALGRID_LAYOUT,
                 RESIDENT_COMPUTE_LAYOUT,
-                MEMORY512_LAYOUT,
+                *MEMORY512_LAYOUTS,
             )
             resident_loop32 = layout in RESIDENT_LOOP32_LAYOUTS
             resident_branch32 = layout in RESIDENT_BRANCH32_LAYOUTS
@@ -308,6 +316,8 @@ def main() -> int:
                 raise ValueError(
                     "--resident-globalgrid requires a globalgrid checkpoint"
                 )
+            if args.resident_rom32 and not resident_rom32:
+                raise ValueError("--resident-rom32 requires a ROM32 checkpoint")
             if args.resident_memory512 and not resident_memory512:
                 raise ValueError("--resident-memory512 requires a memory512 checkpoint")
             if args.resident_compute and not resident_compute:
@@ -328,6 +338,7 @@ def main() -> int:
             resident_globalgrid=resident_globalgrid,
             resident_compute=resident_compute,
             resident_memory512=resident_memory512,
+            resident_rom32=resident_rom32,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -362,6 +373,7 @@ def main() -> int:
         resident_globalgrid=resident_globalgrid,
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
+        resident_rom32=resident_rom32,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]

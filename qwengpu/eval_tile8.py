@@ -19,7 +19,7 @@ from qwengpu.compiled_tile import (
     SCHEDULE,
     TICK,
     TICKET,
-    control_token,
+    control_token as legacy_control_token,
 )
 from qwengpu.compiled_tile8 import (
     ADD32I_OP,
@@ -83,6 +83,7 @@ from qwengpu.compiled_tile8 import (
     RIGHT_OPERANDS,
     ROM_BANK,
     ROM_PAYLOAD_BITS,
+    ROM32_PC_HIGH,
     ROW_PAIRS,
     SECOND_OUTPUT,
     SHARED32_OPS,
@@ -102,8 +103,14 @@ from qwengpu.compiled_tile8 import (
 )
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_control import hex_bits, snapshot
-from qwengpu.eval_tile import _check_control, _unsigned
-from qwengpu.memory_geometry import LEGACY_MEMORY, MEMORY512_LAYOUT, WIDE_MEMORY
+from qwengpu.eval_tile import _check_control as check_legacy_control
+from qwengpu.eval_tile import _unsigned
+from qwengpu.memory_geometry import (
+    LEGACY_MEMORY,
+    MEMORY512_LAYOUTS,
+    ROM32_LAYOUT,
+    WIDE_MEMORY,
+)
 
 FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
 RESIDENT_FIXTURES = FIXTURES.with_name("resident_gate_v1")
@@ -128,7 +135,7 @@ RESIDENT_GRID_LAYOUT = "qwengpu-resident-grid9b-v1"
 RESIDENT_WIDE_LAYOUT = "qwengpu-resident-wide9b-v1"
 RESIDENT_ADD32_LAYOUT = "qwengpu-resident-add32-9b-v1"
 RESIDENT_TILEPIPE_LAYOUTS = (
-    MEMORY512_LAYOUT,
+    *MEMORY512_LAYOUTS,
     RESIDENT_TILEPIPE_LAYOUT,
     RESIDENT_TILEGRID_LAYOUT,
     RESIDENT_GLOBALGRID_LAYOUT,
@@ -137,7 +144,7 @@ RESIDENT_TILEPIPE_LAYOUTS = (
 RESIDENT_GLOBALGRID_LAYOUTS = (
     RESIDENT_GLOBALGRID_LAYOUT,
     RESIDENT_COMPUTE_LAYOUT,
-    MEMORY512_LAYOUT,
+    *MEMORY512_LAYOUTS,
 )
 RESIDENT_TILEBANKS_LAYOUTS = (RESIDENT_TILEBANKS_LAYOUT, *RESIDENT_TILEPIPE_LAYOUTS)
 RESIDENT_LOOP32_LAYOUTS = (RESIDENT_LOOP32_LAYOUT, *RESIDENT_TILEBANKS_LAYOUTS)
@@ -215,6 +222,16 @@ def _row_window(data: dict, *, resident_grid: bool) -> tuple[int, int]:
     return first, count
 
 
+def control_token(warp: int, pc: int = 0, status: int = 0) -> int:
+    return legacy_control_token(warp, pc & 15, status) + (pc >> 4) * ROM32_PC_HIGH
+
+
+def _check_control(token: int, warp: int, resident_rom32: bool) -> None:
+    if resident_rom32 and token & ROM32_PC_HIGH:
+        token -= ROM32_PC_HIGH
+    check_legacy_control(token, warp)
+
+
 def parse_launch(
     data: object,
     *,
@@ -232,7 +249,9 @@ def parse_launch(
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
     resident_memory512: bool = False,
+    resident_rom32: bool = False,
 ) -> dict:
+    resident_memory512 = resident_memory512 or resident_rom32
     resident_compute = resident_compute or resident_memory512
     resident_globalgrid = resident_globalgrid or resident_compute
     resident_loop32 = resident_loop32 or resident_globalgrid
@@ -330,10 +349,11 @@ def parse_launch(
             + (GLOBAL_OPS if workgroups else ())
             + (COMPUTE_OPS if workgroups and resident_compute else ())
         )
+        slots = 32 if resident_rom32 else 16
         for warp, program in enumerate(raw):
-            if not isinstance(program, list) or not 1 <= len(program) <= 16:
+            if not isinstance(program, list) or not 1 <= len(program) <= slots:
                 raise ValueError(
-                    "each tile program must contain 1 through 16 instructions"
+                    f"each tile program must contain 1 through {slots} instructions"
                 )
             ops = []
             for index, ins in enumerate(program):
@@ -400,6 +420,7 @@ def _parse_case(
     resident_branch32: bool = False,
     resident_loop32: bool = False,
     resident_memory512: bool = False,
+    resident_rom32: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -415,6 +436,7 @@ def _parse_case(
         resident_branch32=resident_branch32,
         resident_loop32=resident_loop32,
         resident_memory512=resident_memory512,
+        resident_rom32=resident_rom32,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -509,6 +531,7 @@ def execute(
     resident_loop32 = circuit.resident_loop32
     workgroups = case.get("workgroups", 0)
     memory512 = circuit.resident_memory512
+    rom32 = circuit.resident_rom32
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
     if workgroups and (
@@ -635,7 +658,9 @@ def execute(
         if resident_wide
         else []
     )
-    rom = [program_tokens(program) for program in case["programs"]]
+    rom = [
+        program_tokens(program, resident_rom32=rom32) for program in case["programs"]
+    ]
     indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
     masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
     branches = [nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(2)]
@@ -802,7 +827,7 @@ def execute(
         emitted = feed([*prefix, SCHEDULE, READY0, READY1], 3)
         ticket, *controls = emitted
         for warp, control in enumerate(controls):
-            _check_control(control, warp)
+            _check_control(control, warp, rom32)
         schedules.append({"ticket": ticket, "controls": controls})
         if ticket in (DONE, DEADLOCK):
             outcome = "halted" if ticket == DONE else "deadlock"
@@ -917,7 +942,7 @@ def execute(
                 transport["skipped_read_calls"] += int(not requested)
         else:
             control, *packet = feed([*tick_input, *reads], 1 + len(reads))
-        _check_control(control, warp)
+        _check_control(control, warp, rom32)
         observed_bits = snapshot(cache, circuit, 0)
         if resident_plan and (
             observed_bits is None
@@ -1075,8 +1100,8 @@ def execute(
                 cache,
                 circuit,
                 "rom",
-                16 * warp + address,
-                ROM_PAYLOAD_BITS + int(resident_add32),
+                len(tokens) * warp + address,
+                ROM_PAYLOAD_BITS + int(resident_add32) + int(rom32),
             )
             == rom_payload(
                 token,
@@ -1092,6 +1117,7 @@ def execute(
                 resident_globalgrid=circuit.resident_globalgrid,
                 resident_compute=circuit.resident_compute,
                 resident_memory512=memory512,
+                resident_rom32=rom32,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1802,13 +1828,18 @@ def load_tile_model(
     resident_globalgrid: bool = False,
     resident_compute: bool = False,
     resident_memory512: bool = False,
+    resident_rom32: bool = False,
 ):
-    if checkpoint is not None and resident_add32:
+    if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
+        if resident_rom32 and layout != ROM32_LAYOUT:
+            raise ValueError("expected a merged ROM32 checkpoint")
+        resident_rom32 = layout == ROM32_LAYOUT
+    if checkpoint is not None and resident_add32:
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
         resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
-        resident_memory512 = layout == MEMORY512_LAYOUT
-        resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
+        resident_memory512 = layout in MEMORY512_LAYOUTS
+        resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
         resident_tilegrid = layout in (
             RESIDENT_TILEGRID_LAYOUT,
             *RESIDENT_GLOBALGRID_LAYOUTS,
@@ -1843,6 +1874,7 @@ def load_tile_model(
             resident_globalgrid=resident_globalgrid,
             resident_compute=resident_compute,
             resident_memory512=resident_memory512,
+            resident_rom32=resident_rom32,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1878,6 +1910,7 @@ def load_tile_model(
             resident_globalgrid=resident_globalgrid,
             resident_compute=resident_compute,
             resident_memory512=resident_memory512,
+            resident_rom32=resident_rom32,
         )
     return model.to(device).eval(), circuit
 
@@ -1910,6 +1943,7 @@ def main() -> None:
     variants.add_argument("--resident-globalgrid", action="store_true")
     variants.add_argument("--resident-compute", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
+    variants.add_argument("--resident-rom32", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1919,7 +1953,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_memory512 = args.resident_memory512
+    resident_rom32 = args.resident_rom32
+    resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
     resident_globalgrid = args.resident_globalgrid or resident_compute
     resident_tilegrid = args.resident_tilegrid or resident_globalgrid
@@ -1963,8 +1998,9 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_memory512 = layout == MEMORY512_LAYOUT
-        resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, MEMORY512_LAYOUT)
+        resident_rom32 = layout == ROM32_LAYOUT
+        resident_memory512 = layout in MEMORY512_LAYOUTS
+        resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
         resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
         resident_tilegrid = layout in (
             RESIDENT_TILEGRID_LAYOUT,
@@ -2032,6 +2068,8 @@ def main() -> None:
             raise ValueError("--resident-globalgrid requires a globalgrid checkpoint")
         if args.resident_compute and not resident_compute:
             raise ValueError("--resident-compute requires a compute checkpoint")
+        if args.resident_rom32 and not resident_rom32:
+            raise ValueError("--resident-rom32 requires a ROM32 checkpoint")
         if args.resident_memory512 and not resident_memory512:
             raise ValueError("--resident-memory512 requires a memory512 checkpoint")
     paths = args.kernel or sorted(FIXTURES.glob("*.json"))
@@ -2080,6 +2118,7 @@ def main() -> None:
                     resident_branch32=resident_branch32,
                     resident_loop32=resident_loop32,
                     resident_memory512=resident_memory512,
+                    resident_rom32=resident_rom32,
                 ),
             )
         )
@@ -2113,6 +2152,7 @@ def main() -> None:
         resident_globalgrid=resident_globalgrid,
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
+        resident_rom32=resident_rom32,
     )
     report = {
         "device": args.device,
