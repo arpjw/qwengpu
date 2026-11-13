@@ -107,11 +107,34 @@ def main():
             text = read(cuda / "text.json")
             assert text["next_top1_same"] == 24 and text["greedy_identical"] >= 21
             assert text["merged_chip_tokens"] == 0
+            manifest = read(cuda / "manifest.json")
+            meta = manifest["files"]["qwengpu9b.json"]
+            preflight = read(RESULTS / "alu32_preflight.json")
+            assert meta == text["merge"] == memory["merge"]
+            assert meta["layout"] == "qwengpu-resident-alu32-9b-v1"
+            for key, field in (
+                ("hidden", "merged_hidden"),
+                ("slots", "slots"),
+                ("chip_vocab", "vocab"),
+                ("circuit", "circuit"),
+            ):
+                assert meta[key] == preflight[field], key
+            files = manifest["files"]
+            shards = set(files["model.safetensors.index.json"]["weight_map"].values())
+            assert shards and set(manifest["sha256"]) == shards | set(files)
             handoff = read(cuda / "handoff.json")
             assert handoff["merge"] == memory["merge"] and handoff["exact"]
             assert handoff["ram_before"] == handoff["ram_after_text"]
             assert len(handoff["ram_before"]) == 8192
+            primary = next(
+                case for case in memory["cases"] if case["name"] == "reduce_127"
+            )
+            assert [handoff["producer"], handoff["consumer"]] == primary["launches"]
+            assert handoff["sum"] == primary["output"]
             check_reset(handoff["text"]["comparison"])
+            print(
+                "Merged text, shard hashes, and retained RAM across native text verified"
+            )
 
 
 if __name__ == "__main__":

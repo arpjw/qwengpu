@@ -1888,3 +1888,36 @@ Use a separate compiler checkout for that revision if the existing one has
 local changes. On macOS, use `git archive` to transfer the source and frozen
 fixtures. This excludes AppleDouble sidecars that may otherwise match a
 fixture glob on Linux.
+
+## Run the 32-bit integer and address layout
+
+The ALU32 layout extends the ROM32 instruction set. Use the same pinned
+compiler, base model, and CUDA dependencies as ROM32.
+
+```bash
+export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
+export QWENGPU_PYTHON="$PWD/../qwenputer/experimental/riscv/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.run_resident \
+  eval/frozen/resident_alu32_v1/address_walk.json \
+  --resident-alu32 --device mps --check-reference --trace
+bash scripts/qualify_rom32.sh mps "$PWD/results/alu32_mps" "" --resident-alu32
+bash scripts/qualify_rom32_cuda.sh "$base" "$model" \
+  "$PWD/results/alu32_cuda" "$(git rev-parse HEAD)" --resident-alu32
+python3 scripts/check_alu32.py --cuda
+```
+
+Use `qwengpu.assemble --resident-alu32` for assembly and
+`qwengpu.run_resident --model "$model"` to select the merged layout
+from checkpoint metadata.
+
+| Instructions | Operand and result |
+| --- | --- |
+| `SHL32`, `SHR32`, `SAR32` | Shift the 32-bit accumulator by 0–31 bits, with sign extension for `SAR32` |
+| `SUB32I` | Subtract an unsigned 8-bit immediate with wrap modulo 2³² |
+| `MUL32I` | Multiply the accumulator by 0–31, retaining the low 32 bits |
+| `SLTU32I`, `SLT32I` | Set the accumulator to 0 or 1 after comparing the unsigned or signed 32-bit value with an immediate in 0–255 or −128–127, respectively |
+| `AND_INDEX_LO/HI`, `OR_INDEX_LO/HI`, `XOR_INDEX_LO/HI` | Combine the selected 16-bit accumulator limb with the indexed memory word, preserving the other limb. The high access toggles address bit zero |
+| `ADDIDX` | Add a signed offset of −128–127 to the saved word address, modulo 256 in programmable global memory or modulo 128 in the legacy tiled mode. The accumulator is preserved |
+
+The lane mask governs all new writes. ALU and address instructions are
+available in both programmable global and legacy tiled launches.
