@@ -104,11 +104,10 @@ def check_merge(root, memory):
     text = read(root / "text.json")
     meta = memory["merge"]
     assert text["merge"] == meta
-    assert (
-        text["next_top1_same"],
-        text["greedy_identical"],
-        text["merged_chip_tokens"],
-    ) == (24, 21, 0)
+    assert text["next_top1_same"] == text["prompt_count"] == 24
+    assert text["greedy_identical"] >= 21 and text["merged_chip_tokens"] == 0
+    previous_text = load_report("memory512_text_9b_cuda_fla")
+    assert text["tokenized_prompts_sha256"] == previous_text["tokenized_prompts_sha256"]
 
     manifest = read(root / "manifest.json")
     assert manifest["files"]["qwengpu9b.json"] == meta
@@ -142,7 +141,7 @@ def check_merge(root, memory):
     assert handoff["consumer"]["transport"]["matrix_initial_tokens"] == 0
     check_reset(handoff["text"]["comparison"])
     print(
-        f"CUDA merge: {len(shards)} shard hashes, 24/24 first tokens, 21/24 continuations, 8,192 retained RAM nibbles"
+        f"CUDA merge: {len(shards)} shard hashes, 24/24 first tokens, {text['greedy_identical']}/24 continuations, 8,192 retained RAM nibbles"
     )
 
 

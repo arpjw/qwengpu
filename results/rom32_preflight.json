@@ -20,9 +20,5 @@
   "maximum_head_row": 127,
   "vocab": 163840,
   "weights_allocated": false,
-  "naive_initial_preflight": {
-    "slots": 6673,
-    "merged_hidden": 11008
-  },
   "optimization": "Five binary ROM address features shared across the two warp banks."
 }

@@ -121,7 +121,11 @@ def main() -> None:
         "maximum_head_row": maximum,
         "vocab": vocab,
         "weights_allocated": False,
-        "naive_initial_preflight": {"slots": 6673, "merged_hidden": 11008},
+        **(
+            {}
+            if args.resident_rom32
+            else {"naive_initial_preflight": {"slots": 6673, "merged_hidden": 11008}}
+        ),
         "optimization": (
             "Five binary ROM address features shared across the two warp banks."
             if args.resident_rom32
