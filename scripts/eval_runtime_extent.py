@@ -54,7 +54,12 @@ def main() -> None:
         expected = words[:]
         expected[:extent] = list(range(1, extent + 1))
         assert result["global_words"] == expected
-        assert result["transport"]["matrix_patch_tokens"] == extent * 4
+        transport = result["transport"]
+        if circuit.internal_stores:
+            assert transport["matrix_patch_tokens"] == 0
+            assert transport["internal_store_commands"] == extent
+        else:
+            assert transport["matrix_patch_tokens"] == extent * 4
         assert result["audit"][0]["memory"] == (1024 if not runs else 0)
         assert not runs or result["programs"] == runs[0]["result"]["programs"]
         words = result["global_words"]
