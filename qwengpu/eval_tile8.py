@@ -851,7 +851,13 @@ def execute(
     }
 
     if internal_stores:
-        transport.update(internal_store_words=0, internal_store_commands=0, internal_store_read_tags=0, internal_scoped_words=0, internal_store_trace_tags=0)
+        transport.update(
+            internal_store_words=0,
+            internal_store_commands=0,
+            internal_store_read_tags=0,
+            internal_scoped_words=0,
+            internal_store_trace_tags=0,
+        )
 
     if refresh:
         transport["global_refresh_tokens"] = len(refresh)
@@ -1092,12 +1098,12 @@ def execute(
                 [
                     4 * lane + digit
                     for lane, writes in enumerate(store_bits)
-                    if writes and not internal_stores
+                    if writes
                     for digit in range(4)
                 ]
                 if resident_io
                 else list(range(len(store_reads)))
-            )
+            ) if not internal_stores else []
             requested = [state_reads[nib] for nib in selected]
             requested.extend(store_reads[nib] for nib in store_slots)
             if fused_dispatch and requested:
