@@ -131,9 +131,17 @@ def lane_results(c, ops, arg, word, gathered, lane):
                     f"{name}.logic_result.{limb}.{i}",
                 )
             )
+    shift = ops["SHL32I"] + sum((ops[op] for op in SHIFTS), Expr())
+    mul = ops["MUL32I"]
+    arithmetic = [
+        c.node(
+            c.t_and([shift, lhs]) + c.t_and([mul, rhs]),
+            f"{name}.arithmetic.{bit}",
+        )
+        for bit, (lhs, rhs) in enumerate(zip(shifted, product, strict=True))
+    ]
     return [
-        ([ops["SHL32I"] + sum((ops[op] for op in SHIFTS), Expr())], shifted),
-        ([ops["MUL32I"]], product),
+        ([shift + mul], arithmetic),
         ([ops["SLTU32I"] + ops["SLT32I"]], [compare] + [Expr()] * 31),
         ([sum((ops[op] for op in LOGIC_OPS), Expr())], logic),
     ]
