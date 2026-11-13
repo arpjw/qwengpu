@@ -179,6 +179,7 @@ RESIDENT_TRANSPORTS = {
     "fixed": {"resident_delta": True},
     "state_plan": {"resident_plan": True},
     "state_store_plan": {"resident_io": True},
+    "fused_dispatch": {"resident_io": True, "fused_dispatch": True},
 }
 PROGRAM = (
     ("LOAD_TILE", 0),
@@ -588,6 +589,7 @@ def execute(
     resident_wide: bool = False,
     resident_add32: bool = False,
     resident_cache: Cache | None = None,
+    fused_dispatch: bool = False,
     refresh_operands: bool = False,
     alternate_operands: list[int] | None = None,
     operand_bank: int = 0,
@@ -604,6 +606,8 @@ def execute(
     resident_loop32 = circuit.resident_loop32
     workgroups = case.get("workgroups", 0)
     interleaved = case.get("interleaved", False)
+    if fused_dispatch and not (interleaved and resident_io):
+        raise ValueError("fused dispatch requires interleaved workgroups and store plans")
     if interleaved and not circuit.resident_interleaved:
         raise ValueError("interleaved mode requires the resident layout")
     warp_banks = (*WARP_BANKS, *EXTRA_WARP_BANKS) if interleaved else WARP_BANKS
@@ -923,14 +927,24 @@ def execute(
         )
 
     outcome = "step_limit"
+    scheduled = None
+    if fused_dispatch:
+        transport.update(fused_dispatch_calls=0, fused_tail_flush_calls=0)
     for index in range(max_steps + 1):
         prefix = pending if resident else [*controls, previous]
         ready_tokens = RESIDENT_READY if interleaved else (READY0, READY1)
-        emitted = feed([*prefix, SCHEDULE, *ready_tokens], 1 + warp_count)
+        prefetched = scheduled is not None
+        if prefetched:
+            emitted, scheduled = scheduled, None
+        else:
+            emitted = feed([*prefix, SCHEDULE, *ready_tokens], 1 + warp_count)
         ticket, *controls = emitted
         for warp, control in enumerate(controls):
             _check_control(control, warp, rom32, interleaved)
         schedules.append({"ticket": ticket, "controls": controls})
+        if prefetched and (ticket in (DONE, DEADLOCK) or index == max_steps) and pending:
+            feed(pending, 1)
+            transport["fused_tail_flush_calls"] += 1
         if ticket in (DONE, DEADLOCK):
             outcome = "halted" if ticket == DONE else "deadlock"
             break
@@ -993,7 +1007,7 @@ def execute(
         warp = ticket - RESIDENT_TICKET if interleaved else ticket & 1
         previous = ticket
         if resident:
-            prefix = controls
+            prefix = [*(pending if prefetched else ()), *controls]
             if workgroups and ticket in WORKGROUP_TICKETS:
                 prefix = [*prefix, *RESET_WARP]
                 registers = [nibbles(REGISTER, [0] * 32) for _ in range(warp_count)]
@@ -1038,7 +1052,15 @@ def execute(
             )
             requested = [state_reads[nib] for nib in selected]
             requested.extend(store_reads[nib] for nib in store_slots)
-            output = feed(requested, len(requested)) if requested else []
+            if fused_dispatch and requested:
+                output = feed(
+                    [control, *requested, SCHEDULE, *ready_tokens],
+                    len(requested) + 1 + warp_count,
+                )
+                output, scheduled = output[: len(requested)], output[len(requested) :]
+                transport["fused_dispatch_calls"] += 1
+            else:
+                output = feed(requested, len(requested)) if requested else []
             state_output = [NO_WRITE] * len(state_reads)
             for nib, token in zip(selected, output[: len(selected)], strict=True):
                 state_output[nib] = token
@@ -1171,7 +1193,7 @@ def execute(
             else:
                 raise ValueError("invalid tagged shared-memory write")
         if resident:
-            pending = [control, *tagged_state, *updates]
+            pending = [*([control] if scheduled is None else []), *tagged_state, *updates]
             transport["matrix_patch_tokens"] += sum(
                 not scoped or not SCOPED_BASE <= token < SCOPED_END for token in updates
             )
