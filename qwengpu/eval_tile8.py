@@ -1150,27 +1150,10 @@ def execute(
             if store_bits != expected_stores:
                 raise ValueError("shared store plan does not match the model snapshot")
         if internal_stores:
-            offset_scope = circuit.store_snapshot_offset
-            local = bool(observed_bits[offset_scope])
-            high = bool(observed_bits[offset_scope - 1])
-            for lane, granted in enumerate(store_bits):
-                if not granted:
-                    continue
-                if local:
-                    start = offset_scope + 1 + 7 * lane
-                    address = sum(bit << i for i, bit in enumerate(observed_bits[start : start + 7]))
-                    base = SCOPED_BASE
-                else:
-                    start = SNAPSHOT_BITS + 7 * lane
-                    address = sum(bit << i for i, bit in enumerate(observed_bits[start : start + 7]))
-                    address |= observed_bits[geometry.extra_index_offset + lane] << 7
-                    address ^= int(high)
-                    base = geometry.base
-                start = 16 * lane + (WARP_DIRTY_OFFSET if high else 0)
-                value = sum(bit << i for i, bit in enumerate(observed_bits[start : start + 16]))
-                position = len(state_reads) + 4 * lane
-                packet[position : position + 4] = nibbles(base + 64 * address, _digits([value], 16))
-                transport["internal_store_trace_tags"] += 4
+            local = bool(observed_bits[circuit.store_snapshot_offset])
+            store_patch = _internal_store_patch(circuit, observed_bits, store_bits)
+            packet[len(state_reads) :] = store_patch
+            transport["internal_store_trace_tags"] += sum(token != NO_WRITE for token in store_patch)
         tagged_state = []
         if resident_state:
             state_output = packet[:-32]
@@ -1603,6 +1586,31 @@ def launch_cached_tile(
         raise ValueError("tile slice memory transport audit failed")
     return cache, result, audit
 
+
+
+def _internal_store_patch(circuit, bits: list[int], grants: list[int]) -> list[int]:
+    """Decode trace-only store tags from model state, never from host values."""
+    scope = circuit.store_snapshot_offset
+    local, high = bool(bits[scope]), bool(bits[scope - 1])
+    geometry = circuit.memory_geometry
+    patch = [NO_WRITE] * (4 * len(grants))
+    for lane, granted in enumerate(grants):
+        if not granted:
+            continue
+        if local:
+            start = scope + 1 + 7 * lane
+            address = sum(bit << i for i, bit in enumerate(bits[start : start + 7]))
+            base = SCOPED_BASE
+        else:
+            start = SNAPSHOT_BITS + 7 * lane
+            address = sum(bit << i for i, bit in enumerate(bits[start : start + 7]))
+            address |= bits[geometry.extra_index_offset + lane] << 7
+            address ^= int(high)
+            base = geometry.base
+        start = 16 * lane + (WARP_DIRTY_OFFSET if high else 0)
+        value = sum(bit << i for i, bit in enumerate(bits[start : start + 16]))
+        patch[4 * lane : 4 * (lane + 1)] = nibbles(base + 64 * address, _digits([value], 16))
+    return patch
 
 def _state_snapshot_digits(bits: list[int] | None, dirty_offset: int) -> list[int]:
     if bits is None:
