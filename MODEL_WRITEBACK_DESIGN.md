@@ -66,3 +66,11 @@ python scripts/check_model_stores.py stores-mps.json stores-cuda.json
 The global and scoped launch inputs are uploaded as before. Normal stores
 use the model's grant mask and fixed commands. This does not change the
 legacy tile-mode store path, which retains its existing transport.
+
+A second option for *register* feedback is a runtime recurrent edge. The
+early state heads read the previous late snapshot through a cache
+adapter that copies a complete model-owned tensor between forwards.
+It would remove token encoding and data-dependent host decisions, but
+it would no longer be a stock weights-only Qwen model. Keeping that
+distinction explicit matters: an edge implemented in the inference
+runtime is different from a store committed by the checkpoint itself.
