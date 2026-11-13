@@ -160,8 +160,8 @@ def launch(
                 )
                 raise ValueError(f"globalgrid trace differs from reference: {mismatch}")
             raise ValueError(f"globalgrid {key} differs from reference")
+    transport = actual["transport"]
     if scoped:
-        transport = actual["transport"]
         if (
             not transport["resident_scoped_exact"]
             or audit[0]["scoped"] != transport["scoped_initial_tokens"]
@@ -184,7 +184,6 @@ def launch(
             raise ValueError("global refresh sent tags outside the operand window")
     groups = case["workgroups"]
     interleaved = case.get("interleaved", False)
-    transport = actual["transport"]
     if (
         actual["outcome"] != "halted"
         or (not interleaved and actual["workgroup_cursor"] != groups - 1)
