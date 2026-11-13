@@ -41,9 +41,10 @@ def main() -> None:
         f".warp {warp}\n" + "\n".join(body) for warp in range(2)
     )
     dependent = assemble(
-        program, {"workgroups": 2, "global_words": producer["global_words"]}
+        program,
+        {"workgroups": 2, "global_words": producer["global_words"], "interleaved": True},
+        resident_interleaved=True,
     )
-    dependent["interleaved"] = True
     retained, consumer = launch(
         model, circuit, dependent, args.device, offset, cache
     )
