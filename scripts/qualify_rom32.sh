@@ -18,6 +18,7 @@ fi
 
 if [[ "$variant" == "--resident-interleaved" ]]; then
   "$py" -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/interleaved_publish.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/interleaved_publish.json"
+  "$py" -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/barrier_groups.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/interleaved_barrier_groups.json"
   rc=0
   "$py" -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/deadlock.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/interleaved_deadlock.json" || rc=$?
   [[ "$rc" == 3 ]]
