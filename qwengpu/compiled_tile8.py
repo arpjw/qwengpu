@@ -2380,14 +2380,8 @@ def build(
             into=expr,
             min_level=floor + (5 if resident_wide else 3 if divergent else 1),
         )
-    if internal_stores:
-        # Reserve the final layer for compiler cleanup. A one-unit sentinel
-        # makes this layer visible to the emitter even if its output is zero.
-        c.ffn(c.t_const(1), "exit.commit_cleanup", into=code[0], min_level=max(c.units) + 2)
-        c.ffn(c.t_const(-1), "exit.commit_cleanup_cancel", into=code[0], min_level=max(c.units) - 1)
-    elif resident_tilegrid:
-        # The compiler clears live chip slots at the last exit layer. Give
-        # cleanup its own layer to fit the standalone 3,584-unit MLP.
+    if resident_tilegrid:
+        # Give the compiler a separate exit layer for cleanup.
         c.ffn([], "exit.cleanup", into=code[0], min_level=max(c.units))
     return c
 
@@ -2424,7 +2418,9 @@ def build_standalone(
     resident_interleaved: bool = False,
     internal_stores: bool = False,
 ):
-    from chipformer.q35.tiny import build as build_qwen
+    from chipformer.q35 import tiny
+
+    build_qwen = tiny.build
 
     circuit = build(
         resident=resident,
@@ -2457,6 +2453,16 @@ def build_standalone(
         resident_interleaved=resident_interleaved,
         internal_stores=internal_stores,
     )
+    if internal_stores:
+        # This experimental layout needs extra exit cleanup slots on the
+        # standalone model. Use the same Qwen layer with a wider MLP.
+        import types
+
+        build_qwen = types.FunctionType(
+            tiny.build.__code__,
+            {**tiny.build.__globals__, "BASE": {**tiny.BASE, "intermediate_size": 5120}},
+            defaults=tiny.build.__defaults__,
+        )
     return build_qwen(
         circuit,
         list(
