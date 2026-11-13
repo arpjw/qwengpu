@@ -1,0 +1,36 @@
+# Interleaving resident workgroups
+
+The next scheduler gate targets two concurrently resident groups of two
+warps each. Preserve the sequential mode for the inherited kernels. A
+launch descriptor selects the interleaved mode and the number of groups.
+Keep global and scoped memory shared across the same recurrent cache
+using the qualified address rules. The physical warp bank is
+`2 * workgroup + local_warp`. The two uploaded programs remain common to
+all groups and use only the local warp bit for ROM selection.
+
+Bank each physical warp's PC, halt and barrier state, registers, index,
+lane mask, branch frames, and loop frames. Update one physical bank on
+each tick. Start the next schedule scan after the last issued warp, with
+wraparound. A barrier releases only when both warps of that group are
+waiting. One halted warp paired with a waiting warp leaves that group
+blocked. Other groups continue until no runnable warp remains. The
+terminal ticket distinguishes all halted from deadlock. A step limit
+continues to apply to the whole launch.
+
+Reuse each state head's row selection rather than cloning all state
+heads. Use bank-tagged control and register packets so the host can
+forward them without decoding their values. Extend the control-token
+bank bits and reserve a ticket range that cannot overlap sequential
+tile, workgroup, or terminal tickets. Keep chip opcodes and the public
+per-warp program length unchanged. The launch recorder should expose
+both physical warp and logical group while preserving existing trace
+records for sequential mode.
+
+Freeze three initial cases. The first must interleave at least one
+instruction of each group before either can halt and must retain
+divergent masks and unequal PCs. The second must release one group's
+barrier while the other group remains blocked. The third publishes
+distinct group-local results into global RAM, then consumes the
+results in a second launch. Use an independent ready-queue interpreter
+for every ticket and state transition. Compare standalone MPS and
+merged Qwen3.5-9B before replaying the inherited sequential traces.
