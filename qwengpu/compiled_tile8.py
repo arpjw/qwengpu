@@ -719,7 +719,12 @@ def build(
         load_rom = c.token_feature(
             "rom.load",
             lambda t: int(
-                rom_address(t, resident_rom32=True, resident_alu32=resident_alu32)
+                rom_address(
+                    t,
+                    resident_rom32=True,
+                    resident_alu32=resident_alu32,
+                    resident_scoped=resident_scoped,
+                )
                 is not None
             ),
             full=True,
