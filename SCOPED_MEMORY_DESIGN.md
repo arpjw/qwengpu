@@ -31,3 +31,27 @@ inactive lanes, the last physical word, all untouched words, and a second
 launch with scoped reset and retained global RAM. Compare both MPS and the
 merged checkpoint to the independent interpreter and replay the ALU32
 qualification suite.
+
+The new instructions are `LOAD_SHARED`, `STORE_SHARED`, `LOAD_PRIVATE`,
+and `STORE_PRIVATE`. All four operate on the low 16 bits and preserve the
+high limb. Each respects the existing per-lane mask. A launch that uses
+them receives zeroed scoped storage by default. A raw launch can seed
+all 128 scoped words with `scoped_words`. Scoped writes and initial
+uploads are counted separately from global RAM.
+
+From the worktree, run the isolation fixture on a CUDA host with the
+pinned compiler on `PYTHONPATH`.
+
+```bash
+python -m qwengpu.run_resident eval/frozen/scoped_memory_v1/isolation.json \
+  --resident-scoped --device cuda --check-reference --trace --out isolation.json
+python scripts/check_scoped_memory.py isolation.json
+```
+
+For merged qualification, build with `--resident-scoped` and pass the
+result to the existing replay script.
+
+```bash
+bash scripts/qualify_rom32_cuda.sh "$base" "$model" "$reports" \
+  "$(git rev-parse HEAD)" --resident-scoped
+```
