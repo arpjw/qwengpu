@@ -70,8 +70,25 @@ def check(root, baseline, device):
     for name in ("isolation", "runtime_extent", "scoped_reset", "interleaved_handoff"):
         cases[name] = read(root / f"{name}.json")
     assert cases["isolation"]["reference"] and all(cases["isolation"]["reference"].values())
-    assert cases["runtime_extent"]["exact"] and cases["scoped_reset"]["exact"]
-    assert cases["interleaved_handoff"]["exact"]
+    extents = cases["runtime_extent"]["runs"]
+    assert cases["runtime_extent"]["exact"] and [r["extent"] for r in extents] == [19, 0, 64]
+    words = [0xA51C] * 256
+    for index, run in enumerate(extents):
+        count, result = run["extent"], run["result"]
+        words[:count] = list(range(1, count + 1))
+        assert result["global_words"] == words
+        assert result["transport"]["matrix_patch_tokens"] == 4 * count
+        assert result["audit"][0]["memory"] == (0 if index else 1024)
+        assert result["programs"] == extents[0]["result"]["programs"]
+    reset = cases["scoped_reset"]
+    assert reset["exact"] and reset["consumer"]["global_words"] == reset["producer"]["global_words"]
+    assert reset["consumer"]["scoped_words"] == [0] * 128
+    assert reset["consumer"]["transport"]["matrix_initial_tokens"] == 0
+    publication = cases["interleaved_handoff"]
+    assert publication["exact"] and publication["consumer"]["audit"][0]["memory"] == 0
+    assert publication["consumer"]["global_words"][64:96] == [
+        value + 7 for value in publication["producer"]["global_words"][:32]
+    ]
     for shape in ("3x5x2", "9x7x5"):
         name = f"tiled_{shape}"
         cases[name] = check_tiled_compute(
