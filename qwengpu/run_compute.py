@@ -25,6 +25,9 @@ from qwengpu.memory_geometry import (
 
 MASK32 = 0xFFFFFFFF
 GUARD = 0xD00D0000
+TILE_M, TILE_K, TILE_N = 8, 4, 4
+OPERAND_WORDS = TILE_M * TILE_K + TILE_K * TILE_N
+TILED_LIMIT = 16
 
 
 def words16(values: list[int]) -> list[int]:
@@ -73,16 +76,19 @@ def parse_request(data: object, *, memory512: bool = False) -> dict:
             "kernel": kernel,
             "values": vector(data.get("values"), "values", 128 if memory512 else 64),
         }
-    if kernel == "matmul":
+    if kernel in ("matmul", "matmul_tiled"):
         a = matrix(data.get("a"), None, None, 255, "a")
         m, k = len(a), len(a[0])
         b = matrix(data.get("b"), k, None, 255, "b")
         n = len(b[0])
-        if m > 8 or k > 4 or n > 4:
-            raise ValueError("matrix limits are M <= 8, K <= 4, and N <= 4")
+        if kernel == "matmul_tiled" and not memory512:
+            raise ValueError("matmul_tiled requires the 512-byte layout")
+        limits = (TILED_LIMIT,) * 3 if kernel == "matmul_tiled" else (TILE_M, TILE_K, TILE_N)
+        if any(size > limit for size, limit in zip((m, k, n), limits, strict=True)):
+            raise ValueError(f"matrix limits are M <= {limits[0]}, K <= {limits[1]}, and N <= {limits[2]}")
         c = matrix(data.get("c", [[0] * n for _ in range(m)]), m, n, MASK32, "c")
         return {"kernel": kernel, "a": a, "b": b, "c": c}
-    raise ValueError("kernel must be vector_add, reduce, or matmul")
+    raise ValueError("kernel must be vector_add, reduce, matmul, or matmul_tiled")
 
 
 def assemble_launch(
@@ -123,6 +129,8 @@ def compile_request(request: dict, *, memory512: bool = False) -> list[dict]:
         body += [f"MATRIX_MAC8 {(k - 1) * 16 + (n - 1) * 4 + pos}" for pos in range(k)]
         body += ["STORE_INDEX", "STORE_INDEX_HI", "HALT"]
         return [assemble_launch(body, words, (m * n + 15) // 16)]
+    if kind != "vector_add" and kind != "reduce":
+        raise ValueError(f"{kind} is not a single compute program")
     values = request["a"] if kind == "vector_add" else request["values"]
     count = len(values)
     threads = min(count, 64)
@@ -187,6 +195,65 @@ def compile_request(request: dict, *, memory512: bool = False) -> list[dict]:
     ]
 
 
+def execute_tiled_matmul(model, circuit, request, device, offset, transport_mode):
+    """Keep each output tile on one cache and refresh only A/B between panels."""
+    a, b, c = (request[name] for name in ("a", "b", "c"))
+    m, k, n = len(a), len(b), len(b[0])
+    output = [row[:] for row in c]
+    records = []
+    final_tiles = []
+    for row in range(0, m, TILE_M):
+        for col in range(0, n, TILE_N):
+            rows, cols = min(TILE_M, m - row), min(TILE_N, n - col)
+            initial = [values[col : col + cols] for values in c[row : row + rows]]
+            cache = None
+            words = None
+            for start in range(0, k, TILE_K):
+                end = min(start + TILE_K, k)
+                tile = {
+                    "kernel": "matmul",
+                    "a": [values[start:end] for values in a[row : row + rows]],
+                    "b": [values[col : col + cols] for values in b[start:end]],
+                    "c": initial,
+                }
+                (program,) = compile_request(tile, memory512=True)
+                refresh = 0 if words is None else OPERAND_WORDS
+                if refresh:
+                    program["global_words"][refresh:] = words[refresh:]
+                cache, observed = launch(
+                    model,
+                    circuit,
+                    program,
+                    device,
+                    offset,
+                    cache,
+                    transport_mode=transport_mode,
+                    refresh_global_prefix=refresh,
+                )
+                words = observed["global_words"]
+                expected = program["global_words"][:]
+                scalar = [
+                    (c[i][j] + sum(a[i][t] * b[t][j] for t in range(end))) & MASK32
+                    for i in range(row, row + rows)
+                    for j in range(col, col + cols)
+                ]
+                expected[64 : 64 + 2 * len(scalar)] = words16(scalar)
+                if words != expected:
+                    raise ValueError(f"matrix tile ({row}, {col}) panel {start} differs from scalar")
+                records.append({"tile": [row, col], "k_panel": [start, end], **observed})
+            flat = words32(words[64 : 64 + 2 * rows * cols])
+            for i in range(rows):
+                output[row + i][col : col + cols] = flat[i * cols : (i + 1) * cols]
+            final_tiles.append({"tile": [row, col], "words": words})
+    return {
+        "kernel": "matmul_tiled",
+        "output": output,
+        "launches": records,
+        "global_words": final_tiles,
+        "exact": True,
+    }
+
+
 def execute_request(
     model,
     circuit,
@@ -196,6 +263,10 @@ def execute_request(
     *,
     transport_mode: str = "state_store_plan",
 ) -> dict:
+    if request["kernel"] == "matmul_tiled":
+        if not circuit.resident_memory512:
+            raise ValueError("matmul_tiled requires the 512-byte layout")
+        return execute_tiled_matmul(model, circuit, request, device, offset, transport_mode)
     launches = compile_request(request, memory512=circuit.resident_memory512)
     cache = None
     records = []
@@ -332,6 +403,7 @@ def main() -> None:
         result.pop("global_words")
         result["launches"] = [
             {
+                **({"tile": run["tile"], "k_panel": run["k_panel"]} if "tile" in run else {}),
                 "instructions": len(run["trace"]),
                 "decisions": len(run["schedules"]),
                 "transport": run["transport"],

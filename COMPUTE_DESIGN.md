@@ -62,3 +62,19 @@ There is no signed multiply, floating point, atomic ISA, simultaneous resident
 workgroups, arbitrary matrix geometry, or CUDA compatibility. Tagged writeback
 still needs host forwarding. The fixed and planned transports can be compared
 on the same checkpoint without changing these semantics.
+
+## General tiled matrix multiply
+
+`matmul_tiled` accepts nonempty byte matrices A and B with
+`1 <= M,K,N <= 16` and an optional uint32 C of shape M×N. It returns
+`(C + A @ B) mod 2^32`. The launcher tiles M and N into at most 8×4
+outputs and splits K into panels of at most four entries. Tail extents use
+the same `MATRIX_MAC8` opcode, lane masks, and normal global memory as
+the one-tile kernel.
+
+Each output tile starts in its own cache. A subsequent panel sends 192
+nibble tags covering exactly the 48 input words and no C word. The model
+loads the existing C, performs the new multiply-adds, and writes the result
+back into the same cache. The host assembles the output tile grid and
+forwards model-generated state and stores as in the single-tile runner.
+Each panel's scalar check covers the output and all 256 global words.
