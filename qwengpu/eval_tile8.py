@@ -957,8 +957,11 @@ def execute(
 
     outcome = "step_limit"
     scheduled = None
+    committed_controls = controls[:]
     if fused_dispatch:
-        transport.update(fused_dispatch_calls=0, fused_tail_flush_calls=0)
+        transport.update(
+            fused_dispatch_calls=0, fused_tail_flush_calls=0, skipped_control_tokens=0
+        )
     for index in range(max_steps + 1):
         prefix = pending if resident else [*controls, previous]
         ready_tokens = RESIDENT_READY if interleaved else (READY0, READY1)
@@ -1036,7 +1039,15 @@ def execute(
         warp = ticket - RESIDENT_TICKET if interleaved else ticket & 1
         previous = ticket
         if resident:
-            prefix = [*(pending if prefetched else ()), *controls]
+            changes = controls
+            if fused_dispatch:
+                changes = [
+                    token for token, prior in zip(controls, committed_controls, strict=True)
+                    if token != prior
+                ]
+                transport["skipped_control_tokens"] += warp_count - len(changes)
+                committed_controls = controls[:]
+            prefix = [*(pending if prefetched else ()), *changes]
             if workgroups and ticket in WORKGROUP_TICKETS:
                 prefix = [*prefix, *RESET_WARP]
                 registers = [nibbles(REGISTER, [0] * 32) for _ in range(warp_count)]
@@ -1223,6 +1234,8 @@ def execute(
                 raise ValueError("invalid tagged shared-memory write")
         if resident:
             pending = [*([control] if scheduled is None else []), *tagged_state, *updates]
+            if fused_dispatch:
+                committed_controls[warp] = control
             transport["matrix_patch_tokens"] += sum(
                 not scoped or not SCOPED_BASE <= token < SCOPED_END for token in updates
             )
