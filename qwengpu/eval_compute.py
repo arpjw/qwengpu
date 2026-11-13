@@ -24,7 +24,9 @@ def main() -> None:
     parser.add_argument("--cases", type=Path, default=FIXTURE)
     parser.add_argument("--case", action="append")
     parser.add_argument("--model", type=Path)
-    parser.add_argument("--resident-memory512", action="store_true")
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-memory512", action="store_true")
+    variants.add_argument("--resident-rom32", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -40,8 +42,10 @@ def main() -> None:
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
-    memory512 = args.resident_memory512 or (
-        meta is not None and meta.get("layout") in MEMORY512_LAYOUTS
+    memory512 = (
+        args.resident_memory512
+        or args.resident_rom32
+        or (meta is not None and meta.get("layout") in MEMORY512_LAYOUTS)
     )
     requests = [
         (name, parse_request(raw[name], memory512=memory512)) for name in selected
@@ -60,7 +64,11 @@ def main() -> None:
     ):
         parser.error("expected a merged compute checkpoint")
     model, circuit = load_tile_model(
-        args.model, args.device, resident_compute=True, resident_memory512=memory512
+        args.model,
+        args.device,
+        resident_compute=True,
+        resident_memory512=memory512,
+        resident_rom32=args.resident_rom32,
     )
     records = []
     for name, request in requests:

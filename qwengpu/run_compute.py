@@ -254,7 +254,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("--model", type=Path)
-    parser.add_argument("--resident-memory512", action="store_true")
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-memory512", action="store_true")
+    variants.add_argument("--resident-rom32", action="store_true")
     parser.add_argument("--device", default="mps", choices=("mps", "cuda", "cpu"))
     parser.add_argument("--trace", action="store_true")
     parser.add_argument(
@@ -265,8 +267,10 @@ def main() -> None:
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
     )
-    memory512 = args.resident_memory512 or (
-        meta is not None and meta.get("layout") in MEMORY512_LAYOUTS
+    memory512 = (
+        args.resident_memory512
+        or args.resident_rom32
+        or (meta is not None and meta.get("layout") in MEMORY512_LAYOUTS)
     )
     try:
         payload = args.input.read_bytes()
@@ -290,7 +294,11 @@ def main() -> None:
     ):
         parser.error("expected a merged compute checkpoint")
     model, circuit = load_tile_model(
-        args.model, args.device, resident_compute=True, resident_memory512=memory512
+        args.model,
+        args.device,
+        resident_compute=True,
+        resident_memory512=memory512,
+        resident_rom32=args.resident_rom32,
     )
     result = execute_request(
         model,
