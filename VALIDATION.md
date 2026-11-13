@@ -1734,6 +1734,14 @@ text on the same 24 prompts matches the base on all 24 first tokens and
 22 short greedy continuations, with zero emitted chip tokens.
 The RunPod environment passed all 42 unit tests.
 
+The complete ALU32 replay matches on standalone Apple MPS and merged 9B
+CUDA: two ALU32 fixtures, two long ROM32 programs, 31 common kernels,
+seven raw memory probes, 27 inherited traces, and eight tiled matrix
+traces. The 9B handoff preserves all 8,192 indexed-port RAM nibbles
+through native text; the dependent reduction matches its scalar and
+cold-cache controls with zero global RAM re-upload. See
+`results/alu32_qualification.txt` for the saved cross-backend checker output.
+
 ## Integrated integer checkpoint
 
 The combined layout adds separate 16-bit shared and private address
