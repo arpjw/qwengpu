@@ -1,0 +1,20 @@
+{
+  "legacy": null,
+  "base_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "circuit": {
+    "layers": 36,
+    "dims": 10136,
+    "heads": 290,
+    "ffn_units": 32793,
+    "max_units": 4113,
+    "max_heads": 16
+  },
+  "slots": 2654,
+  "merged_hidden": 7424,
+  "estimated_weight_bytes_bf16": 67281454080,
+  "estimated_weight_gib_bf16": 62.66073703765869,
+  "maximum_head_row": 127,
+  "vocab": 212992,
+  "weights_allocated": false,
+  "optimization": "Dedicated opcode extension bit and shared ROM address features."
+}
