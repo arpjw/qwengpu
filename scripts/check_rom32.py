@@ -93,8 +93,25 @@ def check_inherited(root):
         "exact",
     ):
         assert project_rom16(matrix[field]) == old_matrix[field], field
-    # Initial call includes both programs. Subsequent operand and C traffic match.
     assert matrix["memory_tokens_by_call"] == old_matrix["memory_tokens_by_call"]
+    inputs = read(ROOT / "eval/frozen/matmul16_gate_v1/dense_seeded.json")
+    a, b, c = (inputs[key] for key in ("a", "b", "c"))
+    for bank, k in enumerate((8, 16)):
+        expected = [
+            [
+                (c[row][col] + sum(a[row][j] * b[j][col] for j in range(k))) & 65535
+                for col in range(16)
+            ]
+            for row in range(16)
+        ]
+        tiles = [step["matrix"] for step in matrix["passes"] if step["bank"] == bank]
+        assembled = [
+            left + right
+            for row in (0, 2)
+            for left, right in zip(tiles[row], tiles[row + 1], strict=True)
+        ]
+        assert assembled == expected, k
+    assert matrix["matrix"] == expected
     print(
         "Inherited 27 traces, 31 common kernels, seven raw probes and all eight matrix traces match"
     )

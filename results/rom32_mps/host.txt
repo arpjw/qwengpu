@@ -1,0 +1,6 @@
+Darwin arm64
+ProductName:		macOS
+ProductVersion:		27.0
+BuildVersion:		26A428
+ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+2.14.1 5.19.0
