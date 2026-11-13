@@ -1935,3 +1935,29 @@ python -m qwengpu.run_compute eval/frozen/tiled_compute_v1/9x7x5.json \
 python scripts/check_tiled_compute.py eval/frozen/tiled_compute_v1/9x7x5.json \
   tiled-mps.json tiled-cuda.json
 ```
+
+## Run the integrated integer checkpoint
+
+Use the pinned compiler and Qwen3.5-9B revision from the manifest in
+`results/final_candidate_cuda/manifest.json`. Build in an empty destination
+with at least 70 GiB free beyond the base weights. The standalone model
+uses the same architecture and generated weights for its smaller target.
+
+```bash
+python -m qwengpu.merge9b "$base" --full-integer --out "$model"
+python -m qwengpu.run_resident eval/frozen/full_integer_v1/indexed_words.json \
+  --model "$model" --device cuda --check-reference --trace
+python -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/interleaved_publish.json \
+  --model "$model" --device cuda --check-reference --transport fused-dispatch
+bash scripts/qualify_integer.sh mps "$PWD/results/final_candidate_mps"
+bash scripts/qualify_integer.sh cuda "$PWD/results/final_candidate_cuda" "$model"
+python3 scripts/check_integer_checkpoint.py
+```
+
+A runtime `extent` from 0 through 64 can be set in a programmable launch
+descriptor. A `MASK_EXTENT` instruction reads it from the cache, so the
+same uploaded program works across several lengths. The six indexed
+32-bit operations read the low limb at the saved word address and the
+high limb at that address XOR 1. Multiply retains the low 32 product bits.
+Both comparisons write 0 or 1 using either unsigned or two's-complement
+signed ordering. The three bitwise operations affect all 32 bits.
