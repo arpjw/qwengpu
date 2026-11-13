@@ -1678,3 +1678,36 @@ the approved $74 cap, leaving about $44.32 of project authorization. This
 is not a live account-credit balance. Exact posted records and estimates
 are in `results/memory512_runpod_cost.json`; unrelated resources are
 excluded and were not changed.
+
+## Resident 32-slot ROM
+
+The ROM32 variant doubles each warp's program capacity to 32 instructions
+including HALT, on the 512-byte programmable-memory layout. The two
+frozen long-program launches each execute 128 instructions and 129
+scheduler decisions. Standalone MPS and merged Qwen3.5-9B on CUDA match
+the independent interpreter, each other, and all 64 recurrent ROM rows
+per launch. The cases cover low and high register predicates, forward
+and backward targets across the old boundary, a barrier above that
+boundary, row restart, and a two-workgroup launch with retained writes.
+
+The expanded-memory suite compares all 31 common kernels and seven raw
+memory probes across both backends. The 27 inherited control traces,
+including the deliberate deadlock and step-limit runs, match the
+qualified 16-slot checkpoint after accounting for 32 additional ROM
+upload tokens per launch.
+
+The merged artifact retains hidden width 7,424 and 35 processor layers,
+using 3,268 live slots. The manifest hashes all 26 weight shards.
+On 24 native-text prompts it matches the pinned base's first token on
+all 24 and short greedy continuations on 21, with zero emitted chip
+tokens. All 24 merged continuations match the earlier 512-byte merge.
+The active-memory handoff preserves all 8,192 indexed-port nibbles
+through native text between the two reduction launches. The consumer
+reuses the same bank with zero RAM upload.
+
+The first CUDA regression attempt stopped while loading a macOS
+AppleDouble sidecar that matched the fixture glob. The resumed replay
+used the same merged weights after removing those sidecars from the
+temporary pod. The evaluator now ignores hidden fixture files. The
+repository stores commands, trace evidence, and the weight manifest in
+REPRODUCE.md and `results/rom32_*`. The unit suite passed 40 tests.

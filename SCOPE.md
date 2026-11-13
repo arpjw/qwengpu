@@ -30,15 +30,19 @@ layout. The remaining gates below cover richer programs and arithmetic,
 separate memory spaces, resident groups, and reduced host involvement.
 These bounded results do not establish a complete general-purpose GPU.
 
-## 32-slot ROM candidate
+## 32-slot ROM qualification
 
 The `resident-rom32` variant doubles resident program capacity over the
-qualified 512-byte layout. The circuit preserves the old control format
-for PCs 0 through 15, carries the fifth PC bit through barriers and resets,
-and decodes five-bit forward and backward loop destinations. It retains the
-35-layer, 7,424-wide merged allocation. Qualification runs compare long
-programs and inherited cases with the interpreter and the saved 16-slot
-baseline. See REPRODUCE.md for the MPS and CUDA commands.
+512-byte layout. It preserves the old control format for PCs 0 through 15,
+carries the fifth PC bit through barriers and resets, and decodes five-bit
+forward and backward loop destinations. The merged allocation still uses
+35 circuit layers and hidden width 7,424, with six additional live slots.
+
+Two full-length programs test control flow above slot 15 and a workgroup
+transition that restarts both PCs at zero while retaining global memory.
+The next ISA gate is richer integer and address arithmetic. General
+runtime extents still require separate work. See REPRODUCE.md for the
+MPS and CUDA commands and VALIDATION.md for the supported evidence.
 
 ## Earlier gates
 
@@ -374,7 +378,7 @@ The next architectural gates after the qualified 512-byte checkpoint are:
 | Gate | Required change | Evidence needed |
 | --- | --- | --- |
 | Separate address spaces | Add private and per-workgroup shared banks with explicit isolation from the 512-byte global bank | Boundary accesses, isolation, aliasing, guards, and cross-group visibility on both backends |
-| Longer and more general programs | More than sixteen ROM slots, richer address arithmetic, and runtime extents | Unseen uploaded programs and lengths on the same weights, with exact traces and bounded termination |
+| More general programs | Add richer address arithmetic and runtime extents over the 32-slot ROM | Unseen uploaded programs and lengths on the same weights, with exact traces and bounded termination |
 | Broader arithmetic | Full-width multiply, comparisons and bitwise operations; define signed and floating-point semantics separately | Overflow, carry, shift boundaries, signed extremes, and numerical edge cases where applicable |
 | Multiple resident workgroups | Bank each group's PCs, registers, masks, and barrier state; schedule without resetting the only group bank | Interleaved producer/consumer traces, independent barriers, fairness, and explicit memory ordering |
 | Less host involvement | Move tagged state and store writeback into recurrent model execution | Equivalent multi-instruction traces with measured reductions in forwarding and model calls |
