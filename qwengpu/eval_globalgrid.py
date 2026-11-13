@@ -61,6 +61,7 @@ def launch(
         resident_memory512=circuit.resident_memory512,
         resident_rom32=circuit.resident_rom32,
         resident_alu32=circuit.resident_alu32,
+        resident_scoped=circuit.resident_scoped,
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None

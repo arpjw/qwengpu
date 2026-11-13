@@ -28,6 +28,13 @@ from qwengpu.compiled_tile import (
     _word_from_columns,
     control_token,
 )
+from qwengpu.scoped_memory import (
+    SCOPED_BASE,
+    SCOPED_LOADS,
+    SCOPED_OPS,
+    SCOPED_STORES,
+    canonical_nibble,
+)
 from qwengpu.memory_geometry import LEGACY_MEMORY, PAIR_DECODE, PAIR_WIRES, WIDE_MEMORY
 
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
@@ -134,7 +141,11 @@ CHUNK_BITS = 120
 
 
 def rom_address(
-    token: int, *, resident_rom32: bool, resident_alu32: bool = False
+    token: int,
+    *,
+    resident_rom32: bool,
+    resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> int | None:
     if ROM <= token < C_MEMORY:
         return (token - ROM) // STRIDE
@@ -143,7 +154,11 @@ def rom_address(
             return 16 + (token - ROM32_UPPER) // STRIDE
         if ROM32_LOOP <= token < ROM32_VOCAB:
             return (token - ROM32_LOOP) // ROM32_LOOP_STRIDE
-    decoded = decode_alu_token(token) if resident_alu32 else None
+    decoded = (
+        decode_alu_token(token, scoped=resident_scoped)
+        if resident_alu32 or resident_scoped
+        else None
+    )
     return decoded[0] if decoded is not None else None
 
 
@@ -152,8 +167,9 @@ def program_tokens(
     *,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> list[int]:
-    slots = 32 if resident_rom32 or resident_alu32 else 16
+    slots = 32 if resident_rom32 or resident_alu32 or resident_scoped else 16
     if not 1 <= len(program) <= slots:
         raise ValueError(f"program must contain 1 through {slots} instructions")
     padded = program + (("HALT", 0),) * (slots - len(program))
@@ -226,10 +242,10 @@ def program_tokens(
 
     tokens = []
     for address, (op, arg) in enumerate(padded):
-        if op in ALU_OPS:
-            if not resident_alu32:
+        if op in ALU_OPS or op in SCOPED_OPS:
+            if not (resident_alu32 or resident_scoped):
                 raise ValueError(f"{op} requires the ALU32 layout")
-            tokens.append(alu_token(address, op, arg))
+            tokens.append(alu_token(address, op, arg, scoped=resident_scoped))
         elif op == "WHILE_BIT" and links[address] >= 16:
             tokens.append(
                 ROM32_LOOP
@@ -260,8 +276,13 @@ def rom_payload(
     resident_memory512: bool = False,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> int:
-    decoded = decode_alu_token(token) if resident_alu32 else None
+    decoded = (
+        decode_alu_token(token, scoped=resident_scoped)
+        if resident_alu32 or resident_scoped
+        else None
+    )
     if decoded is not None:
         return decoded[1]
     if resident_rom32 and ROM32_LOOP <= token < ROM32_VOCAB:
@@ -380,7 +401,9 @@ def build(
     resident_memory512: bool = False,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> Circ:
+    resident_alu32 = resident_alu32 or resident_scoped
     resident_rom32 = resident_rom32 or resident_alu32
     resident_memory512 = resident_memory512 or resident_rom32
     resident_compute = resident_compute or resident_memory512
@@ -425,6 +448,7 @@ def build(
     c.resident_memory512 = resident_memory512
     c.resident_rom32 = resident_rom32
     c.resident_alu32 = resident_alu32
+    c.resident_scoped = resident_scoped
     c.memory_geometry = geometry
     one = c.one
 
@@ -707,7 +731,10 @@ def build(
                     (
                         (
                             rom_address(
-                                t, resident_rom32=True, resident_alu32=resident_alu32
+                                t,
+                                resident_rom32=True,
+                                resident_alu32=resident_alu32,
+                                resident_scoped=resident_scoped,
                             )
                             or 0
                         )
@@ -770,6 +797,7 @@ def build(
                         resident_memory512=resident_memory512,
                         resident_rom32=resident_rom32,
                         resident_alu32=resident_alu32,
+                        resident_scoped=resident_scoped,
                     )
                     >> bit
                 )
@@ -817,7 +845,9 @@ def build(
     arg = payload[:8]
     decode_groups = [(op_names, [one - payload[14]] if resident_alu32 else [])]
     if resident_alu32:
-        decode_groups.append((ALU_OPS, [payload[14]]))
+        decode_groups.append(
+            (ALU_OPS + (SCOPED_OPS if resident_scoped else ()), [payload[14]])
+        )
     ops = {
         op: c.and_(
             [
@@ -843,7 +873,17 @@ def build(
         legacy_digits = [
             c.token_feature(
                 f"legacy.nibble_address.{i}",
-                lambda t, i=i: (t >> (4 + i)) & 1,
+                lambda t, i=i: (
+                    (
+                        (
+                            canonical_nibble(t, INDEX_OPERAND, C_MEMORY)
+                            if resident_scoped
+                            else t // 16
+                        )
+                        >> i
+                    )
+                    & 1
+                ),
                 full=True,
             )
             for i in range(13)
@@ -861,7 +901,16 @@ def build(
         if resident_alu32 and len(addresses) >= 16:
             members = frozenset(base // 16 + offset for offset in addresses)
             ref = c.token_feature(
-                f"{name}.load", lambda t: int(t // 16 in members), full=True
+                f"{name}.load",
+                lambda t: int(
+                    (
+                        canonical_nibble(t, INDEX_OPERAND, C_MEMORY)
+                        if resident_scoped and name.startswith("shared.")
+                        else t // 16
+                    )
+                    in members
+                ),
+                full=True,
             )
             # A row matches only when the membership and every address bit agree.
             keys = {
@@ -1279,6 +1328,7 @@ def build(
     old_indices = []
     next_index_high = []
     prior_index_high = []
+    scoped_addresses = []
     grants = []
     indexed_values = []
     load_high = ops.get(LOAD_INDEX_HI, Expr())
@@ -1286,7 +1336,11 @@ def build(
     add_low = ops.get(ADD_INDEX_LO, Expr())
     add_high = ops.get(ADD_INDEX_HI, Expr())
     if indexed:
-        load_index = ops["LOAD_INDEX"] + load_high + add_low + add_high
+        scoped_load = sum((ops.get(op, Expr()) for op in SCOPED_LOADS), Expr())
+        scoped_store = sum((ops.get(op, Expr()) for op in SCOPED_STORES), Expr())
+        scoped_access = scoped_load + scoped_store
+        private = ops.get("LOAD_PRIVATE", Expr()) + ops.get("STORE_PRIVATE", Expr())
+        load_index = ops["LOAD_INDEX"] + scoped_load + load_high + add_low + add_high
         read_high = load_high + add_high
         if resident_alu32:
             load_index += sum((ops[op] for op in LOGIC_OPS), Expr())
@@ -1299,7 +1353,7 @@ def build(
             if resident_addmem32
             else []
         )
-        store_index = ops["STORE_INDEX"] + store_high
+        store_index = ops["STORE_INDEX"] + store_high + scoped_store
         prior_addresses = []
         for lane in range(8):
             address = [
@@ -1332,6 +1386,33 @@ def build(
                         zip(address[1:], pair_mask, strict=True), 1
                     )
                 ]
+            physical = address
+            if resident_scoped:
+                banked = c.select_bits(
+                    [
+                        (
+                            [private],
+                            [(lane >> bit) & 1 for bit in range(3)] + [warp_bit],
+                        ),
+                        ([one - private], address[:4]),
+                    ],
+                    4,
+                    f"scoped.offset.{lane}",
+                ) + [group_low, group_high, private]
+                physical = c.select_bits(
+                    [
+                        ([scoped_access], banked + [Expr()]),
+                        ([one - scoped_access], address),
+                    ],
+                    8,
+                    f"scoped.address.{lane}",
+                )
+                scoped_addresses.extend(physical[:7])
+                gather_address = c.select_bits(
+                    [([scoped_load], physical), ([one - scoped_load], gather_address)],
+                    8,
+                    f"scoped.gather.{lane}",
+                )
             queries = [
                 c.and_(
                     [
@@ -1347,8 +1428,14 @@ def build(
             ]
             if resident_memory512:
                 ram_bank = [
-                    c.and_([generic, one - gather_address[7]], f"gather.bank.{lane}.0"),
-                    c.and_([generic, gather_address[7]], f"gather.bank.{lane}.1"),
+                    c.and_(
+                        [generic, one - scoped_load, one - gather_address[7]],
+                        f"gather.bank.{lane}.0",
+                    ),
+                    c.and_(
+                        [generic, one - scoped_load, gather_address[7]],
+                        f"gather.bank.{lane}.1",
+                    ),
                 ]
             for nib in range(4):
                 slots = [
@@ -1358,7 +1445,7 @@ def build(
                 ]
                 value = lookup(f"shared.{lane}.{nib}", 0, slots, queries)
                 if resident_memory512:
-                    sources = [([one - generic], value)]
+                    sources = [([one - generic + scoped_load], value)]
                     for bank in range(2):
                         start = bank * 128
                         other = ram_lookup(
@@ -1422,7 +1509,7 @@ def build(
                         )
                     )
             # STORE_INDEX retains the old address, so it can use the same snapshot.
-            addr = from_bits(address)
+            addr = from_bits(physical)
             earlier = [
                 c.node(
                     c.t_eq(
@@ -1622,7 +1709,12 @@ def build(
             updated.extend(_word_from_columns(c, columns, limits, f"lane.{lane}.word"))
     sources = [([ops["LOAD_TILE"]], c_row)]
     if indexed:
-        sources.append(([ops["LOAD_INDEX"]], indexed_values))
+        sources.append(
+            (
+                [ops["LOAD_INDEX"] + (scoped_load if resident_scoped else Expr())],
+                indexed_values,
+            )
+        )
     if resident_globalgrid:
         sources.append(([group_ops], special_low))
     sources.append(([one - sum((gate[0] for gate, _ in sources), Expr())], updated))
@@ -1689,6 +1781,8 @@ def build(
             bits.extend(Expr() for _ in range(HIGH_NIBBLES))
     if resident_shared32:
         bits.append(store_high)
+    if resident_scoped:
+        bits.extend([scoped_store, *scoped_addresses])
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -1829,7 +1923,7 @@ def build(
                 if bit < 4:
                     low_value = saved[4 * nib + bit]
                     if resident_shared32:
-                        high = saved[-1]
+                        high = saved[-58] if resident_scoped else saved[-1]
                         high_value = saved[WARP_DIRTY_OFFSET + 4 * nib + bit]
                         scatter_terms += c.t_and(
                             [*gate, one - high, low_value], 2 * KAPPA
@@ -1841,12 +1935,35 @@ def build(
                     if digit >> (bit - 4) & 1:
                         scatter_terms += c.t_and(gate, 2 * KAPPA)
                 elif bit == 6 and resident_shared32:
-                    high = saved[-1]
+                    if resident_scoped:
+                        local_store = saved[-57]
+                        scatter_terms += c.t_and(
+                            [*gate, local_store, saved[-56 + 7 * lane]], 2 * KAPPA
+                        )
+                        gate = [*gate, one - local_store]
+                    high = saved[-58] if resident_scoped else saved[-1]
                     scatter_terms += c.t_and([*gate, one - high, address[0]], 2 * KAPPA)
                     scatter_terms += c.t_and([*gate, high, one - address[0]], 2 * KAPPA)
-                elif bit < 12:
-                    scatter_terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
+                elif bit < 12 or (resident_scoped and bit == 12):
+                    if resident_scoped:
+                        local_store = saved[-57]
+                        physical_bit = saved[-56 + 7 * lane + bit - 6]
+                        scatter_terms += c.t_and(
+                            [*gate, local_store, physical_bit], 2 * KAPPA
+                        )
+                        gate = [*gate, one - local_store]
+                    if bit < 12:
+                        scatter_terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
+                    elif resident_memory512:
+                        scatter_terms += c.t_and(
+                            [*gate, saved[geometry.mode_offset], address[6]], 2 * KAPPA
+                        )
                 else:
+                    if resident_scoped:
+                        local_store = saved[-57]
+                        if SCOPED_BASE >> bit & 1:
+                            scatter_terms += c.t_and([*gate, local_store], 2 * KAPPA)
+                        gate = [*gate, one - local_store]
                     old_gate = (
                         [*gate, one - saved[geometry.mode_offset]]
                         if resident_memory512
@@ -1973,6 +2090,7 @@ def build_standalone(
     resident_memory512: bool = False,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -2002,6 +2120,7 @@ def build_standalone(
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
+        resident_scoped=resident_scoped,
     )
     return build_qwen(
         circuit,

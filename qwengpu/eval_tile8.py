@@ -13,7 +13,7 @@ import transformers
 from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
-from qwengpu.alu32 import ALU32_LAYOUT, ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, LOGIC_OPS
+from qwengpu.alu32 import ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, LOGIC_OPS
 from qwengpu.compiled_tile import (
     READY0,
     READY1,
@@ -108,9 +108,21 @@ from qwengpu.eval_tile import _check_control as check_legacy_control
 from qwengpu.eval_tile import _unsigned
 from qwengpu.memory_geometry import (
     LEGACY_MEMORY,
+    ALU32_LAYOUTS,
     MEMORY512_LAYOUTS,
     ROM32_LAYOUTS,
     WIDE_MEMORY,
+)
+
+from qwengpu.scoped_memory import (
+    SCOPED_BASE,
+    SCOPED_END,
+    SCOPED_LAYOUT,
+    SCOPED_LOADS,
+    SCOPED_OPS,
+    SCOPED_STORES,
+    SCOPED_WORDS,
+    physical_word,
 )
 
 FIXTURES = Path(__file__).resolve().parents[1] / "eval/frozen/tile8_gate_v1"
@@ -252,7 +264,9 @@ def parse_launch(
     resident_memory512: bool = False,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> dict:
+    resident_alu32 = resident_alu32 or resident_scoped
     resident_rom32 = resident_rom32 or resident_alu32
     resident_memory512 = resident_memory512 or resident_rom32
     resident_compute = resident_compute or resident_memory512
@@ -268,6 +282,8 @@ def parse_launch(
     if not isinstance(data, dict):
         raise ValueError("8x8 case must be an object")
     workgroups = data.get("workgroups")
+    if "scoped_words" in data and not (resident_scoped and workgroups):
+        raise ValueError("scoped_words requires a scoped workgroup launch")
     if "workgroups" in data:
         if (
             not resident_globalgrid
@@ -352,6 +368,7 @@ def parse_launch(
             + (GLOBAL_OPS if workgroups else ())
             + (COMPUTE_OPS if workgroups and resident_compute else ())
             + (ALU_OPS if resident_alu32 else ())
+            + (SCOPED_OPS if resident_scoped and workgroups else ())
         )
         slots = 32 if resident_rom32 else 16
         for warp, program in enumerate(raw):
@@ -396,6 +413,21 @@ def parse_launch(
             if divergent:
                 links[warp] = _control_links(ops)
             programs.append(tuple(ops))
+    scoped_words = None
+    if (
+        resident_scoped
+        and workgroups
+        and (
+            "scoped_words" in data
+            or any(op in SCOPED_OPS for program in programs for op, _ in program)
+        )
+    ):
+        scoped_words = _unsigned(
+            data.get("scoped_words", [0] * SCOPED_WORDS),
+            SCOPED_WORDS,
+            65535,
+            "scoped_words",
+        )
     return {
         "a": a,
         "b": b,
@@ -408,6 +440,7 @@ def parse_launch(
         **({"workgroups": workgroups} if workgroups else {}),
         **({"memory512": True} if resident_memory512 else {}),
         **({"global_words": words} if resident_memory512 and workgroups else {}),
+        **({"scoped_words": scoped_words} if scoped_words is not None else {}),
     }
 
 
@@ -428,6 +461,7 @@ def _parse_case(
     resident_memory512: bool = False,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -445,6 +479,7 @@ def _parse_case(
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
+        resident_scoped=resident_scoped,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -541,6 +576,7 @@ def execute(
     memory512 = circuit.resident_memory512
     rom32 = circuit.resident_rom32
     alu32 = circuit.resident_alu32
+    scoped = circuit.resident_scoped and "scoped_words" in case
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
     if workgroups and (
@@ -628,6 +664,9 @@ def execute(
     ram_tokens = (
         nibbles(geometry.base, _digits(case["global_words"], 16)) if global512 else []
     )
+    scoped_tokens = (
+        nibbles(SCOPED_BASE, _digits(case["scoped_words"], 16)) if scoped else []
+    )
     second_memory = (
         nibbles(SECOND_OUTPUT, _digits(second_output, 16))
         if second_output is not None
@@ -668,7 +707,9 @@ def execute(
         else []
     )
     rom = [
-        program_tokens(program, resident_rom32=rom32, resident_alu32=alu32)
+        program_tokens(
+            program, resident_rom32=rom32, resident_alu32=alu32, resident_scoped=scoped
+        )
         for program in case["programs"]
     ]
     indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
@@ -722,12 +763,18 @@ def execute(
             ):
                 uploads.extend(panel)
     pending.extend(uploads)
+    pending.extend(scoped_tokens)
     transport = {
         "input_tokens": 0,
         "fresh_caches": 0,
         "matrix_initial_tokens": len(uploads),
         "matrix_patch_tokens": 0,
     }
+
+    if scoped:
+        transport.update(
+            scoped_initial_tokens=len(scoped_tokens), scoped_patch_tokens=0
+        )
 
     if resident_grid:
         pending.append(
@@ -1057,6 +1104,9 @@ def execute(
                 and geometry.base <= token < geometry.base + 64 * geometry.words
             ):
                 ram_tokens[(token - geometry.base) // 16] = token
+            elif scoped and SCOPED_BASE <= token < SCOPED_END:
+                scoped_tokens[(token - SCOPED_BASE) // 16] = token
+                transport["scoped_patch_tokens"] += 1
             elif output_base <= token < output_base + 4096:
                 output_memories[output_index][(token - output_base) // 16] = token
             elif indexed and INDEX_OPERAND <= token < INDEX_OPERAND + 4096:
@@ -1065,7 +1115,9 @@ def execute(
                 raise ValueError("invalid tagged shared-memory write")
         if resident:
             pending = [control, *tagged_state, *updates]
-            transport["matrix_patch_tokens"] += len(updates)
+            transport["matrix_patch_tokens"] += sum(
+                not scoped or not SCOPED_BASE <= token < SCOPED_END for token in updates
+            )
             if resident_state:
                 transport["warp_update_tokens"] += len(tagged_state)
         controls = controls[:]
@@ -1129,6 +1181,7 @@ def execute(
                 resident_memory512=memory512,
                 resident_rom32=rom32,
                 resident_alu32=alu32,
+                resident_scoped=scoped,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1148,8 +1201,17 @@ def execute(
             for warp in range(2)
             for head, token in zip(heads, state_packet(warp), strict=True)
         )
+    if scoped:
+        transport["resident_scoped_exact"] = all(
+            head_row(cache, circuit, f"shared.{lane}.{nib}", word, 4)
+            == scoped_tokens[4 * word + nib] & 15
+            for word in range(SCOPED_WORDS)
+            for nib in range(4)
+            for lane in range(8)
+        )
     return {
         "transport": transport,
+        **({"scoped_words": _words(scoped_tokens)} if scoped else {}),
         **(
             {
                 "bank_transitions": bank_transitions,
@@ -1459,6 +1521,9 @@ def oracle(
     workgroups = case.get("workgroups", 0)
     global512 = bool(workgroups and case.get("memory512"))
     ram = case["global_words"][:] if global512 else None
+    scoped_ram = case.get("scoped_words")
+    if scoped_ram is not None:
+        scoped_ram = scoped_ram[:]
     group = 0
     wide = "initial_registers" in case
     initial = case.get("initial_registers", [[0] * 8, [0] * 8])
@@ -1603,6 +1668,11 @@ def oracle(
                 word >> 16 if active >> lane & 1 else high[warp][lane]
                 for lane, word in enumerate(words)
             ]
+        elif op in SCOPED_LOADS:
+            candidate = [
+                scoped_ram[physical_word(op, group, warp, lane, addr)]
+                for lane, addr in enumerate(indices[warp])
+            ]
         elif op == "ADDIDX":
             indices[warp] = [
                 (addr + arg) % (256 if global512 else INDEX_WORDS)
@@ -1737,6 +1807,20 @@ def oracle(
                     base = C_MEMORY + 512 * row + 64 * lane
                     patch[4 * lane : 4 * lane + 4] = nibbles(base, _digits([value], 16))
         grants = 0
+        if op in SCOPED_STORES:
+            claimed = set()
+            for lane, (addr, word) in enumerate(
+                zip(indices[warp], acc[warp], strict=True)
+            ):
+                addr = physical_word(op, group, warp, lane, addr)
+                if not active >> lane & 1 or addr in claimed:
+                    continue
+                claimed.add(addr)
+                grants |= 1 << lane
+                scoped_ram[addr] = word
+                patch[4 * lane : 4 * lane + 4] = nibbles(
+                    SCOPED_BASE + 64 * addr, _digits([word], 16)
+                )
         if op in ("STORE_INDEX", STORE_INDEX_HI):
             high_store = op == STORE_INDEX_HI
             words = high[warp] if high_store else acc[warp]
@@ -1829,6 +1913,7 @@ def oracle(
         "schedules": schedules,
         "trace": trace,
         "outcome": outcome,
+        **({"scoped_words": scoped_ram} if scoped_ram is not None else {}),
         "matrix": [
             (ram[64:128] if global512 else c)[i : i + 8] for i in range(0, 64, 8)
         ],
@@ -1887,12 +1972,16 @@ def load_tile_model(
     resident_memory512: bool = False,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ):
     if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        if resident_alu32 and layout != ALU32_LAYOUT:
+        if resident_scoped and layout != SCOPED_LAYOUT:
+            raise ValueError("expected a merged scoped-memory checkpoint")
+        resident_scoped = layout == SCOPED_LAYOUT
+        if resident_alu32 and layout not in ALU32_LAYOUTS:
             raise ValueError("expected a merged ALU32 checkpoint")
-        resident_alu32 = layout == ALU32_LAYOUT
+        resident_alu32 = layout in ALU32_LAYOUTS
         if resident_rom32 and layout not in ROM32_LAYOUTS:
             raise ValueError("expected a merged ROM32 checkpoint")
         resident_rom32 = layout in ROM32_LAYOUTS
@@ -1937,6 +2026,7 @@ def load_tile_model(
             resident_memory512=resident_memory512,
             resident_rom32=resident_rom32,
             resident_alu32=resident_alu32,
+            resident_scoped=resident_scoped,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1974,6 +2064,7 @@ def load_tile_model(
             resident_memory512=resident_memory512,
             resident_rom32=resident_rom32,
             resident_alu32=resident_alu32,
+            resident_scoped=resident_scoped,
         )
     return model.to(device).eval(), circuit
 
@@ -2008,6 +2099,7 @@ def main() -> None:
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
+    variants.add_argument("--resident-scoped", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -2017,7 +2109,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_alu32 = args.resident_alu32
+    resident_scoped = args.resident_scoped
+    resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
@@ -2063,7 +2156,8 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_alu32 = layout == ALU32_LAYOUT
+        resident_scoped = layout == SCOPED_LAYOUT
+        resident_alu32 = layout in ALU32_LAYOUTS
         resident_rom32 = layout in ROM32_LAYOUTS
         resident_memory512 = layout in MEMORY512_LAYOUTS
         resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
@@ -2134,6 +2228,8 @@ def main() -> None:
             raise ValueError("--resident-globalgrid requires a globalgrid checkpoint")
         if args.resident_compute and not resident_compute:
             raise ValueError("--resident-compute requires a compute checkpoint")
+        if args.resident_scoped and not resident_scoped:
+            raise ValueError("--resident-scoped requires a scoped checkpoint")
         if args.resident_alu32 and not resident_alu32:
             raise ValueError("--resident-alu32 requires an ALU32 checkpoint")
         if args.resident_rom32 and not resident_rom32:
@@ -2188,6 +2284,7 @@ def main() -> None:
                     resident_memory512=resident_memory512,
                     resident_rom32=resident_rom32,
                     resident_alu32=resident_alu32,
+                    resident_scoped=resident_scoped,
                 ),
             )
         )
@@ -2223,6 +2320,7 @@ def main() -> None:
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
+        resident_scoped=resident_scoped,
     )
     report = {
         "device": args.device,

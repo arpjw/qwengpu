@@ -9,7 +9,8 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
+from qwengpu.alu32 import ALU_VOCAB
+from qwengpu.scoped_memory import SCOPED_LAYOUT
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     RESIDENT_COMPUTE_LAYOUT,
@@ -39,7 +40,12 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
+from qwengpu.memory_geometry import (
+    ALU32_LAYOUTS,
+    MEMORY512_LAYOUTS,
+    ROM32_LAYOUTS,
+    WIDE_MEMORY,
+)
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
@@ -55,6 +61,7 @@ def main() -> int:
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
+    variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument(
         "--resident-compute", action="store_true", help="use the common compute ISA"
     )
@@ -156,7 +163,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_alu32 = args.resident_alu32
+    resident_scoped = args.resident_scoped
+    resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
@@ -176,7 +184,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-alu32"
+        "standalone-resident-scoped"
+        if resident_scoped
+        else "standalone-resident-alu32"
         if resident_alu32
         else "standalone-resident-rom32"
         if resident_rom32
@@ -239,7 +249,7 @@ def main() -> int:
                 or meta.get("chip_vocab")
                 != (
                     ALU_VOCAB
-                    if meta.get("layout") == ALU32_LAYOUT
+                    if meta.get("layout") in ALU32_LAYOUTS
                     else ROM32_VOCAB
                     if meta.get("layout") in ROM32_LAYOUTS
                     else WIDE_MEMORY.vocab
@@ -259,7 +269,8 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_alu32 = layout == ALU32_LAYOUT
+            resident_scoped = layout == SCOPED_LAYOUT
+            resident_alu32 = layout in ALU32_LAYOUTS
             resident_rom32 = layout in ROM32_LAYOUTS
             resident_memory512 = layout in MEMORY512_LAYOUTS
             resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
@@ -324,6 +335,8 @@ def main() -> int:
                 raise ValueError(
                     "--resident-globalgrid requires a globalgrid checkpoint"
                 )
+            if args.resident_scoped and not resident_scoped:
+                raise ValueError("--resident-scoped requires a scoped checkpoint")
             if args.resident_alu32 and not resident_alu32:
                 raise ValueError("--resident-alu32 requires an ALU32 checkpoint")
             if args.resident_rom32 and not resident_rom32:
@@ -350,6 +363,7 @@ def main() -> int:
             resident_memory512=resident_memory512,
             resident_rom32=resident_rom32,
             resident_alu32=resident_alu32,
+            resident_scoped=resident_scoped,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -386,6 +400,7 @@ def main() -> int:
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
+        resident_scoped=resident_scoped,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]
@@ -447,6 +462,11 @@ def main() -> int:
         or (resident_grid and not transport["resident_grid_exact"])
         or (resident_rom and not transport["resident_rom_exact"])
         or (resident_state and not transport["resident_state_exact"])
+        or (
+            resident_scoped
+            and "scoped_words" in launch
+            and not transport["resident_scoped_exact"]
+        )
         or (args.check_reference and not all(reference.values()))
     ):
         return 1
