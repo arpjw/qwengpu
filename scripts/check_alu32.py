@@ -93,7 +93,7 @@ def main():
     mps = RESULTS / "alu32_mps"
     standalone = check_arithmetic(mps)
     if not args.target_only:
-        check_new(mps, "mps")
+        standalone_rom = check_new(mps, "mps")
         check_inherited(mps)
     if args.cuda:
         cuda = RESULTS / "alu32_cuda"
@@ -102,8 +102,14 @@ def main():
             fields = report.keys() - {"device", "checkpoint"}
             assert all(report[key] == merged[name][key] for key in fields), name
         if not args.target_only:
-            check_new(cuda, "cuda")
+            merged_rom = check_new(cuda, "cuda")
+            for name, report in standalone_rom.items():
+                fields = report.keys() - {"device", "checkpoint"}
+                assert all(report[key] == merged_rom[name][key] for key in fields), name
             memory = check_inherited(cuda)
+            standalone_memory = read(mps / "memory512.json")
+            for field in ("raw", "cases", "manifest_sha256"):
+                assert memory[field] == standalone_memory[field], field
             text = read(cuda / "text.json")
             assert text["next_top1_same"] == 24 and text["greedy_identical"] >= 21
             assert text["merged_chip_tokens"] == 0
