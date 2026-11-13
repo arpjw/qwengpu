@@ -27,6 +27,7 @@ def main() -> None:
     for folder, name in (
         ("resident_alu32_v1", "address_walk"),
         ("resident_interleaved_v1", "interleaved_publish"),
+        ("scoped_memory_v1", "isolation"),
     ):
         data = json.loads((ROOT / "eval/frozen" / folder / f"{name}.json").read_bytes())
         _, observed = launch(model, circuit, data, args.device, offset)
@@ -34,6 +35,11 @@ def main() -> None:
         assert transport["internal_store_words"] > 0
         assert transport["matrix_patch_tokens"] == 0
         assert sum(call["memory"] for call in observed["audit"]) == 1024
+        assert transport["internal_store_read_tags"] == 4 * transport["internal_store_words"]
+        assert sum(len(call["commits"]) for call in observed["audit"]) == transport["internal_store_words"]
+        if "scoped_words" in observed:
+            assert transport["internal_scoped_words"] > 0 and transport["scoped_patch_tokens"] == 0
+            assert sum(call["scoped"] for call in observed["audit"]) == 512
         cases.append({"name": name, "result": observed})
     args.out.write_text(json.dumps({"device": args.device, "merge": meta, "cases": cases}, indent=2) + "\n")
 
