@@ -13,6 +13,7 @@ import transformers
 from qwengpu.assemble import assemble
 from qwengpu.alu32 import ALU_VOCAB
 from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_END
+from qwengpu.model_stores import COMMIT_BASE, COMMIT_COUNT
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     C_MEMORY,
@@ -118,6 +119,11 @@ def launch(
                     if scoped
                     else {}
                 ),
+                **(
+                    {"commits": [token for token in tokens if COMMIT_BASE <= token < COMMIT_BASE + COMMIT_COUNT]}
+                    if circuit.internal_stores
+                    else {}
+                ),
                 "transitions": [
                     token for token in tokens if token in WORKGROUP_TICKETS
                 ],
@@ -163,6 +169,10 @@ def launch(
             != transport["scoped_initial_tokens"] + transport["scoped_patch_tokens"]
         ):
             raise ValueError("scoped cache, initialization, or write audit failed")
+    if circuit.internal_stores:
+        count = sum(len(call["commits"]) for call in audit)
+        if count != transport["internal_store_words"] or count != transport["internal_store_commands"]:
+            raise ValueError("model-owned store command audit failed")
     if refresh_global_prefix:
         expected_refresh = [
             circuit.memory_geometry.base + 64 * word_index + 16 * digit
