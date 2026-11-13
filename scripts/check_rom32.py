@@ -198,7 +198,11 @@ def main():
                 k: v for k, v in other.items() if k not in ("device", "checkpoint")
             }, name
         if not args.target_only:
-            check_merge(cuda, check_inherited(cuda))
+            cuda_memory = check_inherited(cuda)
+            mps_memory = read(mps / "memory512.json")
+            for field in ("manifest_sha256", "raw", "cases"):
+                assert cuda_memory[field] == mps_memory[field], field
+            check_merge(cuda, cuda_memory)
 
 
 if __name__ == "__main__":
