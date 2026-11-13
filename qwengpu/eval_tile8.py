@@ -639,6 +639,8 @@ def execute(
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
     internal_stores = circuit.internal_stores and global512
+    if internal_stores and not resident_io:
+        raise ValueError("model-owned stores require the store-plan transport")
     if type(refresh_global_prefix) is not int or not 0 <= refresh_global_prefix <= (
         geometry.words if global512 and resident_cache is not None else 0
     ):
@@ -849,7 +851,7 @@ def execute(
     }
 
     if internal_stores:
-        transport.update(internal_store_words=0, internal_store_commands=0, internal_store_read_tags=0, internal_scoped_words=0)
+        transport.update(internal_store_words=0, internal_store_commands=0, internal_store_read_tags=0, internal_scoped_words=0, internal_store_trace_tags=0)
 
     if refresh:
         transport["global_refresh_tokens"] = len(refresh)
@@ -1090,7 +1092,7 @@ def execute(
                 [
                     4 * lane + digit
                     for lane, writes in enumerate(store_bits)
-                    if writes
+                    if writes and not internal_stores
                     for digit in range(4)
                 ]
                 if resident_io
@@ -1141,6 +1143,28 @@ def execute(
             ]
             if store_bits != expected_stores:
                 raise ValueError("shared store plan does not match the model snapshot")
+        if internal_stores:
+            offset_scope = circuit.store_snapshot_offset
+            local = bool(observed_bits[offset_scope])
+            high = bool(observed_bits[offset_scope - 1])
+            for lane, granted in enumerate(store_bits):
+                if not granted:
+                    continue
+                if local:
+                    start = offset_scope + 1 + 7 * lane
+                    address = sum(bit << i for i, bit in enumerate(observed_bits[start : start + 7]))
+                    base = SCOPED_BASE
+                else:
+                    start = SNAPSHOT_BITS + 7 * lane
+                    address = sum(bit << i for i, bit in enumerate(observed_bits[start : start + 7]))
+                    address |= observed_bits[geometry.extra_index_offset + lane] << 7
+                    address ^= int(high)
+                    base = geometry.base
+                start = 16 * lane + (WARP_DIRTY_OFFSET if high else 0)
+                value = sum(bit << i for i, bit in enumerate(observed_bits[start : start + 16]))
+                position = len(state_reads) + 4 * lane
+                packet[position : position + 4] = nibbles(base + 64 * address, _digits([value], 16))
+                transport["internal_store_trace_tags"] += 4
         tagged_state = []
         if resident_state:
             state_output = packet[:-32]
@@ -1226,7 +1250,6 @@ def execute(
                 local_write = scoped and all(SCOPED_BASE <= token < SCOPED_END for token in patch_words)
                 if global_write or local_write:
                     commits.append(COMMIT_BASE + lane)
-                    transport["internal_store_read_tags"] += len(patch_words)
                     transport["internal_scoped_words"] += int(local_write)
                 else:
                     relayed.extend(token for token in patch_words if token != NO_WRITE)

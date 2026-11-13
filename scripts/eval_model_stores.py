@@ -35,7 +35,8 @@ def main() -> None:
         assert transport["internal_store_words"] > 0
         assert transport["matrix_patch_tokens"] == 0
         assert sum(call["memory"] for call in observed["audit"]) == 1024
-        assert transport["internal_store_read_tags"] == 4 * transport["internal_store_words"]
+        assert transport["internal_store_read_tags"] == 0
+        assert transport["internal_store_trace_tags"] == 4 * transport["internal_store_words"]
         assert sum(len(call["commits"]) for call in observed["audit"]) == transport["internal_store_words"]
         if "scoped_words" in observed:
             assert transport["internal_scoped_words"] > 0 and transport["scoped_patch_tokens"] == 0

@@ -2083,6 +2083,8 @@ def build(
     if resident_shared32:
         bits.append(store_high)
     scoped_offset = len(bits)
+    if internal_stores:
+        c.store_snapshot_offset = scoped_offset
     if resident_scoped:
         bits.extend([scoped_store, *scoped_addresses])
     bank_offset = len(bits)
