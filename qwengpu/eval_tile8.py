@@ -13,7 +13,7 @@ import transformers
 from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
-from qwengpu.model_stores import COMMIT_BASE, COMMIT_COUNT, INTERNAL_STORES_LAYOUT
+from qwengpu.model_stores import COMMIT_BASE, INTERNAL_STORES_LAYOUT
 from qwengpu.alu32 import (
     ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_OPS,
     LOGIC_OPS, RUNTIME_EXTENT_BASE, RUNTIME_EXTENT_MAX, RUNTIME_EXTENT_OP, WIDE_INDEX_OPS,
@@ -1243,18 +1243,12 @@ def execute(
         updates = [token for token in patch if token != NO_WRITE]
         commits = []
         if internal_stores:
-            relayed = []
-            for lane in range(COMMIT_COUNT):
-                patch_words = patch[4 * lane : 4 * (lane + 1)]
-                global_write = all(geometry.base <= token < geometry.vocab for token in patch_words)
-                local_write = scoped and all(SCOPED_BASE <= token < SCOPED_END for token in patch_words)
-                if global_write or local_write:
-                    commits.append(COMMIT_BASE + lane)
-                    transport["internal_scoped_words"] += int(local_write)
-                else:
-                    relayed.extend(token for token in patch_words if token != NO_WRITE)
+            commits = [COMMIT_BASE + lane for lane, granted in enumerate(store_bits) if granted]
             transport["internal_store_words"] += len(commits)
             transport["internal_store_commands"] += len(commits)
+            if local:
+                transport["internal_scoped_words"] += len(commits)
+            relayed = []
         else:
             relayed = updates
         if not indexed and updates and len(updates) != 32:
