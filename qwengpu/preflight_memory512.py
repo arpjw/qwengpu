@@ -27,7 +27,9 @@ def main() -> None:
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
+    variants.add_argument("--resident-scoped", action="store_true")
     args = parser.parse_args()
+    args.resident_alu32 |= args.resident_scoped
     legacy = None
     if args.legacy_ref:
         old = types.ModuleType("previous_tile8")
@@ -92,6 +94,7 @@ def main() -> None:
         resident_memory512=True,
         resident_rom32=args.resident_rom32,
         resident_alu32=args.resident_alu32,
+        resident_scoped=args.resident_scoped,
     )
     marker = circuit.token_feature("simt.marker", lambda _t: 0, full=True)
     circuit.ffn(
