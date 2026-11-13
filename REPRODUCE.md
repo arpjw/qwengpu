@@ -1874,3 +1874,17 @@ bash scripts/qualify_rom32_cuda.sh "$base" "$model" \
   "$PWD/results/rom32_cuda" "$(git rev-parse HEAD)"
 python3 scripts/check_rom32.py --cuda
 ```
+
+The CUDA run used Python 3.12, the dependencies in
+`results/rom32_cuda/environment.txt`, and the following pinned inputs.
+
+```bash
+git -C ../qwenputer checkout ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+hf download Qwen/Qwen3.5-9B \
+  --revision c202236235762e1c871ad0ccb60c8ee5ba337b9a --local-dir "$base"
+```
+
+Use a separate compiler checkout for that revision if the existing one has
+local changes. On macOS, use `git archive` to transfer the source and frozen
+fixtures. This excludes AppleDouble sidecars that may otherwise match a
+fixture glob on Linux.
