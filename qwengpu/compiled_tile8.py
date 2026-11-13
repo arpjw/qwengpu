@@ -494,7 +494,11 @@ def build(
         return c.token_feature(name, lambda t: int(low <= t < high), full=True)
 
     tick = match("tick", TICK)
-    commit = [match(f"ram.commit.{lane}", COMMIT_BASE + lane) for lane in range(COMMIT_COUNT)] if internal_stores else []
+    commit = (
+        [match(f"ram.commit.{lane}", COMMIT_BASE + lane) for lane in range(COMMIT_COUNT)]
+        if internal_stores
+        else []
+    )
     schedule = match("schedule", SCHEDULE)
     resets = [match("ready.0", READY0), match("ready.1", READY1)]
     reads = [match(f"register.read.{index}", READ_REG + index) for index in range(32)]
@@ -1023,6 +1027,8 @@ def build(
         ]
 
     scoped_ports = {}
+    write_grant, write_scoped = Expr(), Expr()
+    write_address, write_value, scoped_write_address = [], [], []
 
     def lookup(
         name: str,
@@ -1102,8 +1108,6 @@ def build(
                 }
         return c.slot_head(name, keys, dict(enumerate(selects)), data, ref)
 
-    write_grant, write_scoped, write_address, write_value = Expr(), Expr(), [], []
-    scoped_write_address = []
     if resident_memory512:
         ram_word_bits = [
             c.token_feature(
@@ -1574,6 +1578,7 @@ def build(
             else []
         )
         store_index = ops["STORE_INDEX"] + store_high + scoped_store
+
         def build_gather(lane, gather_address):
             queries = [
                 c.and_(
