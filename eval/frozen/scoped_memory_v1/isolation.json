@@ -440,7 +440,7 @@
       },
       {
         "op": "ADD32I",
-        "arg": 24
+        "arg": 8
       },
       {
         "op": "SAVE_INDEX"
@@ -453,7 +453,7 @@
       },
       {
         "op": "ADDIDX",
-        "arg": -96
+        "arg": -88
       },
       {
         "op": "STORE_INDEX"
