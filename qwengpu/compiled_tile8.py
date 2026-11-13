@@ -2145,7 +2145,7 @@ def build_standalone(
         list(
             range(
                 ALU_VOCAB
-                if resident_alu32
+                if resident_alu32 or resident_scoped
                 else ROM32_VOCAB
                 if resident_rom32
                 else WIDE_MEMORY.vocab
