@@ -1597,8 +1597,8 @@ def oracle(
     high = [[word >> 16 for word in bank] for bank in initial]
     indices = [[0] * 8 for _ in range(warp_count)]
     masks = [255] * warp_count
-    branches: list[list[tuple[int, int]]] = [[], []]
-    loops: list[list[int]] = [[], []]
+    branches: list[list[tuple[int, int]]] = [[] for _ in range(warp_count)]
+    loops: list[list[int]] = [[] for _ in range(warp_count)]
     operands = bytearray(case["a"] + case["b"])
     mac_operands = alternate_operands if operand_bank else operands
     c = case["c"][:]
