@@ -1713,3 +1713,23 @@ used the same merged weights after removing those sidecars from the
 temporary pod. The evaluator now ignores hidden fixture files. The
 repository stores commands, trace evidence, and the weight manifest in
 REPRODUCE.md and `results/rom32_*`. The unit suite passed 40 tests.
+
+## Resident 32-bit integer and address arithmetic
+
+ALU32 adds shifts through bit 31, modular subtraction and multiplication by
+an immediate, signed and unsigned comparisons, indexed bitwise operations,
+and signed offsets to the saved word address. The frozen arithmetic fixture
+covers sign and unsigned comparison boundaries, carry and underflow, and
+masked updates. The address fixture runs two workgroups, checks all 256
+global words, and exercises both halves of the address space, wraparound,
+paired limbs, and masked stores. The model traces match on Apple MPS and
+merged Qwen3.5-9B. The independent evidence checker also computes the expected
+registers and all 256 address-walk words without using the circuit or
+interpreter.
+
+The merge uses 35 processor layers, hidden width 7,424, and 2,976 live
+slots. Shared binary memory keys recovered enough space to keep the ROM32
+hidden width. The 26-shard manifest identifies the tested weights. Native
+text on the same 24 prompts matches the base on all 24 first tokens and
+22 short greedy continuations, with zero emitted chip tokens.
+The RunPod environment passed all 42 unit tests.
