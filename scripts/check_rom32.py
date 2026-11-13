@@ -70,6 +70,7 @@ def check_new(root, device):
 def check_inherited(root):
     memory = read(root / "memory512.json")
     check_memory(memory)
+    assert memory["device"] in ("mps", "cuda")
     old_memory = load_report("memory512_mps")
     for field in ("raw", "cases"):
         assert project_rom16(memory[field]) == old_memory[field], field
@@ -107,7 +108,10 @@ def check_merge(root, memory):
     assert text["next_top1_same"] == text["prompt_count"] == 24
     assert text["greedy_identical"] >= 21 and text["merged_chip_tokens"] == 0
     previous_text = load_report("memory512_text_9b_cuda_fla")
-    assert text["tokenized_prompts_sha256"] == previous_text["tokenized_prompts_sha256"]
+    for key in ("prompts_sha256", "tokenized_prompts_sha256", "max_new_tokens"):
+        assert text[key] == previous_text[key], key
+    for field in ("next_top1_same", "greedy_identical", "merged_chip_tokens"):
+        assert text[field] == sum(row[field] for row in text["records"])
 
     manifest = read(root / "manifest.json")
     assert manifest["files"]["qwengpu9b.json"] == meta
@@ -122,7 +126,19 @@ def check_merge(root, memory):
         assert meta[key] == preflight[field], key
     files = manifest["files"]
     shards = set(files["model.safetensors.index.json"]["weight_map"].values())
-    assert shards and set(manifest["sha256"]) == shards | set(files)
+    assert len(shards) == 26 and set(manifest["sha256"]) == shards | set(files)
+    assert manifest["base_revision"] == preflight["base_revision"]
+    assert manifest["weights_stored_in_git"] is False
+    sizes = manifest["dtype_bytes"]
+    assert (
+        sum(sizes.values())
+        == files["model.safetensors.index.json"]["metadata"]["total_size"]
+    )
+    assert sizes["F32"] == 15360
+    assert (
+        sum(sizes.values())
+        == preflight["estimated_weight_bytes_bf16"] + sizes["F32"] // 2
+    )
 
     handoff = read(root / "handoff.json")
     assert handoff["exact"] and handoff["merge"] == meta

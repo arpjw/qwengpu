@@ -38,7 +38,11 @@ def main() -> None:
         != (ROM32_VOCAB if meta["layout"] == ROM32_LAYOUT else WIDE_MEMORY.vocab)
     ):
         parser.error("expected a memory512 checkpoint")
-    paths = sorted((ROOT / "eval/frozen/memory512_v1").glob("*.json"))
+    paths = sorted(
+        path
+        for path in (ROOT / "eval/frozen/memory512_v1").glob("*.json")
+        if not path.name.startswith(".")
+    )
     if args.raw:
         paths = [path for path in paths if path.stem in args.raw]
         if len(paths) != len(set(args.raw)):
