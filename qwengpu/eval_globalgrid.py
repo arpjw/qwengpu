@@ -59,6 +59,7 @@ def launch(
     cache=None,
     *,
     transport_mode: str = "state_store_plan",
+    refresh_global_prefix: int = 0,
 ) -> tuple:
     case = parse_launch(
         data,
@@ -72,6 +73,7 @@ def launch(
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None
+    refresh_tokens = 4 * refresh_global_prefix
     audit = []
     scoped = "scoped_words" in case
 
@@ -85,6 +87,16 @@ def launch(
         tokens = [token - offset for token in kwargs["input_ids"][0].tolist()]
         audit.append(
             {
+                **(
+                    {
+                        "global_refresh_tags": [
+                            token for token in tokens
+                            if circuit.memory_geometry.base <= token < circuit.memory_geometry.vocab
+                        ]
+                    }
+                    if refresh_global_prefix and not audit
+                    else {}
+                ),
                 "memory": sum(
                     INDEX_OPERAND <= token < INDEX_OPERAND + 4096
                     or C_MEMORY <= token < C_MEMORY + 4096
@@ -123,6 +135,7 @@ def launch(
             offset,
             resident_add32=True,
             resident_cache=cache,
+            refresh_global_prefix=refresh_global_prefix,
             **RESIDENT_TRANSPORTS[transport_mode],
         )
     finally:
@@ -149,6 +162,15 @@ def launch(
             != transport["scoped_initial_tokens"] + transport["scoped_patch_tokens"]
         ):
             raise ValueError("scoped cache, initialization, or write audit failed")
+    if refresh_global_prefix:
+        expected_refresh = [
+            circuit.memory_geometry.base + 64 * word_index + 16 * digit
+            + ((word >> (4 * digit)) & 15)
+            for word_index, word in enumerate(case["global_words"][:refresh_global_prefix])
+            for digit in range(4)
+        ]
+        if audit[0]["global_refresh_tags"] != expected_refresh:
+            raise ValueError("global refresh sent tags outside the operand window")
     groups = case["workgroups"]
     interleaved = case.get("interleaved", False)
     transport = actual["transport"]
@@ -166,10 +188,12 @@ def launch(
             not item["resident_memory_exact"]
             for item in actual["workgroup_transitions"]
         )
-        or audit[0]["memory"] != circuit.memory_geometry.upload_tokens * int(first)
+        or transport.get("global_refresh_tokens", 0) != refresh_tokens
+        or audit[0]["memory"]
+        != circuit.memory_geometry.upload_tokens * int(first) + refresh_tokens
         or sum(item["memory"] for item in audit)
         != circuit.memory_geometry.upload_tokens * int(first)
-        + transport["matrix_patch_tokens"]
+        + refresh_tokens + transport["matrix_patch_tokens"]
         or [token for call in audit for token in call["transitions"]]
         != ([] if interleaved else list(WORKGROUP_TICKETS[: groups - 1]))
         or [token for call in audit for token in call["resets"]]

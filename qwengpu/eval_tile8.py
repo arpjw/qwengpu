@@ -589,6 +589,7 @@ def execute(
     resident_add32: bool = False,
     resident_cache: Cache | None = None,
     refresh_operands: bool = False,
+    refresh_global_prefix: int = 0,
     alternate_operands: list[int] | None = None,
     operand_bank: int = 0,
     auto_operand_bank: bool = False,
@@ -615,6 +616,10 @@ def execute(
     scoped = circuit.resident_scoped and "scoped_words" in case
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
+    if type(refresh_global_prefix) is not int or not 0 <= refresh_global_prefix <= (
+        geometry.words if global512 and resident_cache is not None else 0
+    ):
+        raise ValueError("global refresh requires a retained 512-byte cache")
     if workgroups and (
         not circuit.resident_globalgrid
         or auto_workgroups
@@ -806,7 +811,9 @@ def execute(
                 [] if global512 else output_memories + right_tokens + bottom_tokens
             ):
                 uploads.extend(panel)
+    refresh = ram_tokens[: 4 * refresh_global_prefix]
     pending.extend(uploads)
+    pending.extend(refresh)
     pending.extend(scoped_tokens)
     transport = {
         "input_tokens": 0,
@@ -814,6 +821,9 @@ def execute(
         "matrix_initial_tokens": len(uploads),
         "matrix_patch_tokens": 0,
     }
+
+    if refresh:
+        transport["global_refresh_tokens"] = len(refresh)
 
     if scoped:
         transport.update(
