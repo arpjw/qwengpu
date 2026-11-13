@@ -1733,3 +1733,23 @@ hidden width. The 26-shard manifest identifies the tested weights. Native
 text on the same 24 prompts matches the base on all 24 first tokens and
 22 short greedy continuations, with zero emitted chip tokens.
 The RunPod environment passed all 42 unit tests.
+
+## Integrated integer checkpoint
+
+The combined layout adds separate 16-bit shared and private address
+spaces, four resident physical warp banks across two workgroups,
+full-width indexed integer operations, and a runtime lane extent. Its
+general matrix launcher uses normal global memory and preserves each
+tile's uint32 accumulator across multiple K panels. It also provides a
+fused dispatch transport with unchanged-control suppression.
+
+The merged checkpoint was built from the source recorded in
+`results/final_candidate_cuda/manifest.json`. Its 43 chip layers use
+hidden width 7,424 and 2,771 live slots. The manifest contains 29 weight
+shard hashes. The fresh native-text gate returned 24/24 matching next
+tokens, 22/24 matching greedy continuations, and zero chip tokens.
+The merged indexed arithmetic matched standalone CUDA on all 48
+scalar outputs, all 256 RAM words, and every trace field. The merged
+four-warp publication, independent barrier, deadlock, and runtime
+extent cases also matched their reference. The full regression command
+and rebuild procedure are in REPRODUCE.md.
