@@ -30,6 +30,16 @@ layout. The remaining gates below cover richer programs and arithmetic,
 separate memory spaces, resident groups, and reduced host involvement.
 These bounded results do not establish a complete general-purpose GPU.
 
+## 32-slot ROM candidate
+
+The `resident-rom32` variant doubles resident program capacity over the
+qualified 512-byte layout. The circuit preserves the old control format
+for PCs 0 through 15, carries the fifth PC bit through barriers and resets,
+and decodes five-bit forward and backward loop destinations. It retains the
+35-layer, 7,424-wide merged allocation. Qualification runs compare long
+programs and inherited cases with the interpreter and the saved 16-slot
+baseline. See REPRODUCE.md for the MPS and CUDA commands.
+
 ## Earlier gates
 
 The standalone vector-grid circuit establishes the first grid scheduling

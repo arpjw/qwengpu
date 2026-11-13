@@ -1844,3 +1844,33 @@ model weights or paid compute:
 ```sh
 "$QWENGPU_PYTHON" scripts/check_head_lookup_cache.py --out /tmp/head-lookup.json
 ```
+
+## Run the 32-slot ROM candidate
+
+This variant keeps 512 bytes of programmable global memory and permits
+up to 32 instructions, including the final `HALT`, in each warp program.
+Each launch uploads 64 ROM tokens across two warp banks. PCs 0 through 15
+retain their existing control-token representation. Bit 7 of the control
+token carries the fifth PC bit. The two upper token ranges encode ordinary
+instructions in slots 16 through 31 and loop exits to PCs 16 through 31.
+The model selects the bank, fetches the instruction, and computes the next PC.
+
+From the QwenGPU checkout, with the pinned sibling compiler:
+
+```bash
+export PYTHONPATH="$PWD/../qwenputer/experimental/riscv:$PWD"
+export QWENGPU_PYTHON="$PWD/../qwenputer/experimental/riscv/.venv/bin/python"
+"$QWENGPU_PYTHON" -m qwengpu.run_resident \
+  eval/frozen/resident_rom32_v1/loops_and_barrier.json \
+  --resident-rom32 --device mps --check-reference --trace
+bash scripts/qualify_rom32.sh mps "$PWD/results/rom32_mps"
+```
+
+Use `--resident-rom32` with `qwengpu.assemble` to validate an assembly program
+against the 32-slot instruction limit. For merged CUDA qualification:
+
+```bash
+bash scripts/qualify_rom32_cuda.sh "$base" "$model" \
+  "$PWD/results/rom32_cuda" "$(git rev-parse HEAD)"
+python3 scripts/check_rom32.py --cuda
+```
