@@ -51,29 +51,37 @@ def lane_results(c, ops, arg, word, gathered, lane):
     one = c.one
     name = f"alu.{lane}"
 
-    # A shared five-stage shifter consumes the direction and sign-fill flags.
-    shift_right = ops["SHR32"] + ops["SAR32"]
+    # Reverse around one right barrel shifter to also shift left.
+    shift_left = ops["SHL32"] + ops["SHL32I"]
     shift_fill = c.and_([ops["SAR32"], word[31]], f"{name}.sign")
-    shifted = word
+    shifted = c.select_bits(
+        [([shift_left], word[::-1]), ([one - shift_left], word)],
+        32,
+        f"{name}.reverse_in",
+    )
     for bit, distance in enumerate((1, 2, 4, 8, 16)):
-        right = c.and_([shift_right, arg[bit]], f"{name}.right.{bit}")
-        left = c.and_([one - shift_right, arg[bit]], f"{name}.left.{bit}")
         shifted = c.select_bits(
             [
-                ([right], shifted[distance:] + [shift_fill] * distance),
-                ([left], [Expr()] * distance + shifted[:-distance]),
+                ([arg[bit]], shifted[distance:] + [shift_fill] * distance),
                 ([one - arg[bit]], shifted),
             ],
             32,
             f"{name}.shift.{bit}",
         )
+    shifted = c.select_bits(
+        [([shift_left], shifted[::-1]), ([one - shift_left], shifted)],
+        32,
+        f"{name}.reverse_out",
+    )
     mul_columns = [
-        sum(
-            (
-                c.and_([word[j - i], arg[i]], f"{name}.mul.{i}.{j}")
+        c.ffn(
+            [
+                term
                 for i in range(min(5, j + 1))
-            ),
-            Expr(),
+                for term in c.t_and([word[j - i], arg[i]])
+            ],
+            f"{name}.mul_column.{j}",
+            min_level=14 + 2 * (lane // 4),
         )
         for j in range(32)
     ]
@@ -124,7 +132,7 @@ def lane_results(c, ops, arg, word, gathered, lane):
                 )
             )
     return [
-        ([sum((ops[op] for op in SHIFTS), Expr())], shifted),
+        ([ops["SHL32I"] + sum((ops[op] for op in SHIFTS), Expr())], shifted),
         ([ops["MUL32I"]], product),
         ([ops["SLTU32I"] + ops["SLT32I"]], [compare] + [Expr()] * 31),
         ([sum((ops[op] for op in LOGIC_OPS), Expr())], logic),

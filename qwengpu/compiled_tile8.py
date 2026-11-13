@@ -1436,7 +1436,7 @@ def build(
             [8] * 32,
             "warp.sum",
         )
-        shifts = c.onehot_of_bits(arg[:3], "shift.amount", 8)
+        shifts = [] if resident_alu32 else c.onehot_of_bits(arg[:3], "shift.amount", 8)
         group_ops = sum((ops[op] for op in GLOBAL_OPS[:-1]), Expr())
         special_low = []
         special_high = []
@@ -1448,32 +1448,32 @@ def build(
                 lane_bits + [warp_bit],
                 lane_bits + [warp_bit, group_low, group_high],
             )
-            shifted = c.select_bits(
-                [
-                    ([shift], [Expr()] * n + word[: 32 - n])
-                    for n, shift in enumerate(shifts)
-                ],
-                32,
-                f"shift.lane.{lane}",
+            extra = (
+                lane_results(
+                    c, ops, arg, word, indexed_values[16 * lane : 16 * lane + 16], lane
+                )
+                if resident_alu32
+                else [
+                    (
+                        [ops["SHL32I"]],
+                        c.select_bits(
+                            [
+                                ([shift], [Expr()] * n + word[: 32 - n])
+                                for n, shift in enumerate(shifts)
+                            ],
+                            32,
+                            f"shift.lane.{lane}",
+                        ),
+                    )
+                ]
             )
             special = c.select_bits(
                 [
                     ([ops[op]], bits + [Expr()] * (32 - len(bits)))
                     for op, bits in zip(ID_OPS, id_bits, strict=True)
                 ]
-                + [([ops["SHL32I"]], shifted), ([ops["WARP_SUM"]], warp_sum)]
-                + (
-                    lane_results(
-                        c,
-                        ops,
-                        arg,
-                        word,
-                        indexed_values[16 * lane : 16 * lane + 16],
-                        lane,
-                    )
-                    if resident_alu32
-                    else []
-                ),
+                + [([ops["WARP_SUM"]], warp_sum)]
+                + extra,
                 32,
                 f"global.result.{lane}",
             )
