@@ -35,13 +35,16 @@ def main() -> None:
             compile(source, args.legacy_ref + ":compiled_tile8.py", "exec"),
             old.__dict__,
         )
-        previous, current = (
-            old.build(resident_compute=True),
-            build(resident_compute=True),
+        layout = (
+            {"resident_memory512": True}
+            if args.resident_rom32
+            else {"resident_compute": True}
         )
-        assert repr(previous.nodes) == repr(current.nodes) and repr(
-            previous.dims
-        ) == repr(current.dims)
+        for target in (None, Target(16, 32, 12288)):
+            previous = old.build(target, **layout)
+            current = build(target, **layout)
+            assert repr(previous.nodes) == repr(current.nodes)
+            assert repr(previous.dims) == repr(current.dims)
         flags = {
             "indexed": True,
             "masked": True,
@@ -54,6 +57,7 @@ def main() -> None:
             "resident_loop32": True,
             "resident_globalgrid": True,
             "resident_compute": True,
+            **({"resident_memory512": True} if args.resident_rom32 else {}),
         }
         assert all(
             old.rom_payload(t, **flags) == rom_payload(t, **flags)
@@ -118,7 +122,11 @@ def main() -> None:
         "vocab": vocab,
         "weights_allocated": False,
         "naive_initial_preflight": {"slots": 6673, "merged_hidden": 11008},
-        "optimization": "Shared row/nibble/bank features and read-value bank selection.",
+        "optimization": (
+            "Five binary ROM address features shared across the two warp banks."
+            if args.resident_rom32
+            else "Shared row/nibble/bank features and read-value bank selection."
+        ),
     }
     args.out.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))

@@ -1,6 +1,6 @@
 {
   "legacy": {
-    "source": "a18d684",
+    "source": "3d15659",
     "ir_identical": true,
     "rom_domain_identical": true
   },
@@ -24,5 +24,5 @@
     "slots": 6673,
     "merged_hidden": 11008
   },
-  "optimization": "Shared row/nibble/bank features and read-value bank selection."
+  "optimization": "Five binary ROM address features shared across the two warp banks."
 }

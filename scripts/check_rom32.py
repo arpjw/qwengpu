@@ -47,7 +47,7 @@ def check_new(root, device):
         )
     loops = reports["loops_and_barrier"]
     assert loops["warp_registers"] == [[496] * 8, [348] + [347] * 7]
-    for warp, before, after in ((0, 15, 16), (0, 15, 13), (0, 18, 16), (1, 18, 16)):
+    for warp, before, after in ((0, 13, 16), (0, 15, 13), (0, 18, 16), (1, 18, 16)):
         pcs = [0] + [
             (step["control"] & 15) + (16 if step["control"] & 128 else 0)
             for step in loops["trace"]
