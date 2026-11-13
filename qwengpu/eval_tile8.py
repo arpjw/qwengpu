@@ -14,7 +14,8 @@ from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
 from qwengpu.alu32 import (
-    ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_LAYOUT, LOGIC_OPS, WIDE_INDEX_OPS,
+    ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_LAYOUT, FULL_INTEGER_OPS,
+    LOGIC_OPS, RUNTIME_EXTENT_BASE, RUNTIME_EXTENT_MAX, RUNTIME_EXTENT_OP, WIDE_INDEX_OPS,
 )
 from qwengpu.compiled_tile import (
     READY0,
@@ -315,6 +316,11 @@ def parse_launch(
         )
     if "scoped_words" in data and not (resident_scoped and workgroups):
         raise ValueError("scoped_words requires a scoped workgroup launch")
+    extent = data.get("extent")
+    if "extent" in data and not (
+        full_integer and workgroups and type(extent) is int and 0 <= extent <= RUNTIME_EXTENT_MAX
+    ):
+        raise ValueError("extent requires a full integer grid and a value from 0 through 64")
     if "workgroups" in data:
         if (
             not resident_globalgrid
@@ -400,7 +406,7 @@ def parse_launch(
             + (COMPUTE_OPS if workgroups and resident_compute else ())
             + (ALU_OPS if resident_alu32 else ())
             + (SCOPED_OPS if resident_scoped and workgroups else ())
-            + (WIDE_INDEX_OPS if full_integer and workgroups else ())
+            + (FULL_INTEGER_OPS if full_integer and workgroups else ())
         )
         slots = 32 if resident_rom32 else 16
         for warp, program in enumerate(raw):
@@ -435,6 +441,8 @@ def parse_launch(
                     raise ValueError(f"invalid {op} argument")
                 if op in ADDMEM32_OPS and arg % 2:
                     raise ValueError(f"{op} requires an even pair mask")
+                if op == RUNTIME_EXTENT_OP and extent is None:
+                    raise ValueError("MASK_EXTENT requires an extent descriptor")
                 if op == "MATRIX_MAC8" and arg % 4 > arg // 16:
                     raise ValueError(
                         "MATRIX_MAC8 selects a K position outside the matrix"
@@ -471,6 +479,7 @@ def parse_launch(
         **({"initial_registers": initial_registers} if resident_wide else {}),
         **({"workgroups": workgroups} if workgroups else {}),
         **({"interleaved": True} if interleaved else {}),
+        **({"extent": extent} if extent is not None else {}),
         **({"memory512": True} if resident_memory512 else {}),
         **({"global_words": words} if resident_memory512 and workgroups else {}),
         **({"scoped_words": scoped_words} if scoped_words is not None else {}),
@@ -816,6 +825,8 @@ def execute(
                 uploads.extend(panel)
     pending.extend(uploads)
     pending.extend(scoped_tokens)
+    if "extent" in case:
+        pending.append(RUNTIME_EXTENT_BASE + case["extent"])
     transport = {
         "input_tokens": 0,
         "fresh_caches": 0,
@@ -1736,9 +1747,10 @@ def oracle(
                 words.append(value)
             candidate = [value & 65535 for value in words]
             high[warp] = [value >> 16 for value in words]
-        elif op == "MASK_GLOBAL_LT":
+        elif op in ("MASK_GLOBAL_LT", RUNTIME_EXTENT_OP):
+            limit = case["extent"] if op == RUNTIME_EXTENT_OP else arg
             masks[warp] &= sum(
-                int(16 * group + 8 * local_warp + lane < arg) << lane
+                int(16 * group + 8 * local_warp + lane < limit) << lane
                 for lane in range(8)
             )
         elif op in GLOBAL_OPS and op != "MASK_LANES":

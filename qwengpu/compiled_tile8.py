@@ -10,6 +10,10 @@ from qwengpu.alu32 import (
     ALU_OPS,
     ALU_VOCAB,
     LOGIC_OPS,
+    FULL_INTEGER_OPS,
+    RUNTIME_EXTENT_BASE,
+    RUNTIME_EXTENT_MAX,
+    RUNTIME_EXTENT_OP,
     WIDE_INDEX_OPS,
     indexed_word_results,
     alu_token,
@@ -255,8 +259,8 @@ def program_tokens(
 
     tokens = []
     for address, (op, arg) in enumerate(padded):
-        if op in ALU_OPS or op in SCOPED_OPS or op in WIDE_INDEX_OPS:
-            if op in WIDE_INDEX_OPS and not full_integer:
+        if op in ALU_OPS or op in SCOPED_OPS or op in FULL_INTEGER_OPS:
+            if op in FULL_INTEGER_OPS and not full_integer:
                 raise ValueError(f"{op} requires the full integer layout")
             if op in SCOPED_OPS and not resident_scoped:
                 raise ValueError(f"{op} requires the scoped-memory layout")
@@ -970,7 +974,7 @@ def build(
     decode_groups = [(op_names, [one - payload[14]] if resident_alu32 else [])]
     if resident_alu32:
         decode_groups.append(
-            (ALU_OPS + (SCOPED_OPS if resident_scoped else ()) + (WIDE_INDEX_OPS if full_integer else ()), [payload[14]])
+            (ALU_OPS + (SCOPED_OPS if resident_scoped else ()) + (FULL_INTEGER_OPS if full_integer else ()), [payload[14]])
         )
     ops = {
         op: c.and_(
@@ -1297,6 +1301,27 @@ def build(
         )
     ]
 
+    if full_integer:
+        extent_load = between(
+            "extent.load", RUNTIME_EXTENT_BASE, RUNTIME_EXTENT_BASE + RUNTIME_EXTENT_MAX + 1
+        )
+        extent_bits = [
+            c.token_feature(
+                f"extent.{bit}", lambda token, bit=bit: ((token - RUNTIME_EXTENT_BASE) >> bit) & 1,
+                full=True,
+            )
+            for bit in range(7)
+        ]
+        extent = c.slot_head(
+            "extent", {0: extent_load}, {0: tick},
+            {2 + bit: value for bit, value in enumerate(extent_bits)}, extent_load,
+        )
+        limit_bits = c.select_bits(
+            [([ops[RUNTIME_EXTENT_OP]], extent), ([one - ops[RUNTIME_EXTENT_OP]], arg[:7])],
+            7, "extent.limit",
+        )
+    else:
+        limit_bits = arg[:7]
     active = [one] * 8
     next_mask = []
     next_branch = []
@@ -1400,14 +1425,14 @@ def build(
             if resident_compute:
                 mask_sources.append(
                     (
-                        [ops["MASK_GLOBAL_LT"]],
+                        [ops["MASK_GLOBAL_LT"] + (ops[RUNTIME_EXTENT_OP] if full_integer else Expr())],
                         [
                             c.node(
                                 c.t_lt(
                                     16 * from_bits([group_low, group_high])
                                     + 8 * warp_bit
                                     + lane
-                                    - from_bits(arg[:7]),
+                                    - from_bits(limit_bits),
                                     0,
                                     -127,
                                     63,
@@ -1420,6 +1445,8 @@ def build(
                     )
                 )
                 keep_mask -= ops["MASK_GLOBAL_LT"]
+                if full_integer:
+                    keep_mask -= ops[RUNTIME_EXTENT_OP]
             if looping:
                 loop = [
                     bit

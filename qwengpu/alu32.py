@@ -19,7 +19,11 @@ WIDE_INDEX_OPS = (
     "MUL_INDEX32", "SLTU_INDEX32", "SLT_INDEX32",
     "AND_INDEX32", "OR_INDEX32", "XOR_INDEX32",
 )
-WIDE_INDEX_WIRE = 16 * 32 - len(WIDE_INDEX_OPS)
+RUNTIME_EXTENT_OP = "MASK_EXTENT"
+RUNTIME_EXTENT_BASE = 2560
+RUNTIME_EXTENT_MAX = 64
+FULL_INTEGER_OPS = (*WIDE_INDEX_OPS, RUNTIME_EXTENT_OP)
+WIDE_INDEX_WIRE = 16 * 32 - 8
 ALU_LIMITS = {
     **dict.fromkeys(SHIFTS, 31),
     "MUL32I": 31,
@@ -29,8 +33,8 @@ ALU_SIGNED_ARGS = ("SLT32I", "ADDIDX")
 
 
 def alu_token(address: int, op: str, arg: int, *, scoped: bool = False, full_integer: bool = False) -> int:
-    if full_integer and op in WIDE_INDEX_OPS:
-        return ALU_ROM + address * 512 + WIDE_INDEX_WIRE + WIDE_INDEX_OPS.index(op)
+    if full_integer and op in FULL_INTEGER_OPS:
+        return ALU_ROM + address * 512 + WIDE_INDEX_WIRE + FULL_INTEGER_OPS.index(op)
     if scoped and op in SCOPED_OPS:
         tag = len(COMPACT_OPS) + SCOPED_OPS.index(op)
         return ALU_ROM + address * 512 + 32 * tag
@@ -44,7 +48,7 @@ def alu_token(address: int, op: str, arg: int, *, scoped: bool = False, full_int
 def decode_alu_token(token: int, *, scoped: bool = False, full_integer: bool = False) -> tuple[int, int] | None:
     if ALU_ROM <= token < ALU_IMMEDIATE:
         address, wire = divmod(token - ALU_ROM, 512)
-        if full_integer and wire >= WIDE_INDEX_WIRE:
+        if full_integer and WIDE_INDEX_WIRE <= wire < WIDE_INDEX_WIRE + len(FULL_INTEGER_OPS):
             tag = len(ALU_OPS) + len(SCOPED_OPS) + wire - WIDE_INDEX_WIRE
             return address, ALU_PAYLOAD + 256 * tag
         tag, arg = divmod(wire, 32)
