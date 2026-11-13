@@ -2380,7 +2380,12 @@ def build(
             into=expr,
             min_level=floor + (5 if resident_wide else 3 if divergent else 1),
         )
-    if resident_tilegrid:
+    if internal_stores:
+        # Reserve the final layer for compiler cleanup. A one-unit sentinel
+        # makes this layer visible to the emitter even if its output is zero.
+        c.ffn(c.t_const(1), "exit.commit_cleanup", into=code[0], min_level=max(c.units) + 2)
+        c.ffn(c.t_const(-1), "exit.commit_cleanup_cancel", into=code[0], min_level=max(c.units) - 1)
+    elif resident_tilegrid:
         # The compiler clears live chip slots at the last exit layer. Give
         # cleanup its own layer to fit the standalone 3,584-unit MLP.
         c.ffn([], "exit.cleanup", into=code[0], min_level=max(c.units))
