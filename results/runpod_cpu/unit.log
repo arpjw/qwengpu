@@ -1,0 +1,47 @@
+test_extended_instructions_at_each_rom_address (test_alu32.ALU32Tests.test_extended_instructions_at_each_rom_address) ... ok
+test_parser_rejects_values_outside_instruction_domains (test_alu32.ALU32Tests.test_parser_rejects_values_outside_instruction_domains) ... ok
+test_global_launch_rejects_tile_ops_and_invalid_immediates (test_assemble.AssembleTests.test_global_launch_rejects_tile_ops_and_invalid_immediates) ... ok
+test_global_launch_uses_explicit_workgroup_descriptor (test_assemble.AssembleTests.test_global_launch_uses_explicit_workgroup_descriptor) ... ok
+test_preserves_warp_numbers_and_launch_data (test_assemble.AssembleTests.test_preserves_warp_numbers_and_launch_data) ... ok
+test_rejects_ambiguous_program_sources (test_assemble.AssembleTests.test_rejects_ambiguous_program_sources) ... ok
+test_rejects_invalid_programs_before_loading (test_assemble.AssembleTests.test_rejects_invalid_programs_before_loading) ... ok
+test_comparison_produces_lane_mask (test_compiled_add.CompiledAddTests.test_comparison_produces_lane_mask) ... ok
+test_lane_banked_scratch_memory (test_compiled_add.CompiledAddTests.test_lane_banked_scratch_memory) ... ok
+test_masked_add_multiple_inputs_one_graph (test_compiled_add.CompiledAddTests.test_masked_add_multiple_inputs_one_graph) ... ok
+test_masked_xor_then_add_with_writeback (test_compiled_add.CompiledAddTests.test_masked_xor_then_add_with_writeback) ... ok
+test_one_level_divergence_and_reconvergence (test_compiled_add.CompiledAddTests.test_one_level_divergence_and_reconvergence) ... ok
+test_result_tokens_write_back_for_second_instruction (test_compiled_add.CompiledAddTests.test_result_tokens_write_back_for_second_instruction) ... ok
+test_frozen_programs_one_graph (test_compiled_rom.CompiledROMTests.test_frozen_programs_one_graph) ... ok
+test_invalid_requests (test_compute.ComputeTests.test_invalid_requests) ... ok
+test_matrix_dimensions_and_overflow (test_compute.ComputeTests.test_matrix_dimensions_and_overflow) ... ok
+test_raw_matrix_extent (test_compute.ComputeTests.test_raw_matrix_extent) ... ok
+test_vector_and_reduction_boundaries (test_compute.ComputeTests.test_vector_and_reduction_boundaries) ... ok
+test_frozen_traces (test_control.CompiledControlTests.test_frozen_traces) ... ok
+test_modular_product_all_byte_pairs (test_control.CompiledControlTests.test_modular_product_all_byte_pairs) ... ok
+test_unsigned_compare_all_byte_pairs (test_control.CompiledControlTests.test_unsigned_compare_all_byte_pairs) ... ok
+test_invalid_control_blocks (test_control.ControlLoaderTests.test_invalid_control_blocks) ... ok
+test_reference_outcomes (test_control.ControlLoaderTests.test_reference_outcomes) ... ok
+test_workgroup_barrier_requires_reconvergence (test_control.ControlLoaderTests.test_workgroup_barrier_requires_reconvergence) ... ok
+test_example_is_valid (test_kernel_input.KernelInputTests.test_example_is_valid) ... ok
+test_nested_branch_is_rejected (test_kernel_input.KernelInputTests.test_nested_branch_is_rejected) ... ok
+test_unavailable_scratch_address_is_rejected (test_kernel_input.KernelInputTests.test_unavailable_scratch_address_is_rejected) ... ok
+test_cross_bank_collision_priority (test_memory512.Memory512Tests.test_cross_bank_collision_priority) ... ok
+test_every_word_address (test_memory512.Memory512Tests.test_every_word_address) ... ok
+test_geometry_and_pair_wire_domain (test_memory512.Memory512Tests.test_geometry_and_pair_wire_domain) ... ok
+test_larger_vector_and_reduction_lengths (test_memory512.Memory512Tests.test_larger_vector_and_reduction_lengths) ... ok
+test_divergence_reconverges (test_reference.ReferenceTests.test_divergence_reconverges) ... ok
+test_invalid_memory_address (test_reference.ReferenceTests.test_invalid_memory_address) ... ok
+test_masked_memory_and_nested_branch (test_reference.ReferenceTests.test_masked_memory_and_nested_branch) ... ok
+test_vector_add_and_sum (test_reference.ReferenceTests.test_vector_add_and_sum) ... ok
+test_launch_length_is_layout_specific (test_rom32.Rom32Tests.test_launch_length_is_layout_specific) ... ok
+test_loop_targets_and_predicates (test_rom32.Rom32Tests.test_loop_targets_and_predicates) ... ok
+test_three_programs_one_graph (test_rom_spike.RomSpikeTests.test_three_programs_one_graph) ... ok
+test_every_status_pair_and_priority (test_tile.TileSchedulerTests.test_every_status_pair_and_priority) ... ok
+test_tile_advance_resets_both_program_counters (test_tile.TileSchedulerTests.test_tile_advance_resets_both_program_counters) ... ok
+test_frozen_internal_snapshots (test_writeback.WritebackTests.test_frozen_internal_snapshots) ... ok
+test_parallel_add_all_byte_pairs (test_writeback.WritebackTests.test_parallel_add_all_byte_pairs) ... ok
+
+----------------------------------------------------------------------
+Ran 42 tests in 70.945s
+
+OK
