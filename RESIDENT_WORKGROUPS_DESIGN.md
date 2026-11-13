@@ -34,3 +34,15 @@ distinct group-local results into global RAM, then consumes the
 results in a second launch. Use an independent ready-queue interpreter
 for every ticket and state transition. Compare standalone MPS and
 merged Qwen3.5-9B before replaying the inherited sequential traces.
+
+The prototype selects the new mode with `"interleaved": true` and
+`"workgroups": 2` in the raw launch. Without that descriptor the model
+uses the existing sequential scheduler. The host forwards the returned
+schedule, control and state tokens. It never selects a runnable warp.
+The launch returns four accumulator banks in physical warp order.
+
+```bash
+python -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/interleaved_publish.json \
+  --resident-interleaved --device mps --check-reference --trace --out publish.json
+python scripts/check_interleaved.py publish.json
+```
