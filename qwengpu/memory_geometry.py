@@ -4,10 +4,11 @@ from dataclasses import dataclass
 
 from qwengpu.alu32 import ALU32_LAYOUT
 from qwengpu.scoped_memory import SCOPED_LAYOUT
+from qwengpu.resident_scheduler import RESIDENT_LAYOUT
 
 MEMORY512_LAYOUT = "qwengpu-resident-memory512-9b-v1"
 ROM32_LAYOUT = "qwengpu-resident-rom32-9b-v1"
-ALU32_LAYOUTS = (ALU32_LAYOUT, SCOPED_LAYOUT)
+ALU32_LAYOUTS = (ALU32_LAYOUT, SCOPED_LAYOUT, RESIDENT_LAYOUT)
 ROM32_LAYOUTS = (ROM32_LAYOUT, *ALU32_LAYOUTS)
 MEMORY512_LAYOUTS = (MEMORY512_LAYOUT, *ROM32_LAYOUTS)
 MEMORY512_BASE = 0x20000

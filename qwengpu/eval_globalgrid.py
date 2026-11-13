@@ -68,6 +68,7 @@ def launch(
         resident_rom32=circuit.resident_rom32,
         resident_alu32=circuit.resident_alu32,
         resident_scoped=circuit.resident_scoped,
+        resident_interleaved=circuit.resident_interleaved,
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None
@@ -149,10 +150,11 @@ def launch(
         ):
             raise ValueError("scoped cache, initialization, or write audit failed")
     groups = case["workgroups"]
+    interleaved = case.get("interleaved", False)
     transport = actual["transport"]
     if (
         actual["outcome"] != "halted"
-        or actual["workgroup_cursor"] != groups - 1
+        or (not interleaved and actual["workgroup_cursor"] != groups - 1)
         or transport["fresh_caches"] != int(first)
         or transport["matrix_initial_tokens"]
         != circuit.memory_geometry.upload_tokens * int(first)
@@ -169,9 +171,9 @@ def launch(
         != circuit.memory_geometry.upload_tokens * int(first)
         + transport["matrix_patch_tokens"]
         or [token for call in audit for token in call["transitions"]]
-        != list(WORKGROUP_TICKETS[: groups - 1])
+        != ([] if interleaved else list(WORKGROUP_TICKETS[: groups - 1]))
         or [token for call in audit for token in call["resets"]]
-        != list(RESET_WARP) * (groups - 1)
+        != ([] if interleaved else list(RESET_WARP) * (groups - 1))
     ):
         raise ValueError("globalgrid cache, launch boundary, or memory audit failed")
     return cache, {**actual, "programs": data["programs"], "audit": audit}

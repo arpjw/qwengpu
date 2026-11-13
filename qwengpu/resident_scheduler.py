@@ -51,3 +51,16 @@ def dispatch(c: Circ, halted, waiting, last):
     done = c.and_(halted, "resident.done")
     idle = c.and_([one - gate for gate in ready], "resident.idle")
     return issue, release, done, idle - done
+
+
+RESIDENT_LAYOUT = "qwengpu-resident-interleaved-9b-v1"
+RESIDENT_ENABLE = 2264
+RESIDENT_DISABLE = 2265
+RESIDENT_READY = (2266, 2267, 2268, 2269)
+RESIDENT_TICKET = 0x900
+RESIDENT_CONTROL = 0x9600
+EXTRA_WARP_BANKS = (0x1A000, 0x1B000)
+
+
+def resident_control(warp: int, pc: int = 0, status: int = 0) -> int:
+    return RESIDENT_CONTROL + 128 * warp + 32 * status + pc

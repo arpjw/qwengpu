@@ -114,6 +114,16 @@ from qwengpu.memory_geometry import (
     WIDE_MEMORY,
 )
 
+from qwengpu.resident_scheduler import (
+    EXTRA_WARP_BANKS,
+    RESIDENT_DISABLE,
+    RESIDENT_ENABLE,
+    RESIDENT_LAYOUT,
+    RESIDENT_READY,
+    RESIDENT_TICKET,
+    reference_dispatch,
+    resident_control,
+)
 from qwengpu.scoped_memory import (
     SCOPED_BASE,
     SCOPED_END,
@@ -239,7 +249,15 @@ def control_token(warp: int, pc: int = 0, status: int = 0) -> int:
     return legacy_control_token(warp, pc & 15, status) + (pc >> 4) * ROM32_PC_HIGH
 
 
-def _check_control(token: int, warp: int, resident_rom32: bool) -> None:
+def _check_control(
+    token: int, warp: int, resident_rom32: bool, interleaved: bool = False
+) -> None:
+    if interleaved:
+        if not resident_control(warp) <= token < resident_control(warp) + 96:
+            raise ValueError(
+                f"invalid resident control packet for warp {warp}: {token}"
+            )
+        return
     if resident_rom32 and token & ROM32_PC_HIGH:
         token -= ROM32_PC_HIGH
     check_legacy_control(token, warp)
@@ -265,7 +283,9 @@ def parse_launch(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    resident_interleaved: bool = False,
 ) -> dict:
+    resident_scoped = resident_scoped or resident_interleaved
     resident_alu32 = resident_alu32 or resident_scoped
     resident_rom32 = resident_rom32 or resident_alu32
     resident_memory512 = resident_memory512 or resident_rom32
@@ -282,6 +302,13 @@ def parse_launch(
     if not isinstance(data, dict):
         raise ValueError("8x8 case must be an object")
     workgroups = data.get("workgroups")
+    interleaved = data.get("interleaved", False)
+    if type(interleaved) is not bool or (
+        interleaved and not (resident_interleaved and workgroups == 2)
+    ):
+        raise ValueError(
+            "interleaved mode requires the resident layout and exactly two workgroups"
+        )
     if "scoped_words" in data and not (resident_scoped and workgroups):
         raise ValueError("scoped_words requires a scoped workgroup launch")
     if "workgroups" in data:
@@ -438,6 +465,7 @@ def parse_launch(
         "row_pairs": row_pairs,
         **({"initial_registers": initial_registers} if resident_wide else {}),
         **({"workgroups": workgroups} if workgroups else {}),
+        **({"interleaved": True} if interleaved else {}),
         **({"memory512": True} if resident_memory512 else {}),
         **({"global_words": words} if resident_memory512 and workgroups else {}),
         **({"scoped_words": scoped_words} if scoped_words is not None else {}),
@@ -462,6 +490,7 @@ def _parse_case(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    resident_interleaved: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -480,6 +509,7 @@ def _parse_case(
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
+        resident_interleaved=resident_interleaved,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -573,6 +603,12 @@ def execute(
     resident_branch32 = circuit.resident_branch32
     resident_loop32 = circuit.resident_loop32
     workgroups = case.get("workgroups", 0)
+    interleaved = case.get("interleaved", False)
+    if interleaved and not circuit.resident_interleaved:
+        raise ValueError("interleaved mode requires the resident layout")
+    warp_banks = (*WARP_BANKS, *EXTRA_WARP_BANKS) if interleaved else WARP_BANKS
+    warp_count = len(warp_banks)
+    encode_control = resident_control if interleaved else control_token
     memory512 = circuit.resident_memory512
     rom32 = circuit.resident_rom32
     alu32 = circuit.resident_alu32
@@ -652,8 +688,8 @@ def execute(
         for panel in bottom.outputs:
             _unsigned(panel, 64, 65535, "bottom output")
     operand_base = INDEX_OPERAND if indexed else OPERAND
-    controls = [control_token(warp) for warp in range(2)]
-    previous = TICKET + 8 * first_row_pair + 1
+    controls = [encode_control(warp) for warp in range(warp_count)]
+    previous = RESIDENT_TICKET + 3 if interleaved else TICKET + 8 * first_row_pair + 1
     operands = nibbles(operand_base, _digits(case["a"] + case["b"], 8))
     alternate = (
         nibbles(ALT_OPERAND, _digits(alternate_operands, 8))
@@ -693,7 +729,11 @@ def execute(
             nibbles(base, _digits(panel, 8))
             for base, panel in zip(BOTTOM_OPERANDS, bottom.operands, strict=True)
         ]
-    initial_registers = case.get("initial_registers", [[0] * 8, [0] * 8])
+    initial_registers = (
+        [[0] * 8 for _ in warp_banks]
+        if interleaved
+        else case.get("initial_registers", [[0] * 8, [0] * 8])
+    )
     registers = [
         nibbles(REGISTER, _digits([word & 65535 for word in bank], 16))
         for bank in initial_registers
@@ -712,10 +752,12 @@ def execute(
         )
         for program in case["programs"]
     ]
-    indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
-    masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
-    branches = [nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(2)]
-    loops = [nibbles(LOOP_REGISTER, [0] * LOOP_NIBBLES) for _ in range(2)]
+    indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(warp_count)]
+    masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(warp_count)]
+    branches = [
+        nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(warp_count)
+    ]
+    loops = [nibbles(LOOP_REGISTER, [0] * LOOP_NIBBLES) for _ in range(warp_count)]
 
     def state_packet(warp: int) -> list[int]:
         packet = registers[warp][:]
@@ -752,6 +794,8 @@ def execute(
     workgroup_transitions = []
     cache = resident_cache
     pending = [*controls, previous] if resident else []
+    if circuit.resident_interleaved:
+        pending.insert(0, RESIDENT_ENABLE if interleaved else RESIDENT_DISABLE)
     uploads = []
     if resident:
         if resident_cache is None or refresh_operands:
@@ -802,7 +846,7 @@ def execute(
     if resident_state:
         initial_state = [
             bank + 16 * nib + (token & 15)
-            for warp, bank in enumerate(WARP_BANKS)
+            for warp, bank in enumerate(warp_banks)
             for nib, token in enumerate(state_packet(warp))
         ]
         pending.extend(initial_state)
@@ -881,15 +925,20 @@ def execute(
     outcome = "step_limit"
     for index in range(max_steps + 1):
         prefix = pending if resident else [*controls, previous]
-        emitted = feed([*prefix, SCHEDULE, READY0, READY1], 3)
+        ready_tokens = RESIDENT_READY if interleaved else (READY0, READY1)
+        emitted = feed([*prefix, SCHEDULE, *ready_tokens], 1 + warp_count)
         ticket, *controls = emitted
         for warp, control in enumerate(controls):
-            _check_control(control, warp, rom32)
+            _check_control(control, warp, rom32, interleaved)
         schedules.append({"ticket": ticket, "controls": controls})
         if ticket in (DONE, DEADLOCK):
             outcome = "halted" if ticket == DONE else "deadlock"
             break
-        group_index = len(workgroup_transitions)
+        group_index = (
+            (ticket - RESIDENT_TICKET) // 2
+            if interleaved
+            else len(workgroup_transitions)
+        )
         if ticket == NEXT_BANK or ticket in WORKGROUP_TICKETS:
             if ticket == NEXT_BANK:
                 if not auto_operand_bank or len(bank_transitions) != group_index:
@@ -931,27 +980,35 @@ def execute(
                 group_index += 1
         tag = ticket - TICKET
         if (
-            ticket != NEXT_BANK
+            not interleaved
+            and ticket != NEXT_BANK
             and ticket not in WORKGROUP_TICKETS
             and (not 0 <= tag < 64 or tag & 4)
         ):
             raise ValueError(f"invalid tile scheduling ticket {ticket}")
         if index == max_steps:
             break
-        warp = ticket & 1
+        if interleaved and not RESIDENT_TICKET <= ticket < RESIDENT_TICKET + warp_count:
+            raise ValueError(f"invalid resident workgroup ticket {ticket}")
+        warp = ticket - RESIDENT_TICKET if interleaved else ticket & 1
         previous = ticket
         if resident:
             prefix = controls
             if workgroups and ticket in WORKGROUP_TICKETS:
                 prefix = [*prefix, *RESET_WARP]
-                registers = [nibbles(REGISTER, [0] * 32) for _ in range(2)]
-                high_registers = [nibbles(HIGH_REGISTER, [0] * 32) for _ in range(2)]
-                indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
-                masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
+                registers = [nibbles(REGISTER, [0] * 32) for _ in range(warp_count)]
+                high_registers = [
+                    nibbles(HIGH_REGISTER, [0] * 32) for _ in range(warp_count)
+                ]
+                indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(warp_count)]
+                masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(warp_count)]
                 branches = [
                     nibbles(BRANCH_REGISTER, [0] * BRANCH_NIBBLES) for _ in range(2)
                 ]
-                loops = [nibbles(LOOP_REGISTER, [0] * LOOP_NIBBLES) for _ in range(2)]
+                loops = [
+                    nibbles(LOOP_REGISTER, [0] * LOOP_NIBBLES)
+                    for _ in range(warp_count)
+                ]
         else:
             prefix = [*operands, *memory, controls[warp]]
             transport["matrix_initial_tokens"] += len(operands) + len(memory)
@@ -999,7 +1056,7 @@ def execute(
                 transport["skipped_read_calls"] += int(not requested)
         else:
             control, *packet = feed([*tick_input, *reads], 1 + len(reads))
-        _check_control(control, warp, rom32)
+        _check_control(control, warp, rom32, interleaved)
         observed_bits = snapshot(cache, circuit, 0)
         if resident_plan and (
             observed_bits is None
@@ -1045,7 +1102,7 @@ def execute(
                         continue
                     if token & 15 != expected_digits[nib]:
                         raise ValueError(f"incorrect warp delta value at nibble {nib}")
-                start = WARP_BANKS[warp] + 16 * nib
+                start = warp_banks[warp] + 16 * nib
                 if not start <= token < start + 16:
                     raise ValueError(f"invalid banked warp packet at nibble {nib}")
                 canonical.append(tag + (token & 15))
@@ -1198,7 +1255,7 @@ def execute(
             heads.extend(f"high.{nib}" for nib in range(HIGH_NIBBLES))
         transport["resident_state_exact"] = all(
             head_row(cache, circuit, head, warp, 4) == token & 15
-            for warp in range(2)
+            for warp in range(warp_count)
             for head, token in zip(heads, state_packet(warp), strict=True)
         )
     if scoped:
@@ -1216,7 +1273,9 @@ def execute(
             {
                 "bank_transitions": bank_transitions,
                 "workgroup_transitions": workgroup_transitions,
-                "workgroup_cursor": head_row(cache, circuit, "workgroup", 0, 2),
+                "workgroup_cursor": (trace[-1]["workgroup"] if trace else 0)
+                if interleaved
+                else head_row(cache, circuit, "workgroup", 0, 2),
             }
             if auto_workgroups or workgroups
             else {"bank_transition": bank_transitions[0] if bank_transitions else None}
@@ -1513,11 +1572,14 @@ def oracle(
     divergent = divergent or looping
     masked = masked or divergent
     indexed = indexed or masked
-    pcs = [0, 0]
-    states = [0, 0]
+    interleaved = case.get("interleaved", False)
+    warp_count = 4 if interleaved else 2
+    pcs = [0] * warp_count
+    states = [0] * warp_count
+    encode_control = resident_control if interleaved else control_token
     tile, row_pairs = _row_window(case, resident_grid=True)
     last_tile = tile + row_pairs - 1
-    last = 1
+    last = warp_count - 1
     workgroups = case.get("workgroups", 0)
     global512 = bool(workgroups and case.get("memory512"))
     ram = case["global_words"][:] if global512 else None
@@ -1526,11 +1588,15 @@ def oracle(
         scoped_ram = scoped_ram[:]
     group = 0
     wide = "initial_registers" in case
-    initial = case.get("initial_registers", [[0] * 8, [0] * 8])
+    initial = (
+        [[0] * 8 for _ in range(4)]
+        if interleaved
+        else case.get("initial_registers", [[0] * 8, [0] * 8])
+    )
     acc = [[word & 65535 for word in bank] for bank in initial]
     high = [[word >> 16 for word in bank] for bank in initial]
-    indices = [[0] * 8 for _ in range(2)]
-    masks = [255, 255]
+    indices = [[0] * 8 for _ in range(warp_count)]
+    masks = [255] * warp_count
     branches: list[list[tuple[int, int]]] = [[], []]
     loops: list[list[int]] = [[], []]
     operands = bytearray(case["a"] + case["b"])
@@ -1540,47 +1606,68 @@ def oracle(
     trace = []
     outcome = "step_limit"
     for index in range(max_steps + 1):
-        released = states == [2, 2]
-        advance = states == [1, 1] and tile < last_tile
-        next_group = states == [1, 1] and group + 1 < workgroups
-        if next_group:
-            group += 1
-            pcs = [0, 0]
-            acc = [[0] * 8 for _ in range(2)]
-            high = [[0] * 8 for _ in range(2)]
-            indices = [[0] * 8 for _ in range(2)]
-            masks = [255, 255]
-            branches = [[], []]
-            loops = [[], []]
-        if advance:
-            tile += 1
-            pcs = [0, 0]
-        if advance or released or next_group:
-            states = [0, 0]
-        ready = [warp for warp in range(2) if states[warp] == 0]
-        if not ready:
-            outcome = "halted" if states == [1, 1] else "deadlock"
-            ticket = DONE if outcome == "halted" else DEADLOCK
-        elif next_group:
-            warp = 0
-            ticket = WORKGROUP_TICKETS[group - 1]
+        if interleaved:
+            dispatch_result = reference_dispatch(tuple(states), last)
+            for start_warp in (0, 2):
+                if states[start_warp : start_warp + 2] == [2, 2]:
+                    states[start_warp : start_warp + 2] = [0, 0]
+            warp = dispatch_result.warp
+            ready = warp is not None
+            if ready:
+                group, _local = divmod(warp, 2)
+                ticket = RESIDENT_TICKET + warp
+            else:
+                outcome = "halted" if dispatch_result.halted else "deadlock"
+                ticket = DONE if dispatch_result.halted else DEADLOCK
         else:
-            warp = 1 - last if 1 - last in ready else ready[0]
-            ticket = (
-                TICKET + 8 * tile + warp + 2 * int(released) + ADVANCE * int(advance)
-            )
+            released = states == [2, 2]
+            advance = states == [1, 1] and tile < last_tile
+            next_group = states == [1, 1] and group + 1 < workgroups
+            if next_group:
+                group += 1
+                pcs = [0, 0]
+                acc = [[0] * 8 for _ in range(warp_count)]
+                high = [[0] * 8 for _ in range(warp_count)]
+                indices = [[0] * 8 for _ in range(warp_count)]
+                masks = [255] * warp_count
+                branches = [[], []]
+                loops = [[], []]
+            if advance:
+                tile += 1
+                pcs = [0, 0]
+            if advance or released or next_group:
+                states = [0, 0]
+            ready = [warp for warp in range(2) if states[warp] == 0]
+            if not ready:
+                outcome = "halted" if states == [1, 1] else "deadlock"
+                ticket = DONE if outcome == "halted" else DEADLOCK
+            elif next_group:
+                warp = 0
+                ticket = WORKGROUP_TICKETS[group - 1]
+            else:
+                warp = 1 - last if 1 - last in ready else ready[0]
+                ticket = (
+                    TICKET
+                    + 8 * tile
+                    + warp
+                    + 2 * int(released)
+                    + ADVANCE * int(advance)
+                )
         schedules.append(
             {
                 "ticket": ticket,
-                "controls": [control_token(w, pcs[w], states[w]) for w in range(2)],
+                "controls": [
+                    encode_control(w, pcs[w], states[w]) for w in range(warp_count)
+                ],
             }
         )
         if not ready or index == max_steps:
             break
         last = warp
         pc = pcs[warp]
-        op, arg = case["programs"][warp][pc]
-        row = 2 * tile + warp
+        local_warp = warp % 2
+        op, arg = case["programs"][local_warp][pc]
+        row = 2 * tile + local_warp
         start = row * 8
         if op == "HALT":
             states[warp] = 1
@@ -1614,7 +1701,7 @@ def oracle(
             words = []
             for lane, (low, upper) in enumerate(zip(before, high[warp], strict=True)):
                 value = low | upper << 16
-                output_row, col = divmod(16 * group + 8 * warp + lane, n_size)
+                output_row, col = divmod(16 * group + 8 * local_warp + lane, n_size)
                 if active >> lane & 1 and output_row < 8:
                     left = (
                         ram[output_row * k_size + k]
@@ -1642,15 +1729,18 @@ def oracle(
             high[warp] = [value >> 16 for value in words]
         elif op == "MASK_GLOBAL_LT":
             masks[warp] &= sum(
-                int(16 * group + 8 * warp + lane < arg) << lane for lane in range(8)
+                int(16 * group + 8 * local_warp + lane < arg) << lane
+                for lane in range(8)
             )
         elif op in GLOBAL_OPS and op != "MASK_LANES":
             if op in ID_OPS:
                 words = {
                     "LANE_ID": list(range(8)),
                     "WORKGROUP_ID": [group] * 8,
-                    "THREAD_ID": [8 * warp + lane for lane in range(8)],
-                    "GLOBAL_ID": [16 * group + 8 * warp + lane for lane in range(8)],
+                    "THREAD_ID": [8 * local_warp + lane for lane in range(8)],
+                    "GLOBAL_ID": [
+                        16 * group + 8 * local_warp + lane for lane in range(8)
+                    ],
                 }[op]
             else:
                 prior = [
@@ -1670,7 +1760,7 @@ def oracle(
             ]
         elif op in SCOPED_LOADS:
             candidate = [
-                scoped_ram[physical_word(op, group, warp, lane, addr)]
+                scoped_ram[physical_word(op, group, local_warp, lane, addr)]
                 for lane, addr in enumerate(indices[warp])
             ]
         elif op == "ADDIDX":
@@ -1791,10 +1881,10 @@ def oracle(
                 loops[warp].append(active)
                 masks[warp] = active & condition
             else:
-                pcs[warp] = case["links"][warp][pc]
+                pcs[warp] = case["links"][local_warp][pc]
         elif op == "ENDWHILE":
             masks[warp] = loops[warp].pop()
-            pcs[warp] = case["links"][warp][pc]
+            pcs[warp] = case["links"][local_warp][pc]
         acc[warp] = [
             value if active >> lane & 1 else before[lane]
             for lane, value in enumerate(candidate)
@@ -1812,7 +1902,7 @@ def oracle(
             for lane, (addr, word) in enumerate(
                 zip(indices[warp], acc[warp], strict=True)
             ):
-                addr = physical_word(op, group, warp, lane, addr)
+                addr = physical_word(op, group, local_warp, lane, addr)
                 if not active >> lane & 1 or addr in claimed:
                     continue
                 claimed.add(addr)
@@ -1891,7 +1981,7 @@ def oracle(
             {
                 "warp": warp,
                 **({"workgroup": group} if workgroups else {}),
-                "control": control_token(warp, pcs[warp], states[warp]),
+                "control": encode_control(warp, pcs[warp], states[warp]),
                 "registers": nibbles(REGISTER, _digits(acc[warp], 16)),
                 **(
                     {"indices": nibbles(INDEX_REGISTER, _digits(indices[warp], 8))}
@@ -1973,12 +2063,16 @@ def load_tile_model(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    resident_interleaved: bool = False,
 ):
     if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        if resident_scoped and layout != SCOPED_LAYOUT:
+        if resident_interleaved and layout != RESIDENT_LAYOUT:
+            raise ValueError("expected an interleaved checkpoint")
+        resident_interleaved = layout == RESIDENT_LAYOUT
+        if resident_scoped and layout not in (SCOPED_LAYOUT, RESIDENT_LAYOUT):
             raise ValueError("expected a merged scoped-memory checkpoint")
-        resident_scoped = layout == SCOPED_LAYOUT
+        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
         if resident_alu32 and layout not in ALU32_LAYOUTS:
             raise ValueError("expected a merged ALU32 checkpoint")
         resident_alu32 = layout in ALU32_LAYOUTS
@@ -2027,6 +2121,7 @@ def load_tile_model(
             resident_rom32=resident_rom32,
             resident_alu32=resident_alu32,
             resident_scoped=resident_scoped,
+            resident_interleaved=resident_interleaved,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -2065,6 +2160,7 @@ def load_tile_model(
             resident_rom32=resident_rom32,
             resident_alu32=resident_alu32,
             resident_scoped=resident_scoped,
+            resident_interleaved=resident_interleaved,
         )
     return model.to(device).eval(), circuit
 
@@ -2100,6 +2196,7 @@ def main() -> None:
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
+    variants.add_argument("--resident-interleaved", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -2109,7 +2206,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_scoped = args.resident_scoped
+    resident_interleaved = args.resident_interleaved
+    resident_scoped = args.resident_scoped or resident_interleaved
     resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
@@ -2156,7 +2254,8 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_scoped = layout == SCOPED_LAYOUT
+        resident_interleaved = layout == RESIDENT_LAYOUT
+        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
         resident_alu32 = layout in ALU32_LAYOUTS
         resident_rom32 = layout in ROM32_LAYOUTS
         resident_memory512 = layout in MEMORY512_LAYOUTS
@@ -2285,6 +2384,7 @@ def main() -> None:
                     resident_rom32=resident_rom32,
                     resident_alu32=resident_alu32,
                     resident_scoped=resident_scoped,
+                    resident_interleaved=resident_interleaved,
                 ),
             )
         )
@@ -2321,6 +2421,7 @@ def main() -> None:
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
+        resident_interleaved=resident_interleaved,
     )
     report = {
         "device": args.device,

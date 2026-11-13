@@ -28,6 +28,15 @@ from qwengpu.compiled_tile import (
     _word_from_columns,
     control_token,
 )
+from qwengpu.resident_scheduler import (
+    EXTRA_WARP_BANKS,
+    RESIDENT_CONTROL,
+    RESIDENT_DISABLE,
+    RESIDENT_ENABLE,
+    RESIDENT_READY,
+    RESIDENT_TICKET,
+    dispatch,
+)
 from qwengpu.scoped_memory import (
     SCOPED_BASE,
     SCOPED_LOADS,
@@ -404,7 +413,9 @@ def build(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    resident_interleaved: bool = False,
 ) -> Circ:
+    resident_scoped = resident_scoped or resident_interleaved
     resident_alu32 = resident_alu32 or resident_scoped
     resident_rom32 = resident_rom32 or resident_alu32
     resident_memory512 = resident_memory512 or resident_rom32
@@ -451,8 +462,12 @@ def build(
     c.resident_rom32 = resident_rom32
     c.resident_alu32 = resident_alu32
     c.resident_scoped = resident_scoped
+    c.resident_interleaved = resident_interleaved
     c.memory_geometry = geometry
     one = c.one
+    warp_banks = (
+        (*WARP_BANKS, *EXTRA_WARP_BANKS) if resident_interleaved else WARP_BANKS
+    )
 
     def match(name: str, token: int) -> Expr:
         return c.token_feature(name, lambda t: int(t == token), full=True)
@@ -553,6 +568,53 @@ def build(
         {2: raw[0], 3: raw[3], 4: raw[4]},
         load_ticket,
     )
+    if resident_interleaved:
+        enable = match("resident.enable", RESIDENT_ENABLE)
+        disable = match("resident.disable", RESIDENT_DISABLE)
+        inter_resets = [
+            match(f"resident.ready.{w}", token)
+            for w, token in enumerate(RESIDENT_READY)
+        ]
+        query = tick + schedule + sum(resets + inter_resets, Expr())
+        (interleaved,) = c.slot_head(
+            "resident.mode",
+            {0: enable + disable},
+            {0: query},
+            {2: enable},
+            enable + disable,
+        )
+        load_inter_ticket = between(
+            "resident.ticket", RESIDENT_TICKET, RESIDENT_TICKET + 4
+        )
+        previous = c.slot_head(
+            "resident.cursor",
+            {0: load_inter_ticket},
+            {0: query},
+            {2: raw[0], 3: raw[1]},
+            load_inter_ticket,
+        )
+        inter_controls = []
+        for w in range(4):
+            lo = RESIDENT_CONTROL + 128 * w
+            load = between(f"resident.control.load.{w}", lo, lo + 96)
+            inter_controls.append(
+                c.slot_head(
+                    f"resident.control.{w}",
+                    {0: load},
+                    {0: query},
+                    {2 + i: bit for i, bit in enumerate(raw[:7])},
+                    load,
+                )
+            )
+        issue, inter_release, inter_halt, inter_deadlock = dispatch(
+            c,
+            [ctrl[5] for ctrl in inter_controls],
+            [ctrl[6] for ctrl in inter_controls],
+            previous,
+        )
+        issued = sum(issue, Expr())
+    else:
+        interleaved = Expr()
     both_halted = c.and_([controls[0][4], controls[1][4]], "schedule.both_halted")
     switch = Expr()
     group_switch = Expr()
@@ -703,18 +765,60 @@ def build(
             ]
         )
 
-    # Resident calls retain both control rows. The emitted ticket selects the active one.
+    # A ticket selects the physical warp bank and its local warp.
     warp_bit = last if resident else controls[1][6]
+    if resident_interleaved:
+        warp_bit = c.select_bits(
+            [([interleaved], [previous[0]]), ([one - interleaved], [warp_bit])],
+            1,
+            "resident.local_warp",
+        )[0]
+        group_low = c.select_bits(
+            [([interleaved], [previous[1]]), ([one - interleaved], [group_low])],
+            1,
+            "resident.group",
+        )[0]
     row_bits = [warp_bit, tile0, tile1]
     rows = c.onehot_of_bits(row_bits, "tile.row", 8)
     pc = [
         c.node(
-            c.t_and([tick, controls[0][bit], *([one - warp_bit] if resident else [])])
-            + c.t_and([tick, controls[1][bit], *([warp_bit] if resident else [])]),
+            c.t_and(
+                [
+                    tick,
+                    controls[0][bit],
+                    *([one - warp_bit] if resident else []),
+                    *([one - interleaved] if resident_interleaved else []),
+                ]
+            )
+            + c.t_and(
+                [
+                    tick,
+                    controls[1][bit],
+                    *([warp_bit] if resident else []),
+                    *([one - interleaved] if resident_interleaved else []),
+                ]
+            ),
             f"pc.{bit}",
         )
         for bit in ((0, 1, 2, 3, 7) if resident_rom32 else range(4))
     ]
+    if resident_interleaved:
+        bank_bits = [warp_bit, c.and_([interleaved, previous[1]], "resident.bank.high")]
+        bank_hot = c.onehot_of_bits(bank_bits, "resident.bank", 4)
+        pc = [
+            value
+            + c.node(
+                [
+                    term
+                    for w in range(4)
+                    for term in c.t_and(
+                        [tick, interleaved, bank_hot[w], inter_controls[w][bit]]
+                    )
+                ],
+                f"resident.pc.{bit}",
+            )
+            for bit, value in enumerate(pc)
+        ]
     slots = 32 if resident_rom32 else 16
     pc_hot = c.onehot_of_bits(pc, "pc", slots)
     if resident_rom32:
@@ -1023,6 +1127,8 @@ def build(
         else []
     )
 
+    if resident_interleaved:
+        warp_resets.extend([Expr(), Expr()])
     state_queries = (
         [
             c.and_([tick, one - warp_bit], "state.query.0"),
@@ -1032,13 +1138,19 @@ def build(
         else [tick]
     )
 
+    if resident_interleaved:
+        state_queries = [
+            c.and_([tick, bank], f"resident.state_query.{i}")
+            for i, bank in enumerate(bank_hot)
+        ]
+
     def state_lookup(name: str, base: int, nib: int) -> list[Expr]:
         if resident_state:
             offset = warp_tags.index(base) + nib
             return lookup(
                 name,
                 0,
-                [bank // 16 + offset for bank in WARP_BANKS],
+                [bank // 16 + offset for bank in warp_banks],
                 state_queries,
                 reset=resident_globalgrid,
                 reset_ones=base == MASK_REGISTER,
@@ -1791,6 +1903,9 @@ def build(
     scoped_offset = len(bits)
     if resident_scoped:
         bits.extend([scoped_store, *scoped_addresses])
+    bank_offset = len(bits)
+    if resident_interleaved:
+        bits.append(bank_bits[1])
     c.snapshot_bits = len(bits)
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
@@ -1876,9 +1991,15 @@ def build(
         terms = c.t_const(-KAPPA)
         control_terms = []
         value = execution[bit] if bit < len(execution) else (CONTROL >> bit) & 1
-        control_terms += c.t_and([tick, value], 2 * KAPPA)
+        control_terms += c.t_and(
+            [tick, value, *([one - interleaved] if resident_interleaved else [])],
+            2 * KAPPA,
+        )
         value = decision[bit] if bit < len(decision) else (TICKET >> bit) & 1
-        control_terms += c.t_and([schedule, value], 2 * KAPPA)
+        control_terms += c.t_and(
+            [schedule, value, *([one - interleaved] if resident_interleaved else [])],
+            2 * KAPPA,
+        )
         for warp, reset in enumerate(resets):
             if bit < 6 or (resident_rom32 and bit == 7):
                 gates = [reset, controls[warp][bit], one - advance]
@@ -1887,6 +2008,38 @@ def build(
                 control_terms += c.t_and(gates, 2 * KAPPA)
             elif control_token(warp) >> bit & 1:
                 control_terms += c.t_and([reset], 2 * KAPPA)
+        if resident_interleaved:
+            inter_execution = [
+                *next_pc,
+                halted,
+                ops["BARRIER"],
+                bank_bits[0],
+                bank_bits[1],
+            ]
+            value = (
+                inter_execution[bit]
+                if bit < len(inter_execution)
+                else (RESIDENT_CONTROL >> bit) & 1
+            )
+            control_terms += c.t_and([tick, interleaved, value], 2 * KAPPA)
+            for token, gate in ((DONE, inter_halt), (DEADLOCK, inter_deadlock)):
+                if token >> bit & 1:
+                    control_terms += c.t_and([schedule, interleaved, gate], 2 * KAPPA)
+            if bit < 2:
+                value = sum(
+                    (gate for w, gate in enumerate(issue) if w >> bit & 1), Expr()
+                )
+            else:
+                value = issued if RESIDENT_TICKET >> bit & 1 else 0
+            control_terms += c.t_and([schedule, interleaved, value], 2 * KAPPA)
+            for w, reset in enumerate(inter_resets):
+                if bit < 7:
+                    gates = [reset, inter_controls[w][bit]]
+                    if bit == 6:
+                        gates.append(one - inter_release[w // 2])
+                    control_terms += c.t_and(gates, 2 * KAPPA)
+                elif (RESIDENT_CONTROL + 128 * w) >> bit & 1:
+                    control_terms += c.t_and([reset], 2 * KAPPA)
         if not resident_wide:
             terms += control_terms
         for nib, (read, write) in enumerate(zip(reads, writes, strict=True)):
@@ -2063,7 +2216,18 @@ def build(
             )
         else:
             terms += plan_terms
-        if resident_state:
+        if resident_interleaved:
+            for w, base in enumerate(warp_banks):
+                if base >> bit & 1:
+                    terms += c.t_and(
+                        [
+                            state_reads,
+                            saved[129] if w & 1 else one - saved[129],
+                            saved[bank_offset] if w & 2 else one - saved[bank_offset],
+                        ],
+                        2 * KAPPA,
+                    )
+        elif resident_state:
             if WARP_BANKS[0] >> bit & 1:
                 terms += c.t_and([state_reads, one - saved[129]], 2 * KAPPA)
             if WARP_BANKS[1] >> bit & 1:
@@ -2109,6 +2273,7 @@ def build_standalone(
     resident_rom32: bool = False,
     resident_alu32: bool = False,
     resident_scoped: bool = False,
+    resident_interleaved: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -2139,13 +2304,14 @@ def build_standalone(
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
+        resident_interleaved=resident_interleaved,
     )
     return build_qwen(
         circuit,
         list(
             range(
                 ALU_VOCAB
-                if resident_alu32
+                if resident_alu32 or resident_scoped or resident_interleaved
                 else ROM32_VOCAB
                 if resident_rom32
                 else WIDE_MEMORY.vocab
