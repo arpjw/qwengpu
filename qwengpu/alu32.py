@@ -1,5 +1,7 @@
 """Integer opcode encoding for the resident 32-bit arithmetic layout."""
 
+from qwengpu.scoped_memory import SCOPED_OPS
+
 ALU32_LAYOUT = "qwengpu-resident-alu32-9b-v1"
 ALU_ROM = 0x28000
 ALU_IMMEDIATE = 0x2C000
@@ -20,14 +22,10 @@ ALU_LIMITS = {
 ALU_SIGNED_ARGS = ("SLT32I", "ADDIDX")
 
 
-def alu_token(address: int, op: str, arg: int, *, scoped=False) -> int:
-    if scoped:
-        from qwengpu.scoped_memory import SCOPED_OPS
-
-        if op in SCOPED_OPS:
-            return (
-                ALU_ROM + address * 512 + 32 * (len(COMPACT_OPS) + SCOPED_OPS.index(op))
-            )
+def alu_token(address: int, op: str, arg: int, *, scoped: bool = False) -> int:
+    if scoped and op in SCOPED_OPS:
+        tag = len(COMPACT_OPS) + SCOPED_OPS.index(op)
+        return ALU_ROM + address * 512 + 32 * tag
     if op in COMPACT_OPS:
         return ALU_ROM + address * 512 + 32 * COMPACT_OPS.index(op) + arg
     if op == "SUB32I":
@@ -35,13 +33,17 @@ def alu_token(address: int, op: str, arg: int, *, scoped=False) -> int:
     return ALU_IMMEDIATE + 8192 * IMMEDIATE_OPS.index(op) + 256 * address + (arg & 255)
 
 
-def decode_alu_token(token: int, *, scoped=False) -> tuple[int, int] | None:
+def decode_alu_token(token: int, *, scoped: bool = False) -> tuple[int, int] | None:
     if ALU_ROM <= token < ALU_IMMEDIATE:
         address, wire = divmod(token - ALU_ROM, 512)
         tag, arg = divmod(wire, 32)
         if tag < len(COMPACT_OPS):
             return address, ALU_PAYLOAD + 256 * tag + arg
-        if scoped and arg == 0 and len(COMPACT_OPS) <= tag < len(COMPACT_OPS) + 4:
+        if (
+            scoped
+            and arg == 0
+            and len(COMPACT_OPS) <= tag < len(COMPACT_OPS) + len(SCOPED_OPS)
+        ):
             return address, ALU_PAYLOAD + 256 * (tag + len(IMMEDIATE_OPS))
     if ALU_IMMEDIATE <= token < ALU_VOCAB:
         variant, wire = divmod(token - ALU_IMMEDIATE, 8192)

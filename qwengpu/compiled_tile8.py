@@ -243,6 +243,8 @@ def program_tokens(
     tokens = []
     for address, (op, arg) in enumerate(padded):
         if op in ALU_OPS or op in SCOPED_OPS:
+            if op in SCOPED_OPS and not resident_scoped:
+                raise ValueError(f"{op} requires the scoped-memory layout")
             if not (resident_alu32 or resident_scoped):
                 raise ValueError(f"{op} requires the ALU32 layout")
             tokens.append(alu_token(address, op, arg, scoped=resident_scoped))
