@@ -13,6 +13,7 @@ import transformers
 from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
+from qwengpu.model_stores import COMMIT_BASE
 from qwengpu.alu32 import (
     ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_LAYOUT, FULL_INTEGER_OPS,
     LOGIC_OPS, RUNTIME_EXTENT_BASE, RUNTIME_EXTENT_MAX, RUNTIME_EXTENT_OP, WIDE_INDEX_OPS,
@@ -636,6 +637,7 @@ def execute(
     scoped = circuit.resident_scoped and "scoped_words" in case
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
+    internal_stores = circuit.internal_stores and global512
     if type(refresh_global_prefix) is not int or not 0 <= refresh_global_prefix <= (
         geometry.words if global512 and resident_cache is not None else 0
     ):
@@ -844,6 +846,9 @@ def execute(
         "matrix_initial_tokens": len(uploads),
         "matrix_patch_tokens": 0,
     }
+
+    if internal_stores:
+        transport.update(internal_store_words=0, internal_store_commands=0)
 
     if refresh:
         transport["global_refresh_tokens"] = len(refresh)
@@ -1211,6 +1216,18 @@ def execute(
         if resident_wide:
             high_registers[warp] = packet[len(WARP_TAGS) : len(warp_tags)]
         updates = [token for token in patch if token != NO_WRITE]
+        commits = []
+        if internal_stores:
+            relayed = []
+            for lane, patch_words in enumerate(zip(*[iter(patch)] * 4, strict=True)):
+                if all(geometry.base <= token < geometry.vocab for token in patch_words):
+                    commits.append(COMMIT_BASE + lane)
+                else:
+                    relayed.extend(token for token in patch_words if token != NO_WRITE)
+            transport["internal_store_words"] += len(commits)
+            transport["internal_store_commands"] += len(commits)
+        else:
+            relayed = updates
         if not indexed and updates and len(updates) != 32:
             raise ValueError("incomplete tagged C write")
         if len({token // 16 for token in updates}) != len(updates):
@@ -1233,11 +1250,11 @@ def execute(
             else:
                 raise ValueError("invalid tagged shared-memory write")
         if resident:
-            pending = [*([control] if scheduled is None else []), *tagged_state, *updates]
+            pending = [*([control] if scheduled is None else []), *tagged_state, *relayed, *commits]
             if fused_dispatch:
                 committed_controls[warp] = control
             transport["matrix_patch_tokens"] += sum(
-                not scoped or not SCOPED_BASE <= token < SCOPED_END for token in updates
+                not scoped or not SCOPED_BASE <= token < SCOPED_END for token in relayed
             )
             if resident_state:
                 transport["warp_update_tokens"] += len(tagged_state)
@@ -2154,7 +2171,9 @@ def load_tile_model(
     resident_scoped: bool = False,
     resident_interleaved: bool = False,
     full_integer: bool = False,
+    internal_stores: bool = False,
 ):
+    full_integer = full_integer or internal_stores
     if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
         if full_integer and layout != FULL_INTEGER_LAYOUT:
@@ -2216,6 +2235,7 @@ def load_tile_model(
             resident_scoped=resident_scoped,
             resident_interleaved=resident_interleaved,
             full_integer=full_integer,
+            internal_stores=internal_stores,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -2256,6 +2276,7 @@ def load_tile_model(
             resident_scoped=resident_scoped,
             resident_interleaved=resident_interleaved,
             full_integer=full_integer,
+            internal_stores=internal_stores,
         )
     return model.to(device).eval(), circuit
 

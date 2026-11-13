@@ -51,6 +51,7 @@ from qwengpu.scoped_memory import (
     canonical_nibble,
 )
 from qwengpu.memory_geometry import LEGACY_MEMORY, PAIR_DECODE, PAIR_WIRES, WIDE_MEMORY
+from qwengpu.model_stores import COMMIT_BASE, COMMIT_COUNT, key_matches
 
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
 INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
@@ -426,7 +427,9 @@ def build(
     resident_scoped: bool = False,
     full_integer: bool = False,
     resident_interleaved: bool = False,
+    internal_stores: bool = False,
 ) -> Circ:
+    full_integer = full_integer or internal_stores
     resident_interleaved = resident_interleaved or full_integer
     resident_scoped = resident_scoped or resident_interleaved
     resident_alu32 = resident_alu32 or resident_scoped
@@ -477,6 +480,7 @@ def build(
     c.resident_scoped = resident_scoped
     c.resident_interleaved = resident_interleaved
     c.full_integer = full_integer
+    c.internal_stores = internal_stores
     c.memory_geometry = geometry
     one = c.one
     warp_banks = (
@@ -490,6 +494,7 @@ def build(
         return c.token_feature(name, lambda t: int(low <= t < high), full=True)
 
     tick = match("tick", TICK)
+    commit = [match(f"ram.commit.{lane}", COMMIT_BASE + lane) for lane in range(COMMIT_COUNT)] if internal_stores else []
     schedule = match("schedule", SCHEDULE)
     resets = [match("ready.0", READY0), match("ready.1", READY1)]
     reads = [match(f"register.read.{index}", READ_REG + index) for index in range(32)]
@@ -1073,6 +1078,7 @@ def build(
                 }
         return c.slot_head(name, keys, dict(enumerate(selects)), data, ref)
 
+    write_grant, write_address, write_value = Expr(), [], []
     if resident_memory512:
         ram_word_bits = [
             c.token_feature(
@@ -1130,13 +1136,31 @@ def build(
                 - 8 * one
                 for slot, address in enumerate(addresses)
             }
-            return c.slot_head(
-                name,
-                keys,
-                dict(enumerate(selects)),
-                raw_nibble,
-                ram_nib[nib] + ram_bank_load[bank] - one,
-            )
+            upload = ram_nib[nib] + ram_bank_load[bank] - one
+            if internal_stores:
+                enabled = c.and_(
+                    [write_grant, write_address[7] if bank else one - write_address[7]],
+                    f"{name}.commit",
+                )
+                upload_enabled = c.and_([ram_nib[nib], ram_bank_load[bank]], f"{name}.upload")
+                selector = c.select_bits(
+                    [([upload_enabled], ram_word_bits), ([enabled], write_address[:7])],
+                    7, f"{name}.write_address",
+                )
+                keys = {
+                    slot: key_matches(c, selector, (address // 4) % 128, upload_enabled + enabled)
+                    for slot, address in enumerate(addresses)
+                }
+                data = {
+                    col: c.and_([upload_enabled, value], f"{name}.upload_bit.{bit}") + write_value[4 * nib + bit]
+                    for bit, (col, value) in enumerate(raw_nibble.items())
+                }
+                # An upload contributes 1 (or 0 if absent) on every member row.
+                # A commit outside this head's address subset has no matching key.
+                ref = upload_enabled + write_grant
+            else:
+                data, ref = raw_nibble, upload
+            return c.slot_head(name, keys, dict(enumerate(selects)), data, ref)
 
     warp_resets = (
         [match(f"warp.reset.{i}", token) for i, token in enumerate(RESET_WARP)]
@@ -1517,65 +1541,7 @@ def build(
             else []
         )
         store_index = ops["STORE_INDEX"] + store_high + scoped_store
-        prior_addresses = []
-        for lane in range(8):
-            address = [
-                bit
-                for nib, width in enumerate((4, 4 if resident_memory512 else 3))
-                for bit in state_lookup(
-                    f"index.{lane}.{nib}", INDEX_REGISTER, 2 * lane + nib
-                )[:width]
-            ]
-            if resident_memory512:
-                address[7] = c.and_([address[7], generic], f"index.global_high.{lane}")
-                prior_index_high.append(address[7])
-            old_indices.extend(address[:7])
-            # Both limbs share the saved base. The high limb toggles its low bit.
-            gather_address = address
-            if resident_shared32:
-                paired_bit = c.node(
-                    c.t_and([address[0], one - read_high])
-                    + c.t_and([one - address[0], read_high]),
-                    f"gather.pair.{lane}",
-                )
-                gather_address = [paired_bit, *address[1:]]
-            if resident_addmem32:
-                gather_address[1:] = [
-                    c.node(
-                        c.t_and([addr, one - mask]) + c.t_and([one - addr, mask]),
-                        f"gather.address.{lane}.{bit}",
-                    )
-                    for bit, (addr, mask) in enumerate(
-                        zip(address[1:], pair_mask, strict=True), 1
-                    )
-                ]
-            physical = address
-            if resident_scoped:
-                banked = c.select_bits(
-                    [
-                        (
-                            [private],
-                            [(lane >> bit) & 1 for bit in range(3)] + [warp_bit],
-                        ),
-                        ([one - private], address[:4]),
-                    ],
-                    4,
-                    f"scoped.offset.{lane}",
-                ) + [group_low, group_high, private]
-                physical = c.select_bits(
-                    [
-                        ([scoped_access], banked + [Expr()]),
-                        ([one - scoped_access], address),
-                    ],
-                    8,
-                    f"scoped.address.{lane}",
-                )
-                scoped_addresses.extend(physical[:7])
-                gather_address = c.select_bits(
-                    [([scoped_load], physical), ([one - scoped_load], gather_address)],
-                    8,
-                    f"scoped.gather.{lane}",
-                )
+        def build_gather(lane, gather_address):
             queries = [
                 c.and_(
                     [
@@ -1635,6 +1601,71 @@ def build(
                         sources.append(([ram_bank[bank]], other))
                     value = c.select_bits(sources, 4, f"gather.value.{lane}.{nib}")
                 indexed_values.extend(value)
+
+        prior_addresses, gather_addresses, store_addresses = [], [], []
+        for lane in range(8):
+            address = [
+                bit
+                for nib, width in enumerate((4, 4 if resident_memory512 else 3))
+                for bit in state_lookup(
+                    f"index.{lane}.{nib}", INDEX_REGISTER, 2 * lane + nib
+                )[:width]
+            ]
+            if resident_memory512:
+                address[7] = c.and_([address[7], generic], f"index.global_high.{lane}")
+                prior_index_high.append(address[7])
+            old_indices.extend(address[:7])
+            # Both limbs share the saved base. The high limb toggles its low bit.
+            gather_address = address
+            if resident_shared32:
+                paired_bit = c.node(
+                    c.t_and([address[0], one - read_high])
+                    + c.t_and([one - address[0], read_high]),
+                    f"gather.pair.{lane}",
+                )
+                gather_address = [paired_bit, *address[1:]]
+            if resident_addmem32:
+                gather_address[1:] = [
+                    c.node(
+                        c.t_and([addr, one - mask]) + c.t_and([one - addr, mask]),
+                        f"gather.address.{lane}.{bit}",
+                    )
+                    for bit, (addr, mask) in enumerate(
+                        zip(address[1:], pair_mask, strict=True), 1
+                    )
+                ]
+            physical = address
+            if resident_scoped:
+                banked = c.select_bits(
+                    [
+                        (
+                            [private],
+                            [(lane >> bit) & 1 for bit in range(3)] + [warp_bit],
+                        ),
+                        ([one - private], address[:4]),
+                    ],
+                    4,
+                    f"scoped.offset.{lane}",
+                ) + [group_low, group_high, private]
+                physical = c.select_bits(
+                    [
+                        ([scoped_access], banked + [Expr()]),
+                        ([one - scoped_access], address),
+                    ],
+                    8,
+                    f"scoped.address.{lane}",
+                )
+                scoped_addresses.extend(physical[:7])
+                gather_address = c.select_bits(
+                    [([scoped_load], physical), ([one - scoped_load], gather_address)],
+                    8,
+                    f"scoped.gather.{lane}",
+                )
+            if internal_stores:
+                gather_addresses.append(gather_address)
+                store_addresses.append(address)
+            else:
+                build_gather(lane, gather_address)
             save_index = (
                 c.and_([ops["SAVE_INDEX"], active[lane]], f"index.save.{lane}")
                 if masked
@@ -1713,6 +1744,43 @@ def build(
                 )
             )
             prior_addresses.append(addr)
+
+        if internal_stores:
+            # Capture a potential store before any main-memory read stage. On
+            # the fixed lane commit token, the journal supplies data and address
+            # to the same downstream RAM heads that service normal loads.
+            for lane in range(8):
+                old_value = c.select_bits(
+                    [
+                        ([one - store_high], old[16 * lane : 16 * (lane + 1)]),
+                        ([store_high], old_high[16 * lane : 16 * (lane + 1)]),
+                    ],
+                    16, f"ram.commit.source.{lane}",
+                )
+                gate = c.and_(
+                    [grants[lane], generic, one - scoped_store],
+                    f"ram.commit.grant.{lane}",
+                )
+                addr = store_addresses[lane]
+                bit0 = c.node(
+                    c.t_and([addr[0], one - store_high]) + c.t_and([one - addr[0], store_high]),
+                    f"ram.commit.low_bit.{lane}",
+                )
+                values = [gate, bit0, *addr[1:], *old_value]
+                selected = c.slot_head(
+                    f"ram.commit.pending.{lane}", {0: tick}, {0: commit[lane]},
+                    {2 + bit: value for bit, value in enumerate(values)}, tick,
+                )
+                write_grant += selected[0]
+                if not write_address:
+                    write_address = [Expr() for _ in range(8)]
+                    write_value = [Expr() for _ in range(16)]
+                for i, bit in enumerate(selected[1:9]):
+                    write_address[i] += bit
+                for i, bit in enumerate(selected[9:]):
+                    write_value[i] += bit
+            for lane, gather_address in enumerate(gather_addresses):
+                build_gather(lane, gather_address)
 
     if resident_globalgrid:
         registers32 = [
@@ -2341,6 +2409,7 @@ def build_standalone(
     resident_scoped: bool = False,
     full_integer: bool = False,
     resident_interleaved: bool = False,
+    internal_stores: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -2373,13 +2442,14 @@ def build_standalone(
         resident_scoped=resident_scoped,
         full_integer=full_integer,
         resident_interleaved=resident_interleaved,
+        internal_stores=internal_stores,
     )
     return build_qwen(
         circuit,
         list(
             range(
                 ALU_VOCAB
-                if resident_alu32 or resident_scoped or resident_interleaved or full_integer
+                if resident_alu32 or resident_scoped or resident_interleaved or full_integer or internal_stores
                 else ROM32_VOCAB
                 if resident_rom32
                 else WIDE_MEMORY.vocab
