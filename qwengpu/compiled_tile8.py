@@ -888,8 +888,8 @@ def build(
             ref = sum(keys.values(), Expr())
         data = raw_nibble
         if reset:
-            ref += sum(warp_resets, Expr())
             keys = {slot: key + warp_resets[slot] for slot, key in keys.items()}
+            ref = sum(keys.values(), Expr())
             if reset_ones:
                 data = {
                     bit: value + sum(warp_resets, Expr()) for bit, value in data.items()
@@ -1480,31 +1480,25 @@ def build(
                 lane_bits + [warp_bit],
                 lane_bits + [warp_bit, group_low, group_high],
             )
-            extra = (
-                lane_results(
+            if resident_alu32:
+                extra = [([ops["WARP_SUM"]], warp_sum)] + lane_results(
                     c, ops, arg, word, indexed_values[16 * lane : 16 * lane + 16], lane
                 )
-                if resident_alu32
-                else [
-                    (
-                        [ops["SHL32I"]],
-                        c.select_bits(
-                            [
-                                ([shift], [Expr()] * n + word[: 32 - n])
-                                for n, shift in enumerate(shifts)
-                            ],
-                            32,
-                            f"shift.lane.{lane}",
-                        ),
-                    )
-                ]
-            )
+            else:
+                shifted = c.select_bits(
+                    [
+                        ([shift], [Expr()] * n + word[: 32 - n])
+                        for n, shift in enumerate(shifts)
+                    ],
+                    32,
+                    f"shift.lane.{lane}",
+                )
+                extra = [([ops["SHL32I"]], shifted), ([ops["WARP_SUM"]], warp_sum)]
             special = c.select_bits(
                 [
                     ([ops[op]], bits + [Expr()] * (32 - len(bits)))
                     for op, bits in zip(ID_OPS, id_bits, strict=True)
                 ]
-                + [([ops["WARP_SUM"]], warp_sum)]
                 + extra,
                 32,
                 f"global.result.{lane}",
