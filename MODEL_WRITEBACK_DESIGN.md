@@ -5,20 +5,22 @@ Its ALU and scatter arbitration run later. Those later layers cannot
 directly change the recurrent tensors of earlier layers. The current
 runner bridges the boundary by feeding emitted data tokens.
 
-The first implementation targets indexed global stores. A store already
+The implementation targets indexed global, workgroup-shared, and lane-private stores. A store already
 has its value in a register. TICK reads that value and the saved index,
 applies the mask and collision rule, and journals the granted lanes before
 the main RAM layers. A fixed lane COMMIT reads the journal and writes the
 same recurrent RAM rows that future loads query. The command has no address
 or value payload. It replaces four address/value nibble tokens with one
-lane token for each 16-bit word. This layout still emits the original
-scatter tags for trace inspection and uses host relay for register and
-scoped writes.
+lane token for each 16-bit word and removes the four store read requests.
+Trace inspection decodes the existing model snapshot without sending
+those values to the model. The model still receives generated register
+tags.
 
-Two standalone CUDA programs checked 84 stores and all 256 final global
-words per launch. Neither supplied global store tags after the initial
-RAM upload. The address walk included high-limb stores, masks and wrapped
-offsets; the interleaved program included cross-warp scoped traffic.
+Three standalone CUDA programs checked 308 stores (180 global and 128
+scoped) and every final RAM word. No store address/value tags went in or
+came out. The address walk included high-limb stores, masks and wrapped
+offsets; the interleaved and isolation programs included shared and
+private traffic. See `results/model_stores_cuda/compact_standalone.json`.
 
 A more ambitious replacement would target the four resident warp banks. Keep the
 existing warp state heads as the base and add a late recurrent journal.
