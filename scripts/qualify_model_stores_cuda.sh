@@ -8,10 +8,12 @@ reports="${3:?expected report directory}"
 source_commit="${4:?expected source commit}"
 py="${QWENGPU_PYTHON:-python3}"
 export PYTORCH_ALLOC_CONF=expandable_segments:True
+start_seconds=$SECONDS
 mkdir -p "$reports"
 {
   nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
   printf 'source_commit=%s\n' "$source_commit"
+  date -u
   "$py" -c 'import torch,transformers; print(torch.__version__, transformers.__version__)'
 } > "$reports/host.txt"
 
@@ -33,4 +35,5 @@ PY
 "$py" scripts/eval_model_stores.py --model "$model" --device cuda --out "$reports/model_stores.json"
 bash scripts/qualify_integer.sh cuda "$reports" "$model"
 "$py" -m qwengpu.eval_memory512_handoff "$model" --device cuda --out "$reports/handoff.json"
+printf 'elapsed_seconds=%s\n' "$((SECONDS - start_seconds))" > "$reports/timing.txt"
 date -u > "$reports/complete.txt"
