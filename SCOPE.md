@@ -40,8 +40,11 @@ forward and backward loop destinations. The merged allocation still uses
 
 Two full-length programs test control flow above slot 15 and a workgroup
 transition that restarts both PCs at zero while retaining global memory.
-The next ISA gate is richer integer and address arithmetic. General
-runtime extents still require separate work. See REPRODUCE.md for the
+The ALU32 successor adds signed address offsets, immediate subtraction
+and multiplication, full-width shifts, comparisons, and indexed bitwise
+operations. The remaining arithmetic gate extends these operations to
+arbitrary full-width operands. General runtime extents are also a separate
+gate. See REPRODUCE.md for the
 MPS and CUDA commands and VALIDATION.md for the supported evidence.
 
 ## Earlier gates

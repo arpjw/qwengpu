@@ -11,6 +11,7 @@ from qwengpu.eval_tile8 import load_tile_model
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--full-integer", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -19,7 +20,7 @@ def main():
         / "eval/frozen/scoped_memory_v1/isolation.json"
     )
     data = json.loads(fixture.read_bytes())
-    model, circuit = load_tile_model(args.model, args.device, resident_scoped=True)
+    model, circuit = load_tile_model(args.model, args.device, resident_scoped=True, full_integer=args.full_integer)
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_bytes()) if args.model else None
     )

@@ -20,13 +20,14 @@ FIXTURE = (
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--full-integer", action="store_true")
     parser.add_argument("--device", default="mps", choices=("cuda", "mps"))
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     payload = FIXTURE.read_bytes()
     initial = json.loads(payload)
     model, circuit = load_tile_model(
-        args.model, args.device, resident_interleaved=True
+        args.model, args.device, resident_interleaved=True, full_integer=args.full_integer
     )
     meta = (
         json.loads((args.model / "qwengpu9b.json").read_bytes()) if args.model else None

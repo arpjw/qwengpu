@@ -1,0 +1,5 @@
+cuda: arithmetic edge cases and all 256 address-walk words exact
+cuda: 256 instruction steps, 64 ROM entries per launch, exact control and data
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+Inherited 27 traces, 31 common kernels, seven raw probes and all eight matrix traces match
+All 8,192 RAM nibbles and the retained reduction exact across native text

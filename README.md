@@ -45,6 +45,12 @@ as well as the 31 common kernels, seven raw memory probes, 27 inherited
 traces, and the tiled 16×16 multiply. See the
 [ROM32 commands](REPRODUCE.md#run-the-32-slot-rom-layout).
 
+The ALU32 checkpoint adds signed address offsets, shifts across all
+32 bits, modular subtraction and small-immediate multiplication,
+signed and unsigned comparisons, and indexed bitwise operations. See
+[the ALU32 commands](REPRODUCE.md#run-the-32-bit-integer-and-address-layout).
+
+
 ## Original SIMT variant
 
 The repository contains an independent eight-lane reference machine.
