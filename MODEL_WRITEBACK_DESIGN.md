@@ -53,3 +53,16 @@ transport reduces calls and suppresses unchanged control relays while
 keeping model-produced register and memory writes on the wire. Closing
 the cyclic writeback gate requires an architectural change beyond that
 transport optimization.
+
+### Reproduce the model-owned store checks
+
+```bash
+python scripts/eval_model_stores.py --device mps --out stores-mps.json
+python -m qwengpu.merge9b "$base" --internal-stores --out "$model"
+python scripts/eval_model_stores.py --model "$model" --device cuda --out stores-cuda.json
+python scripts/check_model_stores.py stores-mps.json stores-cuda.json
+```
+
+The global and scoped launch inputs are uploaded as before. Normal stores
+use the model's grant mask and fixed commands. This does not change the
+legacy tile-mode store path, which retains its existing transport.
