@@ -1113,6 +1113,8 @@ def build(
             for bank in range(2)
         ]
 
+        write_ports = {}
+
         def ram_lookup(name, addresses, selects):
             bank, nib = addresses[0] // 512, addresses[0] % 4
             assert all(
@@ -1138,26 +1140,32 @@ def build(
             }
             upload = ram_nib[nib] + ram_bank_load[bank] - one
             if internal_stores:
-                enabled = c.and_(
-                    [write_grant, write_address[7] if bank else one - write_address[7]],
-                    f"{name}.commit",
-                )
-                upload_enabled = c.and_([ram_nib[nib], ram_bank_load[bank]], f"{name}.upload")
-                selector = c.select_bits(
-                    [([upload_enabled], ram_word_bits), ([enabled], write_address[:7])],
-                    7, f"{name}.write_address",
-                )
+                if (bank, nib) not in write_ports:
+                    port = f"ram.write.{bank}.{nib}"
+                    enabled = c.and_(
+                        [write_grant, write_address[7] if bank else one - write_address[7]],
+                        f"{port}.commit",
+                    )
+                    upload_enabled = c.and_(
+                        [ram_nib[nib], ram_bank_load[bank]], f"{port}.upload"
+                    )
+                    selector = c.select_bits(
+                        [([upload_enabled], ram_word_bits), ([enabled], write_address[:7])],
+                        7, f"{port}.address",
+                    )
+                    data = {
+                        col: c.and_([upload_enabled, value], f"{port}.upload_bit.{bit}")
+                        + write_value[4 * nib + bit]
+                        for bit, (col, value) in enumerate(raw_nibble.items())
+                    }
+                    write_ports[bank, nib] = (
+                        selector, upload_enabled + enabled, data, upload_enabled + write_grant
+                    )
+                selector, enabled, data, ref = write_ports[bank, nib]
                 keys = {
-                    slot: key_matches(c, selector, (address // 4) % 128, upload_enabled + enabled)
+                    slot: key_matches(c, selector, (address // 4) % 128, enabled)
                     for slot, address in enumerate(addresses)
                 }
-                data = {
-                    col: c.and_([upload_enabled, value], f"{name}.upload_bit.{bit}") + write_value[4 * nib + bit]
-                    for bit, (col, value) in enumerate(raw_nibble.items())
-                }
-                # An upload contributes 1 (or 0 if absent) on every member row.
-                # A commit outside this head's address subset has no matching key.
-                ref = upload_enabled + write_grant
             else:
                 data, ref = raw_nibble, upload
             return c.slot_head(name, keys, dict(enumerate(selects)), data, ref)
