@@ -46,3 +46,20 @@ python -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/interleaved_p
   --resident-interleaved --device mps --check-reference --trace --out publish.json
 python scripts/check_interleaved.py publish.json
 ```
+
+## Fused dispatch transport
+
+An optional `--transport fused-dispatch` combines the requested state and
+store reads with the next scheduler decision. The prior instruction's
+model-generated control token enters the call before the reads. A
+scheduler decision uses control state only, so its output does not depend
+on the outstanding data writes. The next TICK receives those exact
+writeback tags before it can read any register or memory word. On a
+terminal ticket or step limit, any prefetched updates are flushed first.
+
+The standalone CUDA publication trace has identical instructions, control
+decisions, masks, write tags, and final RAM. It uses 89 forward calls versus
+125 with the state/store plan, at the same 4,050 input tokens. The host
+still forwards generated data tags. This change reduces model calls and
+does not move the recurrent data writes into the model or establish a
+speedup.
