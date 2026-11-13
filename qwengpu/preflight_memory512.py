@@ -102,7 +102,9 @@ def main() -> None:
     )
     keep = set(circuit.keep) | set(marker.terms)
     allocation = allocate(circuit, None, keep, base["intermediate_size"])
-    hidden, _m = pick_hidden(4096, allocation.n_slots + 1)
+    hidden, _m = pick_hidden(
+        4096, max(3269 if args.resident_alu32 else 0, allocation.n_slots + 1)
+    )
     vocab = (
         ALU_VOCAB
         if args.resident_alu32

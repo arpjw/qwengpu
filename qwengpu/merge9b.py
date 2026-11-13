@@ -150,7 +150,7 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     marker_dim = next(iter(marker.terms))
     keep.add(marker_dim)
     allocation = allocate(circuit, None, keep, inter)
-    hidden, m = pick_hidden(d0, 1 + allocation.n_slots)
+    hidden, m = pick_hidden(d0, max(3269 if resident_alu32 else 0, 1 + allocation.n_slots))
     layout = Layout(hidden=hidden, off=d0, m=m, slots=allocation.slots)
     if d0 + m + 1 + allocation.n_slots > hidden:
         raise ValueError("circuit slots exceed widened hidden size")

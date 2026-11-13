@@ -837,6 +837,17 @@ def build(
     raw_nibble = {2 + bit: raw[bit] for bit in range(4)}
 
     input_keys: dict[int, Expr] = {}
+    if resident_alu32:
+        # Nibble addresses share the same binary token features across legacy
+        # operands, tile outputs, and indexed ports.
+        legacy_digits = [
+            c.token_feature(
+                f"legacy.nibble_address.{i}",
+                lambda t, i=i: (t >> (4 + i)) & 1,
+                full=True,
+            )
+            for i in range(13)
+        ]
 
     def lookup(
         name: str,
@@ -847,22 +858,43 @@ def build(
         reset: bool = False,
         reset_ones: bool = False,
     ) -> list[Expr]:
-        keys = {}
-        for slot, address in enumerate(addresses):
-            start = base + address * 16
-            if start not in input_keys:
-                input_keys[start] = between(f"{name}.load.{slot}", start, start + 16)
-            keys[slot] = input_keys[start]
+        if resident_alu32 and len(addresses) >= 16:
+            members = frozenset(base // 16 + offset for offset in addresses)
+            ref = c.token_feature(
+                f"{name}.load", lambda t: int(t // 16 in members), full=True
+            )
+            # A row matches only when the membership and every address bit agree.
+            keys = {
+                slot: ref
+                + sum(
+                    (
+                        value if (base // 16 + address) >> i & 1 else one - value
+                        for i, value in enumerate(legacy_digits)
+                    ),
+                    Expr(),
+                )
+                - len(legacy_digits) * one
+                for slot, address in enumerate(addresses)
+            }
+        else:
+            keys = {}
+            for slot, address in enumerate(addresses):
+                start = base + address * 16
+                if start not in input_keys:
+                    input_keys[start] = between(
+                        f"{name}.load.{slot}", start, start + 16
+                    )
+                keys[slot] = input_keys[start]
+            ref = sum(keys.values(), Expr())
         data = raw_nibble
         if reset:
+            ref += sum(warp_resets, Expr())
             keys = {slot: key + warp_resets[slot] for slot, key in keys.items()}
             if reset_ones:
                 data = {
                     bit: value + sum(warp_resets, Expr()) for bit, value in data.items()
                 }
-        return c.slot_head(
-            name, keys, dict(enumerate(selects)), data, sum(keys.values(), Expr())
-        )
+        return c.slot_head(name, keys, dict(enumerate(selects)), data, ref)
 
     if resident_memory512:
         ram_word_bits = [
