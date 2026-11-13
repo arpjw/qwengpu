@@ -13,6 +13,7 @@ import transformers
 from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
+from qwengpu.alu32 import ALU32_LAYOUT, ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, LOGIC_OPS
 from qwengpu.compiled_tile import (
     READY0,
     READY1,
@@ -108,7 +109,7 @@ from qwengpu.eval_tile import _unsigned
 from qwengpu.memory_geometry import (
     LEGACY_MEMORY,
     MEMORY512_LAYOUTS,
-    ROM32_LAYOUT,
+    ROM32_LAYOUTS,
     WIDE_MEMORY,
 )
 
@@ -250,7 +251,9 @@ def parse_launch(
     resident_compute: bool = False,
     resident_memory512: bool = False,
     resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ) -> dict:
+    resident_rom32 = resident_rom32 or resident_alu32
     resident_memory512 = resident_memory512 or resident_rom32
     resident_compute = resident_compute or resident_memory512
     resident_globalgrid = resident_globalgrid or resident_compute
@@ -348,6 +351,7 @@ def parse_launch(
             + (ADDMEM32_OPS if resident_addmem32 else ())
             + (GLOBAL_OPS if workgroups else ())
             + (COMPUTE_OPS if workgroups and resident_compute else ())
+            + (ALU_OPS if resident_alu32 else ())
         )
         slots = 32 if resident_rom32 else 16
         for warp, program in enumerate(raw):
@@ -375,8 +379,10 @@ def parse_launch(
                     "MASK_LANES": 8,
                     "MASK_GLOBAL_LT": 64,
                     "MATRIX_MAC8": 63,
+                    **ALU_LIMITS,
                 }.get(op, 0)
-                if type(arg) is not int or not 0 <= arg <= limit:
+                lower, upper = (-128, 127) if op in ALU_SIGNED_ARGS else (0, limit)
+                if type(arg) is not int or not lower <= arg <= upper:
                     raise ValueError(f"invalid {op} argument")
                 if op in ADDMEM32_OPS and arg % 2:
                     raise ValueError(f"{op} requires an even pair mask")
@@ -421,6 +427,7 @@ def _parse_case(
     resident_loop32: bool = False,
     resident_memory512: bool = False,
     resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ) -> dict:
     case = parse_launch(
         data,
@@ -437,6 +444,7 @@ def _parse_case(
         resident_loop32=resident_loop32,
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
+        resident_alu32=resident_alu32,
     )
     outcome = data.get("expected_outcome", "halted")
     if outcome not in ("halted", "deadlock", "step_limit"):
@@ -532,6 +540,7 @@ def execute(
     workgroups = case.get("workgroups", 0)
     memory512 = circuit.resident_memory512
     rom32 = circuit.resident_rom32
+    alu32 = circuit.resident_alu32
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
     if workgroups and (
@@ -659,7 +668,8 @@ def execute(
         else []
     )
     rom = [
-        program_tokens(program, resident_rom32=rom32) for program in case["programs"]
+        program_tokens(program, resident_rom32=rom32, resident_alu32=alu32)
+        for program in case["programs"]
     ]
     indices = [nibbles(INDEX_REGISTER, [0] * 16) for _ in range(2)]
     masks = [nibbles(MASK_REGISTER, [15, 15]) for _ in range(2)]
@@ -1101,7 +1111,7 @@ def execute(
                 circuit,
                 "rom",
                 len(tokens) * warp + address,
-                ROM_PAYLOAD_BITS + int(resident_add32) + int(rom32),
+                ROM_PAYLOAD_BITS + int(resident_add32) + int(rom32) + int(alu32),
             )
             == rom_payload(
                 token,
@@ -1118,6 +1128,7 @@ def execute(
                 resident_compute=circuit.resident_compute,
                 resident_memory512=memory512,
                 resident_rom32=rom32,
+                resident_alu32=alu32,
             )
             for warp, tokens in enumerate(rom)
             for address, token in enumerate(tokens)
@@ -1592,6 +1603,37 @@ def oracle(
                 word >> 16 if active >> lane & 1 else high[warp][lane]
                 for lane, word in enumerate(words)
             ]
+        elif op == "ADDIDX":
+            indices[warp] = [
+                (addr + arg) % (256 if global512 else INDEX_WORDS)
+                if active >> lane & 1
+                else addr
+                for lane, addr in enumerate(indices[warp])
+            ]
+        elif op in ALU_OPS and op not in LOGIC_OPS:
+            import operator
+
+            def signed32(word):
+                return word - (1 << 32) if word >= (1 << 31) else word
+
+            fn = {
+                "SHL32": operator.lshift,
+                "SHR32": operator.rshift,
+                "SAR32": lambda word, shift: signed32(word) >> shift,
+                "MUL32I": operator.mul,
+                "SUB32I": operator.sub,
+                "SLTU32I": operator.lt,
+                "SLT32I": lambda word, rhs: signed32(word) < rhs,
+            }[op]
+            words = [
+                fn(lo | hi << 16, arg) & 0xFFFFFFFF
+                for lo, hi in zip(before, high[warp], strict=True)
+            ]
+            candidate = [word & 65535 for word in words]
+            high[warp] = [
+                word >> 16 if active >> lane & 1 else high[warp][lane]
+                for lane, word in enumerate(words)
+            ]
         elif op == "MASK_LANES":
             masks[warp] &= (1 << arg) - 1
         elif op == "BARRIER":
@@ -1603,8 +1645,8 @@ def oracle(
                 else indices[warp][lane]
                 for lane, v in enumerate(acc[warp])
             ]
-        elif op in ("LOAD_INDEX", LOAD_INDEX_HI, *ADDMEM32_OPS):
-            high_access = op in (LOAD_INDEX_HI, ADD_INDEX_HI)
+        elif op in ("LOAD_INDEX", LOAD_INDEX_HI, *ADDMEM32_OPS, *LOGIC_OPS):
+            high_access = op in (LOAD_INDEX_HI, ADD_INDEX_HI) or op.endswith("_HI")
             addresses = [addr ^ arg ^ int(high_access) for addr in indices[warp]]
             loaded = [
                 ram[addr]
@@ -1614,7 +1656,22 @@ def oracle(
                 else c[addr - 64]
                 for addr in addresses
             ]
-            if op == ADD_INDEX_LO:
+            if op in LOGIC_OPS:
+                from operator import and_, or_, xor
+
+                fn = {"AND_INDEX": and_, "OR_INDEX": or_, "XOR_INDEX": xor}[op[:-3]]
+                if high_access:
+                    high[warp] = [
+                        fn(v, rhs) if active >> lane & 1 else v
+                        for lane, (v, rhs) in enumerate(
+                            zip(high[warp], loaded, strict=True)
+                        )
+                    ]
+                else:
+                    candidate = [
+                        fn(v, rhs) for v, rhs in zip(before, loaded, strict=True)
+                    ]
+            elif op == ADD_INDEX_LO:
                 sums = [
                     left + right for left, right in zip(before, loaded, strict=True)
                 ]
@@ -1829,12 +1886,16 @@ def load_tile_model(
     resident_compute: bool = False,
     resident_memory512: bool = False,
     resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ):
     if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        if resident_rom32 and layout != ROM32_LAYOUT:
+        if resident_alu32 and layout != ALU32_LAYOUT:
+            raise ValueError("expected a merged ALU32 checkpoint")
+        resident_alu32 = layout == ALU32_LAYOUT
+        if resident_rom32 and layout not in ROM32_LAYOUTS:
             raise ValueError("expected a merged ROM32 checkpoint")
-        resident_rom32 = layout == ROM32_LAYOUT
+        resident_rom32 = layout in ROM32_LAYOUTS
     if checkpoint is not None and resident_add32:
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
         resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
@@ -1875,6 +1936,7 @@ def load_tile_model(
             resident_compute=resident_compute,
             resident_memory512=resident_memory512,
             resident_rom32=resident_rom32,
+            resident_alu32=resident_alu32,
         )
     else:
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -1911,6 +1973,7 @@ def load_tile_model(
             resident_compute=resident_compute,
             resident_memory512=resident_memory512,
             resident_rom32=resident_rom32,
+            resident_alu32=resident_alu32,
         )
     return model.to(device).eval(), circuit
 
@@ -1944,6 +2007,7 @@ def main() -> None:
     variants.add_argument("--resident-compute", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     parser.add_argument(
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
@@ -1953,7 +2017,8 @@ def main() -> None:
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     meta = None
-    resident_rom32 = args.resident_rom32
+    resident_alu32 = args.resident_alu32
+    resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
     resident_globalgrid = args.resident_globalgrid or resident_compute
@@ -1998,7 +2063,8 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_rom32 = layout == ROM32_LAYOUT
+        resident_alu32 = layout == ALU32_LAYOUT
+        resident_rom32 = layout in ROM32_LAYOUTS
         resident_memory512 = layout in MEMORY512_LAYOUTS
         resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
         resident_globalgrid = layout in RESIDENT_GLOBALGRID_LAYOUTS
@@ -2068,6 +2134,8 @@ def main() -> None:
             raise ValueError("--resident-globalgrid requires a globalgrid checkpoint")
         if args.resident_compute and not resident_compute:
             raise ValueError("--resident-compute requires a compute checkpoint")
+        if args.resident_alu32 and not resident_alu32:
+            raise ValueError("--resident-alu32 requires an ALU32 checkpoint")
         if args.resident_rom32 and not resident_rom32:
             raise ValueError("--resident-rom32 requires a ROM32 checkpoint")
         if args.resident_memory512 and not resident_memory512:
@@ -2119,6 +2187,7 @@ def main() -> None:
                     resident_loop32=resident_loop32,
                     resident_memory512=resident_memory512,
                     resident_rom32=resident_rom32,
+                    resident_alu32=resident_alu32,
                 ),
             )
         )
@@ -2153,6 +2222,7 @@ def main() -> None:
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
+        resident_alu32=resident_alu32,
     )
     report = {
         "device": args.device,

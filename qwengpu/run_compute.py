@@ -10,12 +10,13 @@ from pathlib import Path
 import torch
 
 from qwengpu.assemble import assemble
+from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
 from qwengpu.compiled_tile8 import RESIDENT_COMPUTE_LAYOUT, TILEGRID_VOCAB
 from qwengpu.eval_globalgrid import launch
 from qwengpu.eval_tile import _unsigned
 from qwengpu.compiled_tile8 import ROM32_VOCAB
 from qwengpu.eval_tile8 import load_tile_model
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
 
 MASK32 = 0xFFFFFFFF
 GUARD = 0xD00D0000
@@ -257,6 +258,7 @@ def main() -> None:
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     parser.add_argument("--device", default="mps", choices=("mps", "cuda", "cpu"))
     parser.add_argument("--trace", action="store_true")
     parser.add_argument(
@@ -270,6 +272,7 @@ def main() -> None:
     memory512 = (
         args.resident_memory512
         or args.resident_rom32
+        or args.resident_alu32
         or (meta is not None and meta.get("layout") in MEMORY512_LAYOUTS)
     )
     try:
@@ -285,8 +288,10 @@ def main() -> None:
         not in (MEMORY512_LAYOUTS if memory512 else (RESIDENT_COMPUTE_LAYOUT,))
         or meta.get("chip_vocab")
         != (
-            ROM32_VOCAB
-            if meta.get("layout") == ROM32_LAYOUT
+            ALU_VOCAB
+            if meta.get("layout") == ALU32_LAYOUT
+            else ROM32_VOCAB
+            if meta.get("layout") in ROM32_LAYOUTS
             else WIDE_MEMORY.vocab
             if memory512
             else TILEGRID_VOCAB
@@ -299,6 +304,7 @@ def main() -> None:
         resident_compute=True,
         resident_memory512=memory512,
         resident_rom32=args.resident_rom32,
+        resident_alu32=args.resident_alu32,
     )
     result = execute_request(
         model,

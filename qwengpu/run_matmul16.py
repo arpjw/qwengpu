@@ -9,6 +9,7 @@ from pathlib import Path
 
 import torch
 
+from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     NEXT_BANK,
@@ -36,7 +37,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
 
 SIZE = 16
 TILE = 8
@@ -318,6 +319,7 @@ def main() -> None:
     )
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute",
@@ -371,7 +373,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_rom32 = args.resident_rom32
+    resident_alu32 = args.resident_alu32
+    resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
     resident_tilegrid = args.grid_2x2 or resident_compute
@@ -406,8 +409,10 @@ def main() -> None:
                 not in (RESIDENT_GRID_LAYOUT, *RESIDENT_ADD32_LAYOUTS)
                 or meta.get("chip_vocab")
                 != (
-                    ROM32_VOCAB
-                    if meta.get("layout") == ROM32_LAYOUT
+                    ALU_VOCAB
+                    if meta.get("layout") == ALU32_LAYOUT
+                    else ROM32_VOCAB
+                    if meta.get("layout") in ROM32_LAYOUTS
                     else WIDE_MEMORY.vocab
                     if meta.get("layout") in MEMORY512_LAYOUTS
                     else TILEGRID_VOCAB
@@ -429,7 +434,8 @@ def main() -> None:
                 RESIDENT_COMPUTE_LAYOUT,
                 *MEMORY512_LAYOUTS,
             )
-            resident_rom32 = meta["layout"] == ROM32_LAYOUT
+            resident_alu32 = meta["layout"] == ALU32_LAYOUT
+            resident_rom32 = meta["layout"] in ROM32_LAYOUTS
             resident_memory512 = meta["layout"] in MEMORY512_LAYOUTS
             resident_compute = meta["layout"] in (
                 RESIDENT_COMPUTE_LAYOUT,
@@ -453,6 +459,8 @@ def main() -> None:
                 raise ValueError("--resident-branch32 requires a branch32 checkpoint")
             if args.resident_loop32 and not resident_loop32:
                 raise ValueError("--resident-loop32 requires a loop32 checkpoint")
+            if args.resident_alu32 and not resident_alu32:
+                raise ValueError("--resident-alu32 requires an ALU32 checkpoint")
             if args.resident_rom32 and not resident_rom32:
                 raise ValueError("--resident-rom32 requires a ROM32 checkpoint")
             if args.resident_memory512 and not resident_memory512:
@@ -492,6 +500,7 @@ def main() -> None:
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
+        resident_alu32=resident_alu32,
     )
     standalone = (
         "standalone-resident-memory512"

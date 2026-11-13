@@ -9,6 +9,7 @@ from pathlib import Path
 
 import torch
 
+from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     RESIDENT_COMPUTE_LAYOUT,
@@ -38,7 +39,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
@@ -53,6 +54,7 @@ def main() -> int:
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument(
         "--resident-compute", action="store_true", help="use the common compute ISA"
     )
@@ -154,7 +156,8 @@ def main() -> int:
         parser.error("--max-steps must be positive")
 
     offset = 0
-    resident_rom32 = args.resident_rom32
+    resident_alu32 = args.resident_alu32
+    resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
     resident_compute = args.resident_compute or resident_memory512
     resident_globalgrid = args.resident_globalgrid or resident_compute
@@ -173,7 +176,9 @@ def main() -> int:
     resident_state = args.resident_state or resident_delta
     resident_rom = args.resident_rom or resident_state
     layout = (
-        "standalone-resident-rom32"
+        "standalone-resident-alu32"
+        if resident_alu32
+        else "standalone-resident-rom32"
         if resident_rom32
         else "standalone-resident-memory512"
         if resident_memory512
@@ -233,8 +238,10 @@ def main() -> int:
                 )
                 or meta.get("chip_vocab")
                 != (
-                    ROM32_VOCAB
-                    if meta.get("layout") == ROM32_LAYOUT
+                    ALU_VOCAB
+                    if meta.get("layout") == ALU32_LAYOUT
+                    else ROM32_VOCAB
+                    if meta.get("layout") in ROM32_LAYOUTS
                     else WIDE_MEMORY.vocab
                     if meta.get("layout") in MEMORY512_LAYOUTS
                     else TILEGRID_VOCAB
@@ -252,7 +259,8 @@ def main() -> int:
                 raise ValueError("expected a merged looping Qwen3.5-9B checkpoint")
             layout = meta["layout"]
             resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-            resident_rom32 = layout == ROM32_LAYOUT
+            resident_alu32 = layout == ALU32_LAYOUT
+            resident_rom32 = layout in ROM32_LAYOUTS
             resident_memory512 = layout in MEMORY512_LAYOUTS
             resident_compute = layout in (RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
             resident_globalgrid = layout in (
@@ -316,6 +324,8 @@ def main() -> int:
                 raise ValueError(
                     "--resident-globalgrid requires a globalgrid checkpoint"
                 )
+            if args.resident_alu32 and not resident_alu32:
+                raise ValueError("--resident-alu32 requires an ALU32 checkpoint")
             if args.resident_rom32 and not resident_rom32:
                 raise ValueError("--resident-rom32 requires a ROM32 checkpoint")
             if args.resident_memory512 and not resident_memory512:
@@ -339,6 +349,7 @@ def main() -> int:
             resident_compute=resident_compute,
             resident_memory512=resident_memory512,
             resident_rom32=resident_rom32,
+            resident_alu32=resident_alu32,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
@@ -374,6 +385,7 @@ def main() -> int:
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
+        resident_alu32=resident_alu32,
     )
     execution = (
         RESIDENT_TRANSPORTS[args.transport.replace("-", "_")]

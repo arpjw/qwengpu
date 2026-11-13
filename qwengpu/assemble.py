@@ -10,7 +10,11 @@ from qwengpu.eval_tile8 import parse_launch
 
 
 def assemble(
-    source: str, data: dict | None = None, *, resident_rom32: bool = False
+    source: str,
+    data: dict | None = None,
+    *,
+    resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ) -> dict:
     if data is not None and (not isinstance(data, dict) or "programs" in data):
         raise ValueError("launch data must be an object without a programs field")
@@ -49,6 +53,7 @@ def assemble(
         resident_memory512=isinstance(launch.get("global_words"), list)
         and len(launch["global_words"]) == 256,
         resident_rom32=resident_rom32,
+        resident_alu32=resident_alu32,
     )
     return launch
 
@@ -56,7 +61,9 @@ def assemble(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
-    parser.add_argument("--resident-rom32", action="store_true")
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     parser.add_argument(
         "--data", type=Path, help="optional JSON with initial launch data"
     )
@@ -74,6 +81,7 @@ def main() -> None:
             args.source.read_text(encoding="utf-8"),
             data,
             resident_rom32=args.resident_rom32,
+            resident_alu32=args.resident_alu32,
         )
         output = json.dumps(launch, indent=2) + "\n"
         if args.out:

@@ -6,6 +6,14 @@ from chipformer.dsl.graph import Expr
 from chipformer.q35.ir import Target
 from chipformer.q35.prims import Circ, from_bits
 
+from qwengpu.alu32 import (
+    ALU_OPS,
+    ALU_VOCAB,
+    LOGIC_OPS,
+    alu_token,
+    decode_alu_token,
+    lane_results,
+)
 from qwengpu.compiled_control import _stack
 from qwengpu.compiled_rom import CODE_AMP, KAPPA, _increment4
 from qwengpu.compiled_tile import (
@@ -125,7 +133,9 @@ SNAPSHOT_BITS = 132
 CHUNK_BITS = 120
 
 
-def rom_address(token: int, *, resident_rom32: bool) -> int | None:
+def rom_address(
+    token: int, *, resident_rom32: bool, resident_alu32: bool = False
+) -> int | None:
     if ROM <= token < C_MEMORY:
         return (token - ROM) // STRIDE
     if resident_rom32:
@@ -133,13 +143,17 @@ def rom_address(token: int, *, resident_rom32: bool) -> int | None:
             return 16 + (token - ROM32_UPPER) // STRIDE
         if ROM32_LOOP <= token < ROM32_VOCAB:
             return (token - ROM32_LOOP) // ROM32_LOOP_STRIDE
-    return None
+    decoded = decode_alu_token(token) if resident_alu32 else None
+    return decoded[0] if decoded is not None else None
 
 
 def program_tokens(
-    program: tuple[tuple[str, int], ...], *, resident_rom32: bool = False
+    program: tuple[tuple[str, int], ...],
+    *,
+    resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ) -> list[int]:
-    slots = 32 if resident_rom32 else 16
+    slots = 32 if resident_rom32 or resident_alu32 else 16
     if not 1 <= len(program) <= slots:
         raise ValueError(f"program must contain 1 through {slots} instructions")
     padded = program + (("HALT", 0),) * (slots - len(program))
@@ -212,7 +226,11 @@ def program_tokens(
 
     tokens = []
     for address, (op, arg) in enumerate(padded):
-        if op == "WHILE_BIT" and links[address] >= 16:
+        if op in ALU_OPS:
+            if not resident_alu32:
+                raise ValueError(f"{op} requires the ALU32 layout")
+            tokens.append(alu_token(address, op, arg))
+        elif op == "WHILE_BIT" and links[address] >= 16:
             tokens.append(
                 ROM32_LOOP
                 + address * ROM32_LOOP_STRIDE
@@ -241,7 +259,11 @@ def rom_payload(
     resident_compute: bool = False,
     resident_memory512: bool = False,
     resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ) -> int:
+    decoded = decode_alu_token(token) if resident_alu32 else None
+    if decoded is not None:
+        return decoded[1]
     if resident_rom32 and ROM32_LOOP <= token < ROM32_VOCAB:
         exit_pc, predicate = divmod((token - ROM32_LOOP) % ROM32_LOOP_STRIDE, 32)
         tag = 21 if predicate >= 16 else 14
@@ -357,7 +379,9 @@ def build(
     resident_compute: bool = False,
     resident_memory512: bool = False,
     resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ) -> Circ:
+    resident_rom32 = resident_rom32 or resident_alu32
     resident_memory512 = resident_memory512 or resident_rom32
     resident_compute = resident_compute or resident_memory512
     resident_globalgrid = resident_globalgrid or resident_compute
@@ -400,6 +424,7 @@ def build(
     c.resident_compute = resident_compute
     c.resident_memory512 = resident_memory512
     c.resident_rom32 = resident_rom32
+    c.resident_alu32 = resident_alu32
     c.memory_geometry = geometry
     one = c.one
 
@@ -669,14 +694,26 @@ def build(
     if resident_rom32:
         load_rom = c.token_feature(
             "rom.load",
-            lambda t: int(rom_address(t, resident_rom32=True) is not None),
+            lambda t: int(
+                rom_address(t, resident_rom32=True, resident_alu32=resident_alu32)
+                is not None
+            ),
             full=True,
         )
         address_bits = [
             c.token_feature(
                 f"rom.address.{bit}",
                 lambda t, bit=bit: (
-                    ((rom_address(t, resident_rom32=True) or 0) >> bit) & 1
+                    (
+                        (
+                            rom_address(
+                                t, resident_rom32=True, resident_alu32=resident_alu32
+                            )
+                            or 0
+                        )
+                        >> bit
+                    )
+                    & 1
                 ),
                 full=True,
             )
@@ -732,6 +769,7 @@ def build(
                         resident_compute=resident_compute,
                         resident_memory512=resident_memory512,
                         resident_rom32=resident_rom32,
+                        resident_alu32=resident_alu32,
                     )
                     >> bit
                 )
@@ -739,7 +777,7 @@ def build(
             ),
             full=True,
         )
-        for bit in range(8 + op_width + int(resident_rom32))
+        for bit in range(8 + op_width + int(resident_rom32) + int(resident_alu32))
     ]
     if resident_rom:
         bank0 = match("rom.bank.0", ROM_BANK)
@@ -777,10 +815,14 @@ def build(
         load_rom,
     )
     arg = payload[:8]
+    decode_groups = [(op_names, [one - payload[14]] if resident_alu32 else [])]
+    if resident_alu32:
+        decode_groups.append((ALU_OPS, [payload[14]]))
     ops = {
         op: c.and_(
             [
                 tick,
+                *group,
                 *[
                     payload[8 + bit] if tag >> bit & 1 else one - payload[8 + bit]
                     for bit in range(op_width)
@@ -788,7 +830,8 @@ def build(
             ],
             f"op.{op}",
         )
-        for tag, op in enumerate(op_names)
+        for names, group in decode_groups
+        for tag, op in enumerate(names)
     }
     k_hot = c.onehot_of_bits(arg[:3], "tile.k", 8)
     raw_nibble = {2 + bit: raw[bit] for bit in range(4)}
@@ -1213,6 +1256,9 @@ def build(
     if indexed:
         load_index = ops["LOAD_INDEX"] + load_high + add_low + add_high
         read_high = load_high + add_high
+        if resident_alu32:
+            load_index += sum((ops[op] for op in LOGIC_OPS), Expr())
+            read_high += sum((ops[op] for op in LOGIC_OPS[1::2]), Expr())
         pair_mask = (
             [
                 c.and_([add_low + add_high, bit], f"gather.mask.{i}")
@@ -1296,27 +1342,53 @@ def build(
                 if masked
                 else ops["SAVE_INDEX"]
             )
-            next_index.extend(
-                c.select_bits(
+            if resident_alu32:
+                add_index = c.and_([ops["ADDIDX"], active[lane]], f"index.add.{lane}")
+                width = geometry.index_bits
+                added_address = _word_from_columns(
+                    c,
+                    [lhs + rhs for lhs, rhs in zip(address, arg[:width], strict=True)],
+                    [2] * width,
+                    f"index.offset.{lane}",
+                )
+                index_result = c.select_bits(
                     [
-                        ([save_index], old[16 * lane : 16 * lane + 7]),
-                        ([one - save_index], address[:7]),
+                        ([save_index], old[16 * lane : 16 * lane + width]),
+                        ([add_index], added_address),
+                        ([one - save_index - add_index], address),
                     ],
-                    7,
+                    width,
                     f"index.next.{lane}",
                 )
-            )
-            if resident_memory512:
-                high = c.and_(
-                    [old[16 * lane + 7], generic], f"index.source_high.{lane}"
+                next_index.extend(index_result[:7])
+                next_index_high.append(
+                    c.and_([generic, index_result[7]], f"index.offset_high.{lane}")
                 )
-                next_index_high.extend(
+            else:
+                next_index.extend(
                     c.select_bits(
-                        [([save_index], [high]), ([one - save_index], [address[7]])],
-                        1,
-                        f"index.next_high.{lane}",
+                        [
+                            ([save_index], old[16 * lane : 16 * lane + 7]),
+                            ([one - save_index], address[:7]),
+                        ],
+                        7,
+                        f"index.next.{lane}",
                     )
                 )
+                if resident_memory512:
+                    high = c.and_(
+                        [old[16 * lane + 7], generic], f"index.source_high.{lane}"
+                    )
+                    next_index_high.extend(
+                        c.select_bits(
+                            [
+                                ([save_index], [high]),
+                                ([one - save_index], [address[7]]),
+                            ],
+                            1,
+                            f"index.next_high.{lane}",
+                        )
+                    )
             # STORE_INDEX retains the old address, so it can use the same snapshot.
             addr = from_bits(address)
             earlier = [
@@ -1389,7 +1461,19 @@ def build(
                     ([ops[op]], bits + [Expr()] * (32 - len(bits)))
                     for op, bits in zip(ID_OPS, id_bits, strict=True)
                 ]
-                + [([ops["SHL32I"]], shifted), ([ops["WARP_SUM"]], warp_sum)],
+                + [([ops["SHL32I"]], shifted), ([ops["WARP_SUM"]], warp_sum)]
+                + (
+                    lane_results(
+                        c,
+                        ops,
+                        arg,
+                        word,
+                        indexed_values[16 * lane : 16 * lane + 16],
+                        lane,
+                    )
+                    if resident_alu32
+                    else []
+                ),
                 32,
                 f"global.result.{lane}",
             )
@@ -1415,6 +1499,15 @@ def build(
     updated = []
     next_high = [] if resident_add32 else old_high
     add_immediate = ops["ADD16I"] + ops.get(ADD32I_OP, Expr())
+    if resident_alu32:
+        subtract = ops["SUB32I"]
+        arg_nonzero = c.node(c.t_ge(from_bits(arg), 1, 0, 255), "alu.sub.nonzero")
+        subtract_extend = c.and_([subtract, arg_nonzero], "alu.sub.extend")
+        add_immediate += subtract
+        alu_write = sum(
+            (ops[op] for op in ALU_OPS if op not in ("ADDIDX", "SUB32I")), Expr()
+        )
+        group_ops += alu_write
     for lane in range(8):
         columns = []
         limits = []
@@ -1436,6 +1529,8 @@ def build(
                 ]
             if bit < 8:
                 terms += c.t_and([add_immediate, arg[bit]])
+            if bit >= 8 and resident_alu32:
+                terms += c.t_and([subtract_extend])
             if resident_addmem32:
                 terms += c.t_and([add_low, gathered[bit]])
             columns.append(
@@ -1454,7 +1549,12 @@ def build(
                 ]
             word = _word_from_columns(
                 c,
-                columns + upper_columns,
+                columns
+                + (
+                    [v + subtract_extend for v in upper_columns]
+                    if resident_alu32
+                    else upper_columns
+                ),
                 limits + [1 + int(resident_addmem32)] * 16,
                 f"lane.{lane}.word",
             )
@@ -1462,6 +1562,7 @@ def build(
             enabled = c.and_(
                 [
                     ops[ADD32I_OP]
+                    + (subtract if resident_alu32 else Expr())
                     + add_low
                     + add_high
                     + ops.get("MATRIX_MAC8", Expr()),
@@ -1845,6 +1946,7 @@ def build_standalone(
     resident_compute: bool = False,
     resident_memory512: bool = False,
     resident_rom32: bool = False,
+    resident_alu32: bool = False,
 ):
     from chipformer.q35.tiny import build as build_qwen
 
@@ -1873,12 +1975,15 @@ def build_standalone(
         resident_compute=resident_compute,
         resident_memory512=resident_memory512,
         resident_rom32=resident_rom32,
+        resident_alu32=resident_alu32,
     )
     return build_qwen(
         circuit,
         list(
             range(
-                ROM32_VOCAB
+                ALU_VOCAB
+                if resident_alu32
+                else ROM32_VOCAB
                 if resident_rom32
                 else WIDE_MEMORY.vocab
                 if resident_memory512

@@ -11,9 +11,10 @@ import torch
 import transformers
 
 from qwengpu.eval_globalgrid import launch
+from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
 from qwengpu.compiled_tile8 import ROM32_VOCAB
 from qwengpu.eval_tile8 import load_tile_model
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
 from qwengpu.run_compute import execute_request, parse_request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,7 +24,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path)
     parser.add_argument("--device", default="mps")
-    parser.add_argument("--resident-rom32", action="store_true")
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     parser.add_argument("--raw", action="append")
     parser.add_argument("--case", action="append")
     parser.add_argument("--raw-only", action="store_true")
@@ -35,7 +38,13 @@ def main() -> None:
     if meta and (
         meta["layout"] not in MEMORY512_LAYOUTS
         or meta["chip_vocab"]
-        != (ROM32_VOCAB if meta["layout"] == ROM32_LAYOUT else WIDE_MEMORY.vocab)
+        != (
+            ALU_VOCAB
+            if meta["layout"] == ALU32_LAYOUT
+            else ROM32_VOCAB
+            if meta["layout"] in ROM32_LAYOUTS
+            else WIDE_MEMORY.vocab
+        )
     ):
         parser.error("expected a memory512 checkpoint")
     paths = sorted(
@@ -58,6 +67,7 @@ def main() -> None:
         args.device,
         resident_memory512=True,
         resident_rom32=args.resident_rom32,
+        resident_alu32=args.resident_alu32,
     )
     offset = meta["chip_token_offset"] if meta else 0
     raw = []

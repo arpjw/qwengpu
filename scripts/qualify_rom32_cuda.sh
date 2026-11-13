@@ -6,6 +6,7 @@ base="${1:?expected pinned base checkpoint directory}"
 model="${2:?expected new merged checkpoint directory}"
 reports="${3:?expected report directory}"
 source_commit="${4:?expected source commit}"
+variant="${5:---resident-rom32}"
 py="${QWENGPU_PYTHON:-python3}"
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 mkdir -p "$reports"
@@ -16,7 +17,7 @@ mkdir -p "$reports"
   "$py" -c 'import torch,transformers; print(torch.__version__, transformers.__version__)'
 } > "$reports/host.txt"
 
-"$py" -m qwengpu.merge9b "$base" --resident-rom32 --out "$model"
+"$py" -m qwengpu.merge9b "$base" "$variant" --out "$model"
 "$py" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
   --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
   --out "$reports/text.json"
@@ -31,6 +32,6 @@ PY
 "$py" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \
   --compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c \
   --base c202236235762e1c871ad0ccb60c8ee5ba337b9a \
-  --variant resident-rom32 --out "$reports/manifest.json"
-bash scripts/qualify_rom32.sh cuda "$reports" "$model"
+  --variant "${variant#--}" --out "$reports/manifest.json"
+bash scripts/qualify_rom32.sh cuda "$reports" "$model" "$variant"
 "$py" -m qwengpu.eval_memory512_handoff "$model" --device cuda --out "$reports/handoff.json"

@@ -11,6 +11,7 @@ import torch
 import transformers
 
 from qwengpu.assemble import assemble
+from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     C_MEMORY,
@@ -29,7 +30,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUT, WIDE_MEMORY
+from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
 
 FIXTURE = Path(__file__).resolve().parents[1] / "eval/frozen/globalgrid_v1/words.json"
 MASK32 = 0xFFFFFFFF
@@ -59,6 +60,7 @@ def launch(
         resident_compute=circuit.resident_compute,
         resident_memory512=circuit.resident_memory512,
         resident_rom32=circuit.resident_rom32,
+        resident_alu32=circuit.resident_alu32,
     )
     expected = oracle(case, 256, looping=True)
     first = cache is None
@@ -255,6 +257,7 @@ def main() -> None:
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument("--resident-rom32", action="store_true")
+    variants.add_argument("--resident-alu32", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--ids-only", action="store_true")
     parser.add_argument("--out", type=Path, required=True)
@@ -269,8 +272,10 @@ def main() -> None:
         not in (RESIDENT_GLOBALGRID_LAYOUT, RESIDENT_COMPUTE_LAYOUT, *MEMORY512_LAYOUTS)
         or meta.get("chip_vocab")
         != (
-            ROM32_VOCAB
-            if meta.get("layout") == ROM32_LAYOUT
+            ALU_VOCAB
+            if meta.get("layout") == ALU32_LAYOUT
+            else ROM32_VOCAB
+            if meta.get("layout") in ROM32_LAYOUTS
             else WIDE_MEMORY.vocab
             if meta.get("layout") in MEMORY512_LAYOUTS
             else TILEGRID_VOCAB
@@ -284,6 +289,7 @@ def main() -> None:
         resident_globalgrid=True,
         resident_memory512=args.resident_memory512,
         resident_rom32=args.resident_rom32,
+        resident_alu32=args.resident_alu32,
     )
     result = qualify(
         model,
