@@ -1921,3 +1921,17 @@ from checkpoint metadata.
 
 The lane mask governs all new writes. ALU and address instructions are
 available in both programmable global and legacy tiled launches.
+
+### Run general tiled uint32 matrix multiply
+
+Use the existing compiler environment. The 9×7 by 7×5 fixture exercises
+tails in all three dimensions and two panels for each of four output tiles.
+
+```bash
+python -m qwengpu.run_compute eval/frozen/tiled_compute_v1/9x7x5.json \
+  --resident-interleaved --device mps --trace --out tiled-mps.json
+python -m qwengpu.run_compute eval/frozen/tiled_compute_v1/9x7x5.json \
+  --model /path/to/Qwen3.5-9B-interleaved --device cuda --trace --out tiled-cuda.json
+python scripts/check_tiled_compute.py eval/frozen/tiled_compute_v1/9x7x5.json \
+  tiled-mps.json tiled-cuda.json
+```
