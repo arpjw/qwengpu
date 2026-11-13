@@ -1,0 +1,2 @@
+mps: arithmetic edge cases and all 256 address-walk words exact
+cuda: arithmetic edge cases and all 256 address-walk words exact
