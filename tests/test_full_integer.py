@@ -37,7 +37,7 @@ class FullIntegerTests(unittest.TestCase):
             raw = dict(workgroups=4, extent=extent, programs=programs, global_words=words)
             result = oracle(parse_launch(raw, full_integer=True), 256, looping=True)
             self.assertEqual(result["outcome"], "halted")
-            self.assertEqual(result["global_words"], list(range(extent)) + words[extent:])
+            self.assertEqual(result["shared_words"], list(range(extent)) + words[extent:])
         for extent in (-1, True, 65, None):
             with self.assertRaises(ValueError):
                 parse_launch({**raw, "extent": extent}, full_integer=True)
