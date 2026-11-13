@@ -1,0 +1,12 @@
+cuda: 44 steps, halted, four warp banks exact
+cuda: 39 steps, halted, four warp banks exact
+cuda: 14 steps, deadlock, four warp banks exact
+cuda: 48 indexed uint32 results and all 256 global words exact
+cuda: 256 instruction steps, 64 ROM entries per launch, exact control and data
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+cuda: 3x5x2, 1 tiles, 2 panels, 50 steps, all output and guard words exact
+cuda: 9x7x5, 4 tiles, 8 panels, 270 steps, all output and guard words exact
+cuda: fused_interleaved_publish, 125 to 89 calls
+cuda: fused_barrier_groups, 104 to 79 calls
+cuda: fused_deadlock, 39 to 29 calls
+Merged 9B text, 29 weight shard hashes, and native-text RAM handoff verified.
