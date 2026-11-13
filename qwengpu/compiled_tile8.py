@@ -1781,6 +1781,7 @@ def build(
             bits.extend(Expr() for _ in range(HIGH_NIBBLES))
     if resident_shared32:
         bits.append(store_high)
+    scoped_offset = len(bits)
     if resident_scoped:
         bits.extend([scoped_store, *scoped_addresses])
     c.snapshot_bits = len(bits)
@@ -1923,7 +1924,7 @@ def build(
                 if bit < 4:
                     low_value = saved[4 * nib + bit]
                     if resident_shared32:
-                        high = saved[-58] if resident_scoped else saved[-1]
+                        high = saved[scoped_offset - 1]
                         high_value = saved[WARP_DIRTY_OFFSET + 4 * nib + bit]
                         scatter_terms += c.t_and(
                             [*gate, one - high, low_value], 2 * KAPPA
@@ -1936,31 +1937,41 @@ def build(
                         scatter_terms += c.t_and(gate, 2 * KAPPA)
                 elif bit == 6 and resident_shared32:
                     if resident_scoped:
-                        local_store = saved[-57]
+                        local_store = saved[scoped_offset]
                         scatter_terms += c.t_and(
-                            [*gate, local_store, saved[-56 + 7 * lane]], 2 * KAPPA
+                            [*gate, local_store, saved[scoped_offset + 1 + 7 * lane]],
+                            2 * KAPPA,
                         )
                         gate = [*gate, one - local_store]
-                    high = saved[-58] if resident_scoped else saved[-1]
+                    high = saved[scoped_offset - 1]
                     scatter_terms += c.t_and([*gate, one - high, address[0]], 2 * KAPPA)
                     scatter_terms += c.t_and([*gate, high, one - address[0]], 2 * KAPPA)
                 elif bit < 12 or (resident_scoped and bit == 12):
                     if resident_scoped:
-                        local_store = saved[-57]
-                        physical_bit = saved[-56 + 7 * lane + bit - 6]
+                        local_store = saved[scoped_offset]
+                        physical_bit = saved[scoped_offset + 1 + 7 * lane + bit - 6]
                         scatter_terms += c.t_and(
                             [*gate, local_store, physical_bit], 2 * KAPPA
                         )
                         gate = [*gate, one - local_store]
                     if bit < 12:
                         scatter_terms += c.t_and([*gate, address[bit - 6]], 2 * KAPPA)
-                    elif resident_memory512:
+                    else:
+                        global_mode = saved[geometry.mode_offset]
                         scatter_terms += c.t_and(
-                            [*gate, saved[geometry.mode_offset], address[6]], 2 * KAPPA
+                            [*gate, global_mode, address[6]], 2 * KAPPA
                         )
+                        for base, bank in (
+                            (INDEX_OPERAND, one - address[6]),
+                            (C_MEMORY, address[6]),
+                        ):
+                            if base >> bit & 1:
+                                scatter_terms += c.t_and(
+                                    [*gate, one - global_mode, bank], 2 * KAPPA
+                                )
                 else:
                     if resident_scoped:
-                        local_store = saved[-57]
+                        local_store = saved[scoped_offset]
                         if SCOPED_BASE >> bit & 1:
                             scatter_terms += c.t_and([*gate, local_store], 2 * KAPPA)
                         gate = [*gate, one - local_store]
