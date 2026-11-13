@@ -387,8 +387,14 @@ The next architectural gates after the qualified 512-byte checkpoint are:
 | Less host involvement | Move tagged state and store writeback into recurrent model execution | Equivalent multi-instruction traces with measured reductions in forwarding and model calls |
 | Larger end-to-end workloads | Tile arbitrary supported matrix shapes over the general memory/launch interface | Non-square shapes, tail tiles, multiple K panels, and scalar comparisons across seeded inputs |
 
-These are remaining implementation gates. Passing the small common-kernel
-suite does not close them. Atomics, floating-point execution, graphics,
+The integrated integer layout now implements the first four gates and the
+larger matrix workload. The merged 9B records include the new arithmetic,
+runtime extents, independent workgroup barriers, scoped-memory isolation
+and reset, and two non-square matrix shapes with tail tiles. The latest
+cross-backend status is in VALIDATION.md. Its host transport coalesces
+reads with scheduling and skips unchanged control tokens. General cyclic
+register writeback remains open. The model-owned store experiment is
+tracked separately until its merged qualification passes. Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
 The capacity step is qualified in MEMORY512_DESIGN.md. NEXT_MEMORY_DESIGN.md
 retains its historical proposal and the original encoding hazards. Future
