@@ -1022,6 +1022,8 @@ def build(
             for i in range(13)
         ]
 
+    scoped_ports = {}
+
     def lookup(
         name: str,
         base: int,
@@ -1068,6 +1070,28 @@ def build(
                     )
                 keys[slot] = input_keys[start]
             ref = sum(keys.values(), Expr())
+        if internal_stores and name.startswith("shared."):
+            nib = addresses[0] % 4
+            if nib not in scoped_ports:
+                port = f"scoped.write.{nib}"
+                upload = c.and_([ref], f"{port}.upload")
+                enabled = c.and_([write_grant, write_scoped], f"{port}.commit")
+                selector = c.select_bits(
+                    [([upload], legacy_digits), ([enabled], [nib & 1, nib >> 1, *scoped_write_address[2:]])],
+                    len(legacy_digits), f"{port}.address",
+                )
+                data = {
+                    col: c.and_([upload, value], f"{port}.upload_bit.{bit}")
+                    + write_value[4 * nib + bit]
+                    for bit, (col, value) in enumerate(raw_nibble.items())
+                }
+                scoped_ports[nib] = selector, upload + enabled, data
+            selector, enabled, data = scoped_ports[nib]
+            keys = {
+                slot: key_matches(c, selector, base // 16 + address, enabled)
+                for slot, address in enumerate(addresses)
+            }
+            return c.slot_head(name, keys, dict(enumerate(selects)), data, enabled)
         data = raw_nibble
         if reset:
             keys = {slot: key + warp_resets[slot] for slot, key in keys.items()}
@@ -1078,7 +1102,8 @@ def build(
                 }
         return c.slot_head(name, keys, dict(enumerate(selects)), data, ref)
 
-    write_grant, write_address, write_value = Expr(), [], []
+    write_grant, write_scoped, write_address, write_value = Expr(), Expr(), [], []
+    scoped_write_address = []
     if resident_memory512:
         ram_word_bits = [
             c.token_feature(
@@ -1143,7 +1168,7 @@ def build(
                 if (bank, nib) not in write_ports:
                     port = f"ram.write.{bank}.{nib}"
                     enabled = c.and_(
-                        [write_grant, write_address[7] if bank else one - write_address[7]],
+                        [write_grant, one - write_scoped, write_address[7] if bank else one - write_address[7]],
                         f"{port}.commit",
                     )
                     upload_enabled = c.and_(
@@ -1671,7 +1696,7 @@ def build(
                 )
             if internal_stores:
                 gather_addresses.append(gather_address)
-                store_addresses.append(address)
+                store_addresses.append(physical)
             else:
                 build_gather(lane, gather_address)
             save_index = (
@@ -1766,7 +1791,7 @@ def build(
                     16, f"ram.commit.source.{lane}",
                 )
                 gate = c.and_(
-                    [grants[lane], generic, one - scoped_store],
+                    [grants[lane], generic],
                     f"ram.commit.grant.{lane}",
                 )
                 addr = store_addresses[lane]
@@ -1774,19 +1799,34 @@ def build(
                     c.t_and([addr[0], one - store_high]) + c.t_and([one - addr[0], store_high]),
                     f"ram.commit.low_bit.{lane}",
                 )
-                values = [gate, bit0, *addr[1:], *old_value]
+                values = [gate, scoped_store, bit0, *addr[1:], *old_value]
                 selected = c.slot_head(
                     f"ram.commit.pending.{lane}", {0: tick}, {0: commit[lane]},
                     {2 + bit: value for bit, value in enumerate(values)}, tick,
                 )
                 write_grant += selected[0]
+                write_scoped += selected[1]
                 if not write_address:
                     write_address = [Expr() for _ in range(8)]
                     write_value = [Expr() for _ in range(16)]
-                for i, bit in enumerate(selected[1:9]):
+                for i, bit in enumerate(selected[2:10]):
                     write_address[i] += bit
-                for i, bit in enumerate(selected[9:]):
+                for i, bit in enumerate(selected[10:]):
                     write_value[i] += bit
+            # The scoped namespace aliases existing shared ports. Build the
+            # canonical address from the saved local word and commit nibble.
+            scoped_write_address = c.select_bits(
+                [
+                    ([one - write_address[6]], [
+                        (INDEX_OPERAND // 16 >> bit) & 1 for bit in range(13)
+                    ]),
+                    ([write_address[6]], [
+                        (C_MEMORY // 16 >> bit) & 1 for bit in range(13)
+                    ]),
+                ],
+                13, "scoped.write.base",
+            )
+            scoped_write_address[2:8] = write_address[:6]
             for lane, gather_address in enumerate(gather_addresses):
                 build_gather(lane, gather_address)
 

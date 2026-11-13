@@ -849,7 +849,7 @@ def execute(
     }
 
     if internal_stores:
-        transport.update(internal_store_words=0, internal_store_commands=0, internal_store_read_tags=0)
+        transport.update(internal_store_words=0, internal_store_commands=0, internal_store_read_tags=0, internal_scoped_words=0)
 
     if refresh:
         transport["global_refresh_tokens"] = len(refresh)
@@ -1222,9 +1222,12 @@ def execute(
             relayed = []
             for lane in range(COMMIT_COUNT):
                 patch_words = patch[4 * lane : 4 * (lane + 1)]
-                if all(geometry.base <= token < geometry.vocab for token in patch_words):
+                global_write = all(geometry.base <= token < geometry.vocab for token in patch_words)
+                local_write = scoped and all(SCOPED_BASE <= token < SCOPED_END for token in patch_words)
+                if global_write or local_write:
                     commits.append(COMMIT_BASE + lane)
                     transport["internal_store_read_tags"] += len(patch_words)
+                    transport["internal_scoped_words"] += int(local_write)
                 else:
                     relayed.extend(token for token in patch_words if token != NO_WRITE)
             transport["internal_store_words"] += len(commits)
@@ -1245,7 +1248,7 @@ def execute(
                 ram_tokens[(token - geometry.base) // 16] = token
             elif scoped and SCOPED_BASE <= token < SCOPED_END:
                 scoped_tokens[(token - SCOPED_BASE) // 16] = token
-                transport["scoped_patch_tokens"] += 1
+                transport["scoped_patch_tokens"] += int(not internal_stores)
             elif output_base <= token < output_base + 4096:
                 output_memories[output_index][(token - output_base) // 16] = token
             elif indexed and INDEX_OPERAND <= token < INDEX_OPERAND + 4096:
