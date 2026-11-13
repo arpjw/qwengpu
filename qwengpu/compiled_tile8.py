@@ -2461,7 +2461,7 @@ def build_standalone(
         build_qwen = types.FunctionType(
             tiny.build.__code__,
             {**tiny.build.__globals__, "BASE": {**tiny.BASE, "intermediate_size": 5120}},
-            defaults=tiny.build.__defaults__,
+            argdefs=tiny.build.__defaults__,
         )
     return build_qwen(
         circuit,
