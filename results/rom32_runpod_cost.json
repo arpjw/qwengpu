@@ -1,0 +1,19 @@
+{
+  "project_cap_usd": 74,
+  "pod_id": "8rdef678p99dc9",
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "hourly_compute_usd": 2.19,
+  "started_utc": "2026-11-13T20:42:10.228000+00:00",
+  "termination_verified_by_utc": "2026-11-13T21:27:28+00:00",
+  "delete_http_status": 204,
+  "verification_http_status": 404,
+  "runtime_upper_bound_seconds": 2717.772,
+  "compute_estimate_upper_bound_usd": 1.6533112999999997,
+  "pod_posted_usd": 0,
+  "pod_reserved_usd": 1.85,
+  "project_posted_usd": 29.47770391893573,
+  "prior_project_tracked_usd": 29.682112397858873,
+  "project_tracked_usd": 31.532112397858874,
+  "remaining_project_cap_usd": 42.467887602141126,
+  "account_balance_verified": false
+}

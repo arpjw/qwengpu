@@ -1,0 +1,4 @@
+cuda: 256 instruction steps, 64 ROM entries per launch, exact control and data
+31 kernel requests and seven raw probes: independent outputs and all 256 guard words exact
+Inherited 27 traces, 31 common kernels, seven raw probes and all eight matrix traces match
+CUDA merge: 26 shard hashes, 24/24 first tokens, 21/24 continuations, 8,192 retained RAM nibbles

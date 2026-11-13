@@ -302,3 +302,14 @@ cache handoffs, and repaired transport benchmark. All reports, config,
 weight index, shard hashes, commands, and pinned rebuild instructions
 were copied before termination. RunPod returned HTTP 204 and a fresh list
 confirmed this task pod was gone. See `results/compute_runpod_cost.json`.
+
+## 32-slot resident ROM qualification
+
+One A100 SXM 80 GB pod at $2.19/hour ran the 9B merge, native-text gate,
+two long programs, 31 compute requests, seven raw memory probes, all 27
+inherited traces, the tiled 16×16 kernel, and the native-text RAM handoff.
+The run finished in under 46 minutes. Estimated compute was $1.65.
+No charge had posted for this pod at teardown. The $1.85 reserve includes
+storage and rounding. RunPod returned HTTP 204 on deletion and HTTP 404
+on the subsequent lookup. The project retains $42.47 of authorized
+headroom with all reserves applied. See `results/rom32_runpod_cost.json`.
