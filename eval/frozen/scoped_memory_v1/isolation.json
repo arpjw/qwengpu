@@ -414,13 +414,8 @@
         "op": "BARRIER"
       },
       {
-        "op": "LOAD_PRIVATE"
-      },
-      {
-        "op": "GLOBAL_ID"
-      },
-      {
-        "op": "SAVE_INDEX"
+        "op": "ADDIDX",
+        "arg": -120
       },
       {
         "op": "LOAD_PRIVATE"
@@ -457,33 +452,21 @@
         "op": "LOAD_SHARED"
       },
       {
-        "op": "GLOBAL_ID"
+        "op": "ADDIDX",
+        "arg": -96
       },
       {
-        "op": "SAVE_INDEX"
+        "op": "STORE_INDEX"
       },
       {
         "op": "ADDIDX",
-        "arg": 64
+        "arg": -64
       },
       {
         "op": "LOAD_PRIVATE"
       },
       {
         "op": "STORE_INDEX"
-      },
-      {
-        "op": "WORKGROUP_ID"
-      },
-      {
-        "op": "ADD32I",
-        "arg": 8
-      },
-      {
-        "op": "SAVE_INDEX"
-      },
-      {
-        "op": "LOAD_SHARED"
       },
       {
         "op": "HALT"
