@@ -362,9 +362,6 @@ def main() -> None:
         request = parse_request(json.loads(payload), memory512=memory512)
     except (OSError, ValueError, TypeError) as exc:
         parser.error(str(exc))
-    meta = (
-        json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
-    )
     if meta is not None and (
         meta.get("layout")
         not in (MEMORY512_LAYOUTS if memory512 else (RESIDENT_COMPUTE_LAYOUT,))
