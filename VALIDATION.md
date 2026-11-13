@@ -1694,7 +1694,9 @@ The expanded-memory suite compares all 31 common kernels and seven raw
 memory probes across both backends. The 27 inherited control traces,
 including the deliberate deadlock and step-limit runs, match the
 qualified 16-slot checkpoint after accounting for 32 additional ROM
-upload tokens per launch.
+upload tokens per launch. The one-cache 16×16 multiply also matches
+on both backends. All eight tile traces and both assembled intermediate
+and final matrices agree with the previous checkpoint and scalar products.
 
 The merged artifact retains hidden width 7,424 and 35 processor layers,
 using 3,268 live slots. The manifest hashes all 26 weight shards.

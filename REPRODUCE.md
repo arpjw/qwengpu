@@ -1845,7 +1845,7 @@ model weights or paid compute:
 "$QWENGPU_PYTHON" scripts/check_head_lookup_cache.py --out /tmp/head-lookup.json
 ```
 
-## Run the 32-slot ROM candidate
+## Run the 32-slot ROM layout
 
 This variant keeps 512 bytes of programmable global memory and permits
 up to 32 instructions, including the final `HALT`, in each warp program.

@@ -38,6 +38,13 @@ runner accumulates in uint32. These finite tests establish supported
 behavior within those bounds; they do not establish arbitrary-program
 correctness or useful acceleration.
 
+The qualified ROM32 variant raises the limit to 32 instructions per warp
+while retaining 512 bytes of programmable global memory. Both backends
+match the reference on long loop, barrier, and workgroup-reset programs,
+as well as the 31 common kernels, seven raw memory probes, 27 inherited
+traces, and the tiled 16×16 multiply. See the
+[ROM32 commands](REPRODUCE.md#run-the-32-slot-rom-layout).
+
 ## Original SIMT variant
 
 The repository contains an independent eight-lane reference machine.
