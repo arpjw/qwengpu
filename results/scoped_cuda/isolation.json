@@ -1,6 +1,6 @@
 {
   "format": "qwengpu-resident-launch-v1",
-  "checkpoint": "standalone-resident-scoped",
+  "checkpoint": "qwengpu-resident-scoped-9b-v1",
   "device": "cuda",
   "kernel_sha256": "4bdedf061ede36810b4c4244f04ea9457d0920785bac5d5e5637835ccc670a8a",
   "max_steps": 256,
