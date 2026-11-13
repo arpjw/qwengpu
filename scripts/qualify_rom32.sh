@@ -16,7 +16,10 @@ else
   inherited=()
 fi
 
-if [[ "$variant" == "--resident-alu32" ]]; then
+if [[ "$variant" == "--resident-scoped" ]]; then
+  "$py" -m qwengpu.run_resident eval/frozen/scoped_memory_v1/isolation.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/isolation.json"
+fi
+if [[ "$variant" == "--resident-alu32" || "$variant" == "--resident-scoped" ]]; then
   for fixture in integer_edges address_walk; do
     "$py" -m qwengpu.run_resident "eval/frozen/resident_alu32_v1/$fixture.json"       "${raw[@]}" --device "$device" --check-reference --trace --out "$out/$fixture.json"
   done

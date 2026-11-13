@@ -10,7 +10,7 @@ from pathlib import Path
 import torch
 import transformers
 
-from qwengpu.alu32 import ALU32_LAYOUT, ALU_VOCAB
+from qwengpu.alu32 import ALU_VOCAB
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     C_MEMORY,
@@ -31,7 +31,12 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
-from qwengpu.memory_geometry import MEMORY512_LAYOUTS, ROM32_LAYOUTS, WIDE_MEMORY
+from qwengpu.memory_geometry import (
+    ALU32_LAYOUTS,
+    MEMORY512_LAYOUTS,
+    ROM32_LAYOUTS,
+    WIDE_MEMORY,
+)
 from qwengpu.run_matmul16 import TILE, _tile, _trace_digest, parse_inputs
 
 
@@ -284,7 +289,7 @@ def main() -> None:
         or meta.get("chip_vocab")
         != (
             ALU_VOCAB
-            if meta.get("layout") == ALU32_LAYOUT
+            if meta.get("layout") in ALU32_LAYOUTS
             else ROM32_VOCAB
             if meta.get("layout") in ROM32_LAYOUTS
             else WIDE_MEMORY.vocab

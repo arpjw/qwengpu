@@ -15,6 +15,7 @@ def assemble(
     *,
     resident_rom32: bool = False,
     resident_alu32: bool = False,
+    resident_scoped: bool = False,
 ) -> dict:
     if data is not None and (not isinstance(data, dict) or "programs" in data):
         raise ValueError("launch data must be an object without a programs field")
@@ -54,6 +55,7 @@ def assemble(
         and len(launch["global_words"]) == 256,
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
+        resident_scoped=resident_scoped,
     )
     return launch
 
@@ -64,6 +66,7 @@ def main() -> None:
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
+    variants.add_argument("--resident-scoped", action="store_true")
     parser.add_argument(
         "--data", type=Path, help="optional JSON with initial launch data"
     )
@@ -82,6 +85,7 @@ def main() -> None:
             data,
             resident_rom32=args.resident_rom32,
             resident_alu32=args.resident_alu32,
+            resident_scoped=args.resident_scoped,
         )
         output = json.dumps(launch, indent=2) + "\n"
         if args.out:
