@@ -16,20 +16,28 @@ else
   inherited=()
 fi
 
-if [[ "$variant" == "--resident-interleaved" ]]; then
+if [[ "$variant" == "--resident-interleaved" || "$variant" == "--full-integer" ]]; then
   "$py" -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/interleaved_publish.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/interleaved_publish.json"
   "$py" -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/barrier_groups.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/interleaved_barrier_groups.json"
   rc=0
   "$py" -m qwengpu.run_resident eval/frozen/resident_interleaved_v1/deadlock.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/interleaved_deadlock.json" || rc=$?
   [[ "$rc" == 3 ]]
 fi
-if [[ "$variant" == "--resident-scoped" || "$variant" == "--resident-interleaved" ]]; then
+if [[ "$variant" == "--resident-scoped" || "$variant" == "--resident-interleaved" || "$variant" == "--full-integer" ]]; then
   "$py" -m qwengpu.run_resident eval/frozen/scoped_memory_v1/isolation.json     "${raw[@]}" --device "$device" --check-reference --trace --out "$out/isolation.json"
 fi
-if [[ "$variant" == "--resident-alu32" || "$variant" == "--resident-scoped" || "$variant" == "--resident-interleaved" ]]; then
+if [[ "$variant" == "--resident-alu32" || "$variant" == "--resident-scoped" || "$variant" == "--resident-interleaved" || "$variant" == "--full-integer" ]]; then
   for fixture in integer_edges address_walk; do
     "$py" -m qwengpu.run_resident "eval/frozen/resident_alu32_v1/$fixture.json"       "${raw[@]}" --device "$device" --check-reference --trace --out "$out/$fixture.json"
   done
+fi
+
+if [[ "$variant" == "--full-integer" ]]; then
+  "$py" -m qwengpu.run_resident eval/frozen/full_integer_v1/indexed_words.json \
+    "${raw[@]}" --device "$device" --check-reference --trace --out "$out/indexed_words.json"
+  runtime_args=()
+  [[ -z "$model" ]] || runtime_args=(--model "$model")
+  "$py" scripts/eval_runtime_extent.py "${runtime_args[@]}" --device "$device" --out "$out/runtime_extent.json"
 fi
 
 for fixture in loops_and_barrier workgroup_reset; do
