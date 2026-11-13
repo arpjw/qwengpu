@@ -9,9 +9,7 @@ from pathlib import Path
 
 import torch
 
-from qwengpu.alu32 import ALU_VOCAB, FULL_INTEGER_LAYOUT
-from qwengpu.scoped_memory import SCOPED_LAYOUT
-from qwengpu.resident_scheduler import RESIDENT_LAYOUT
+from qwengpu.alu32 import ALU_VOCAB
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     NEXT_BANK,
@@ -40,6 +38,9 @@ from qwengpu.eval_tile8 import (
     parse_launch,
 )
 from qwengpu.memory_geometry import (
+    FULL_INTEGER_LAYOUTS,
+    INTERLEAVED_LAYOUTS,
+    SCOPED_LAYOUTS,
     ALU32_LAYOUTS,
     MEMORY512_LAYOUTS,
     ROM32_LAYOUTS,
@@ -447,9 +448,9 @@ def main() -> None:
                 RESIDENT_COMPUTE_LAYOUT,
                 *MEMORY512_LAYOUTS,
             )
-            full_integer = meta["layout"] == FULL_INTEGER_LAYOUT
-            resident_interleaved = meta["layout"] in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
-            resident_scoped = meta["layout"] in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+            full_integer = meta["layout"] in FULL_INTEGER_LAYOUTS
+            resident_interleaved = meta["layout"] in INTERLEAVED_LAYOUTS
+            resident_scoped = meta["layout"] in SCOPED_LAYOUTS
             resident_alu32 = meta["layout"] in ALU32_LAYOUTS
             resident_rom32 = meta["layout"] in ROM32_LAYOUTS
             resident_memory512 = meta["layout"] in MEMORY512_LAYOUTS

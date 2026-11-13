@@ -30,8 +30,9 @@ def main() -> None:
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
     variants.add_argument("--full-integer", action="store_true")
+    variants.add_argument("--internal-stores", action="store_true")
     args = parser.parse_args()
-    args.resident_alu32 |= args.resident_scoped or args.resident_interleaved or args.full_integer
+    args.resident_alu32 |= args.resident_scoped or args.resident_interleaved or args.full_integer or args.internal_stores
     legacy = None
     if args.legacy_ref:
         old = types.ModuleType("previous_tile8")
@@ -99,6 +100,7 @@ def main() -> None:
         resident_scoped=args.resident_scoped,
         resident_interleaved=args.resident_interleaved,
         full_integer=args.full_integer,
+        internal_stores=args.internal_stores,
     )
     marker = circuit.token_feature("simt.marker", lambda _t: 0, full=True)
     circuit.ffn(

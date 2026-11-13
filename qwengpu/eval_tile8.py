@@ -13,9 +13,9 @@ import transformers
 from chipformer.q35.ir import Target
 from transformers.cache_utils import Cache
 
-from qwengpu.model_stores import COMMIT_BASE
+from qwengpu.model_stores import COMMIT_BASE, INTERNAL_STORES_LAYOUT
 from qwengpu.alu32 import (
-    ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_LAYOUT, FULL_INTEGER_OPS,
+    ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_OPS,
     LOGIC_OPS, RUNTIME_EXTENT_BASE, RUNTIME_EXTENT_MAX, RUNTIME_EXTENT_OP, WIDE_INDEX_OPS,
 )
 from qwengpu.compiled_tile import (
@@ -111,6 +111,9 @@ from qwengpu.eval_control import hex_bits, snapshot
 from qwengpu.eval_tile import _check_control as check_legacy_control
 from qwengpu.eval_tile import _unsigned
 from qwengpu.memory_geometry import (
+    FULL_INTEGER_LAYOUTS,
+    INTERLEAVED_LAYOUTS,
+    SCOPED_LAYOUTS,
     LEGACY_MEMORY,
     ALU32_LAYOUTS,
     MEMORY512_LAYOUTS,
@@ -122,7 +125,6 @@ from qwengpu.resident_scheduler import (
     EXTRA_WARP_BANKS,
     RESIDENT_DISABLE,
     RESIDENT_ENABLE,
-    RESIDENT_LAYOUT,
     RESIDENT_READY,
     RESIDENT_TICKET,
     reference_dispatch,
@@ -131,7 +133,6 @@ from qwengpu.resident_scheduler import (
 from qwengpu.scoped_memory import (
     SCOPED_BASE,
     SCOPED_END,
-    SCOPED_LAYOUT,
     SCOPED_LOADS,
     SCOPED_OPS,
     SCOPED_STORES,
@@ -2176,15 +2177,18 @@ def load_tile_model(
     full_integer = full_integer or internal_stores
     if checkpoint is not None:
         layout = json.loads((checkpoint / "qwengpu9b.json").read_text())["layout"]
-        if full_integer and layout != FULL_INTEGER_LAYOUT:
+        if full_integer and layout not in FULL_INTEGER_LAYOUTS:
             raise ValueError("expected a full integer checkpoint")
-        full_integer = layout == FULL_INTEGER_LAYOUT
-        if resident_interleaved and layout not in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT):
+        full_integer = layout in FULL_INTEGER_LAYOUTS
+        if internal_stores and layout != INTERNAL_STORES_LAYOUT:
+            raise ValueError("expected a model-owned stores checkpoint")
+        internal_stores = layout == INTERNAL_STORES_LAYOUT
+        if resident_interleaved and layout not in INTERLEAVED_LAYOUTS:
             raise ValueError("expected an interleaved checkpoint")
-        resident_interleaved = layout in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
-        if resident_scoped and layout not in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT):
+        resident_interleaved = layout in INTERLEAVED_LAYOUTS
+        if resident_scoped and layout not in SCOPED_LAYOUTS:
             raise ValueError("expected a merged scoped-memory checkpoint")
-        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+        resident_scoped = layout in SCOPED_LAYOUTS
         if resident_alu32 and layout not in ALU32_LAYOUTS:
             raise ValueError("expected a merged ALU32 checkpoint")
         resident_alu32 = layout in ALU32_LAYOUTS
@@ -2372,9 +2376,9 @@ def main() -> None:
         ):
             raise ValueError("not an 8x8 tile checkpoint")
         resident_tilepipe = layout in RESIDENT_TILEPIPE_LAYOUTS
-        resident_interleaved = layout in (RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
-        full_integer = layout == FULL_INTEGER_LAYOUT
-        resident_scoped = layout in (SCOPED_LAYOUT, RESIDENT_LAYOUT, FULL_INTEGER_LAYOUT)
+        resident_interleaved = layout in INTERLEAVED_LAYOUTS
+        full_integer = layout in FULL_INTEGER_LAYOUTS
+        resident_scoped = layout in SCOPED_LAYOUTS
         resident_alu32 = layout in ALU32_LAYOUTS
         resident_rom32 = layout in ROM32_LAYOUTS
         resident_memory512 = layout in MEMORY512_LAYOUTS

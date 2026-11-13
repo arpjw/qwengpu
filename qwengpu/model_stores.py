@@ -4,6 +4,7 @@ from chipformer.dsl.graph import Expr
 
 COMMIT_BASE = 2688
 COMMIT_COUNT = 8
+INTERNAL_STORES_LAYOUT = "qwengpu-resident-model-stores-9b-v1"
 
 
 def key_matches(c, bits, base, enabled):
