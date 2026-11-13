@@ -33,6 +33,7 @@ def main() -> None:
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
+    variants.add_argument("--resident-interleaved", action="store_true")
     parser.add_argument("--raw", action="append")
     parser.add_argument("--case", action="append")
     parser.add_argument("--raw-only", action="store_true")
@@ -75,6 +76,7 @@ def main() -> None:
         resident_rom32=args.resident_rom32,
         resident_alu32=args.resident_alu32,
         resident_scoped=args.resident_scoped,
+        resident_interleaved=args.resident_interleaved,
     )
     offset = meta["chip_token_offset"] if meta else 0
     raw = []

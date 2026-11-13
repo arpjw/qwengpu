@@ -11,6 +11,7 @@ import torch
 
 from qwengpu.alu32 import ALU_VOCAB
 from qwengpu.scoped_memory import SCOPED_LAYOUT
+from qwengpu.resident_scheduler import RESIDENT_LAYOUT
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     NEXT_BANK,
@@ -327,6 +328,7 @@ def main() -> None:
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
+    variants.add_argument("--resident-interleaved", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute",
@@ -380,7 +382,8 @@ def main() -> None:
 
     meta = None
     offset = 0
-    resident_scoped = args.resident_scoped
+    resident_interleaved = args.resident_interleaved
+    resident_scoped = args.resident_scoped or resident_interleaved
     resident_alu32 = args.resident_alu32 or resident_scoped
     resident_rom32 = args.resident_rom32 or resident_alu32
     resident_memory512 = args.resident_memory512 or resident_rom32
@@ -442,7 +445,8 @@ def main() -> None:
                 RESIDENT_COMPUTE_LAYOUT,
                 *MEMORY512_LAYOUTS,
             )
-            resident_scoped = meta["layout"] == SCOPED_LAYOUT
+            resident_interleaved = meta["layout"] == RESIDENT_LAYOUT
+            resident_scoped = meta["layout"] in (SCOPED_LAYOUT, RESIDENT_LAYOUT)
             resident_alu32 = meta["layout"] in ALU32_LAYOUTS
             resident_rom32 = meta["layout"] in ROM32_LAYOUTS
             resident_memory512 = meta["layout"] in MEMORY512_LAYOUTS
@@ -511,6 +515,7 @@ def main() -> None:
         resident_rom32=resident_rom32,
         resident_alu32=resident_alu32,
         resident_scoped=resident_scoped,
+        resident_interleaved=resident_interleaved,
     )
     standalone = (
         "standalone-resident-memory512"

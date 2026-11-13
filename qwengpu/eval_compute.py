@@ -35,6 +35,7 @@ def main() -> None:
     variants.add_argument("--resident-rom32", action="store_true")
     variants.add_argument("--resident-alu32", action="store_true")
     variants.add_argument("--resident-scoped", action="store_true")
+    variants.add_argument("--resident-interleaved", action="store_true")
     parser.add_argument("--device", default="mps")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -55,6 +56,7 @@ def main() -> None:
         or args.resident_rom32
         or args.resident_alu32
         or args.resident_scoped
+        or args.resident_interleaved
         or (meta is not None and meta.get("layout") in MEMORY512_LAYOUTS)
     )
     requests = [
@@ -83,6 +85,7 @@ def main() -> None:
         resident_rom32=args.resident_rom32,
         resident_alu32=args.resident_alu32,
         resident_scoped=args.resident_scoped,
+        resident_interleaved=args.resident_interleaved,
     )
     records = []
     for name, request in requests:
