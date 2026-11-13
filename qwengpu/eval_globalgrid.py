@@ -12,6 +12,7 @@ import transformers
 
 from qwengpu.assemble import assemble
 from qwengpu.alu32 import ALU_VOCAB
+from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_END
 from qwengpu.compiled_tile8 import (
     ROM32_VOCAB,
     C_MEMORY,
@@ -71,6 +72,7 @@ def launch(
     expected = oracle(case, 256, looping=True)
     first = cache is None
     audit = []
+    scoped = "scoped_words" in case
 
     def observe(_model, _args, kwargs, result) -> None:
         nonlocal cache
@@ -92,6 +94,15 @@ def launch(
                         < circuit.memory_geometry.vocab
                     )
                     for token in tokens
+                ),
+                **(
+                    {
+                        "scoped": sum(
+                            SCOPED_BASE <= token < SCOPED_END for token in tokens
+                        )
+                    }
+                    if scoped
+                    else {}
                 ),
                 "transitions": [
                     token for token in tokens if token in WORKGROUP_TICKETS
@@ -128,6 +139,15 @@ def launch(
                 )
                 raise ValueError(f"globalgrid trace differs from reference: {mismatch}")
             raise ValueError(f"globalgrid {key} differs from reference")
+    if scoped:
+        transport = actual["transport"]
+        if (
+            not transport["resident_scoped_exact"]
+            or audit[0]["scoped"] != transport["scoped_initial_tokens"]
+            or sum(call["scoped"] for call in audit)
+            != transport["scoped_initial_tokens"] + transport["scoped_patch_tokens"]
+        ):
+            raise ValueError("scoped cache, initialization, or write audit failed")
     groups = case["workgroups"]
     transport = actual["transport"]
     if (
