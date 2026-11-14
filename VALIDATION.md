@@ -431,6 +431,16 @@ python -m qwengpu.eval_resident_generation --model "$v4_model" \
   --out isolation-fixed-merged.json eval/frozen/scoped_memory_v1/isolation.json
 ```
 
+The rebuilt merge has also passed all 27 inherited tile fixtures on CUDA:
+1,972 instructions and 26,225 generated tokens, with exact final memory.
+All four interleaved and four sequential workgroup fixtures pass on the
+standalone CUDA circuit and merged 9B. Native text remains at 24 of 24 first
+tokens and 21 of 24 greedy continuations, with no GPU token IDs. The
+existing reference and baseline checkers passed on the saved reports in
+[the v4 result directory](results/resident_generation_v4_cuda/). The larger
+compute, cache handoff, single-launch matrix, package and restore gates
+remain in progress.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
