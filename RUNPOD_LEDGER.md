@@ -326,3 +326,7 @@ posted at teardown. An initial pod `ezu9itqyym6bw0` at the same rate
 never provided a working shell and was deleted after about a minute.
 Reserve $0.05 for both CPU attempts pending billing. MPS-only validation
 remains paused; CPU checks are not MPS qualification.
+
+The ROM32 A100's posted charge later reconciled to $1.672135, including
+disk. This replaces its $1.85 pending reserve; historical teardown
+estimates above are retained for comparison.
