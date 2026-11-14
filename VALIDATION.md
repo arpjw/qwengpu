@@ -1772,3 +1772,19 @@ from 125 to 89 for publication, 104 to 79 for barriers, and 39 to 29 for
 deadlock. The $0.08/hour Linux CPU pod audited those reports. Apple MPS
 matched the complete 44-step publication trace; the remaining integrated
 MPS tests were stopped to keep the Mac available.
+
+
+## Model-owned RAM stores
+
+The experimental `--internal-stores` merge has 47 chip layers, 7,424
+hidden dimensions, and 3,227 live slots. Its 31-shard manifest identifies
+the tested weights. The 24-prompt text comparison preserved all 24
+first tokens and 22 greedy continuations, with zero chip tokens.
+
+The address walk, interleaved publication, and scoped isolation traces
+matched standalone CUDA on all 308 store operations. A model-generated
+lane grant is followed by a fixed commit command. The address and value
+stay in recurrent state. The input audit recorded no writeback tags in
+either global or scoped memory, and the launcher issued no store
+readback requests. The exact reports are in
+`results/model_stores_merged_cuda/model_stores.json`.
