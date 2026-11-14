@@ -458,6 +458,9 @@ edge remains visible in the generated stream.
 See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
 Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
+The [32-bit atomic-add gate](ATOMIC32_DESIGN.md) now has a frozen
+instruction contract and an executable reference transition. No compiled
+checkpoint implements that operation yet.
 The capacity step is qualified in MEMORY512_DESIGN.md. NEXT_MEMORY_DESIGN.md
 retains its historical proposal and the original encoding hazards. Future
 layout changes must preflight allocation and retain the native-text gate;
