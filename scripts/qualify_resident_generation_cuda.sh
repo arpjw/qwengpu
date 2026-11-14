@@ -44,6 +44,8 @@ PY
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/sequential-merged.json" "${sequential[@]}"
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/inherited-merged.json" "${inherited[@]}"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
+  "$reports/inherited-merged.json" --inherited-baseline results/model_stores_merged_cuda/inherited.json
+"$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/standalone.json" "$reports/merged.json"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/sequential-standalone.json" "$reports/sequential-merged.json" \

@@ -5,6 +5,26 @@ import json
 from pathlib import Path
 
 
+def check_inherited(path, baseline_path):
+    report = json.loads(path.read_text())
+    baseline = json.loads(baseline_path.read_text())
+    assert baseline["all_exact"]
+    by_fixture = {case["fixture"]: case for case in baseline["cases"]}
+    assert len(by_fixture) == len(report["cases"]) == 27
+    for case in report["cases"]:
+        old = by_fixture.pop(case["fixture"])
+        assert all(value for key, value in case.items() if key.endswith("_exact")), case["fixture"]
+        assert case["sha256"] == old["fixture_sha256"]
+        assert case["outcome"] == old["outcome"]
+        assert case["steps"] == old["instructions"]
+        assert case["tile_words"] == old["shared_words"]
+        assert case["generated_tokens"] == case["expected_tokens"]
+        assert case["generation_calls"] == 1 and case["host_execution_tokens"] == 0
+        print(f'{case["fixture"]}: {case["steps"]} instructions, '
+              f'{len(case["generated_tokens"])} exact generated tokens and RAM')
+    assert not by_fixture
+
+
 def check(directory, reports, *, sequential_baseline=None, matrix_extent_baseline=None):
     for path in reports:
         report = json.loads(path.read_text())
@@ -40,8 +60,13 @@ if __name__ == "__main__":
     parser.add_argument("reports", type=Path, nargs="+")
     parser.add_argument("--sequential-baseline", type=Path)
     parser.add_argument("--matrix-extent-baseline", type=Path)
+    parser.add_argument("--inherited-baseline", type=Path)
     args = parser.parse_args()
     if bool(args.sequential_baseline) != bool(args.matrix_extent_baseline):
         parser.error("provide both sequential baseline arguments")
-    check(args.baseline, args.reports, sequential_baseline=args.sequential_baseline,
-          matrix_extent_baseline=args.matrix_extent_baseline)
+    if args.inherited_baseline:
+        for report in args.reports:
+            check_inherited(report, args.inherited_baseline)
+    else:
+        check(args.baseline, args.reports, sequential_baseline=args.sequential_baseline,
+              matrix_extent_baseline=args.matrix_extent_baseline)
