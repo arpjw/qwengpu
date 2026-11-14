@@ -54,7 +54,9 @@ the full 86 GB Hub upload and promotion have not run. Public Hub storage
 capacity for that upload is not guaranteed.
 
 The public READMEs, images, file lists, and signed-out access were
-checked after publication. The corrected v4 package had a full clean
+checked after publication in the
+[public verification receipt](results/public-readiness/publication-verification-2026-11-14.json).
+The corrected v4 package had a full clean
 restore and pinned checksum check before publication; the v4 Hub upload
 still needs those checks if attempted later. [Release commands and limits](RELEASE.md)
 

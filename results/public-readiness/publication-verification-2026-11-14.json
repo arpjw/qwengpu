@@ -1,0 +1,31 @@
+{
+  "checked_at_utc": "2026-11-14T21:31:24.984378+00:00",
+  "github": {
+    "url": "https://github.com/arpjw/qwengpu",
+    "public": true,
+    "main_readme_matches_checkout": true,
+    "readme_images_match_checkout": true,
+    "release_url": "https://github.com/arpjw/qwengpu/releases/tag/v4-corrected-package-2026-11-14",
+    "release_id": 445423220,
+    "release_published": true,
+    "release_tag_commit": "5e54318a598f7ff5e82ffcc7da1c5e6e1f89835f",
+    "asset_count": 90,
+    "asset_bytes": 86321154200,
+    "all_asset_sizes_and_sha256_match_manifest": true,
+    "signed_out_checksum_sha256": "67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913"
+  },
+  "hugging_face": {
+    "url": "https://huggingface.co/arpjw/Qwen-GPU",
+    "public": true,
+    "main_revision": "7182ddec3349cace59850f706af11dbe0e7232dc",
+    "current_checkpoint": "v3",
+    "pinned_verified_v3_revision": "fe671778a2409a218dde757871f33f5ca46d9219",
+    "pinned_shard_count": 35,
+    "main_card_images_present": true,
+    "signed_out_v3_checksum_sha256": "f85fcb86f80668c57bfbc241aa8d9ca08378d50623eea405add56d499dcbd415",
+    "signed_out_pinned_shard_head_status": 200,
+    "v4_uploaded": false
+  },
+  "source_scan_receipt": "results/public-readiness/publication-preflight-2026-11-14.json",
+  "qualification": "The public v4 GitHub release passed signed-out metadata, checksum asset, source README, and image checks. Before publication the complete 49-file corrected package passed a clean restore and pinned checksum check; byte-identical weights inherited independent CUDA replay. The public Hugging Face repo continues to serve the previously verified v3 revision. No post-publication full 86 GB download or v4 Hugging Face upload was performed."
+}
