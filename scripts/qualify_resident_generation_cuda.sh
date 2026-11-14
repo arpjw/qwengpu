@@ -23,6 +23,14 @@ fixtures=(
   "$reports/standalone.json" "$reports/merged.json"
 "$python" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
   --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 --out "$reports/text.json"
+"$python" - "$reports/text.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1]) as stream:
+    report = json.load(stream)
+assert report["next_top1_same"] == 24 and report["greedy_identical"] >= 21
+assert report["merged_chip_tokens"] == 0
+PY
 "$python" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \
   --compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c \
   --base c202236235762e1c871ad0ccb60c8ee5ba337b9a --variant resident-generate \

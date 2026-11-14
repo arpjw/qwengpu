@@ -234,6 +234,15 @@ test also matches all 327 generated tokens. The producer publishes
 20 of 24 continuations, and emits zero chip tokens. The continuation
 threshold is 21.
 
+The compact layout drops the host polling ports and reuses register
+token features for uploads and generated updates. This returns the
+merge to 7,424 hidden dimensions with 3,232 live slots. On the same
+text corpus, the compact merge matches 24/24 first tokens and 22/24
+full continuations with zero chip tokens.
+The compact 9B checkpoint also matches all 1,229 generated tokens
+over 145 instructions across the four frozen cases. All final
+physical register rows, control rows, and memory mirrors agree.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
