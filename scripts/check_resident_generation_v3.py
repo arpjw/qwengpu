@@ -37,8 +37,21 @@ def check_manifest(manifest, *, v4=False):
     else:
         keys += ("checkpoint_source_commit", "files", "sha256", "dtype_bytes", "non_bf16")
     for key in keys:
-        assert manifest[key] == pinned[key], f"v3 checkpoint differs from pinned manifest in {key}"
+        assert manifest[key] == pinned[key], f"checkpoint differs from pinned manifest in {key}"
     print(f"Verified the {'v4 candidate' if v4 else 'pinned v3'} manifest with {len(shards)} shard digests")
+
+
+def check_candidate_reports(root, metadata):
+    """Require model metadata on every merged report in a new v4 replay."""
+    for name in (
+        "inherited-merged.json", "interleaved-merged.json", "sequential-merged.json",
+        "tiled.json", "bounds.json", "memory512-raw.json", "memory512-compute.json",
+        "integer-programs.json", "scoped_reset.json", "interleaved_handoff.json",
+        "matmul16-single-launch.json", "text.json", "cli-reduction.json",
+    ):
+        assert read(root, name).get("merge") == metadata, f"{name}: candidate metadata differs"
+    for name in ("cli-deadlock.json", "scoped-shared-u32.json"):
+        assert read(root, name)["checkpoint"] == V4_LAYOUT, f"{name}: expected {V4_LAYOUT}"
 
 
 def check_launch(run):
@@ -300,6 +313,8 @@ def main():
     handoff = read(root, "handoff.json")
     assert text["merge"] == manifest["files"]["qwengpu9b.json"] == handoff["checkpoint"]
     check_manifest(manifest, v4=args.v4)
+    if args.v4:
+        check_candidate_reports(root, text["merge"])
     assert text["next_top1_same"] == 24 and text["greedy_identical"] >= 21
     assert text["merged_chip_tokens"] == 0
     assert handoff["exact"] and handoff["consumer"]["global_upload_words"] == 0

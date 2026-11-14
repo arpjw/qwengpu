@@ -400,7 +400,9 @@ def main():
     args.out.parent.mkdir(parents=True, exist_ok=True)
     model, circuit, offset = load_generation_model(args.model, args.device)
     report = {"device": args.device, "torch": torch.__version__,
-              "circuit": circuit.stats(), "cases": []}
+              "circuit": circuit.stats(),
+              "merge": json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None,
+              "cases": []}
     for fixture in args.fixtures:
         payload = fixture.read_bytes()
         raw = json.loads(payload)

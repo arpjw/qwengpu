@@ -32,7 +32,11 @@ def main():
         if missing:
             parser.error(f"unknown cases: {', '.join(sorted(missing))}")
         requests = {name: requests[name] for name in args.case}
-    report = {"device": args.device, "cases": {}}
+    report = {
+        "device": args.device,
+        "merge": json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None,
+        "cases": {},
+    }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     for name, data in requests.items():
         request = parse_request(data, memory512=True)
