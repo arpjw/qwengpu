@@ -24,3 +24,13 @@ The three file digests follow.
 
 Archive SHA-256
 a3b851178fea49a24155b8152eef03e33318421ed0f43c7bd39bcf7d7d5c71d2
+
+Linux CPU execution from the saved weights matched both CUDA deadlock
+traces, including two instructions, seven generated tokens, ROM,
+registers, and final memory. In a CPU environment with the pinned
+PyTorch and Transformers versions and without CUDA-specific FLA or
+causal convolution extensions, reproduce with:
+
+QWENGPU_STANDALONE_WEIGHTS=/tmp/qwengpu-v3-standalone \
+  python -m qwengpu.eval_resident_generation --device cpu \
+  --out standalone-export-cpu.json eval/frozen/tile8_gate_v1/deadlock.json
