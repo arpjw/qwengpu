@@ -291,6 +291,9 @@ instructions across the four sequential fixtures. Both match the
 interpreter, and final global and scoped memory agree with the saved
 model-owned-store baseline. The cache reads confirm exact register banks,
 control words, and the workgroup cursor after each launch.
+The same merge replays the four interleaved fixtures, with 1,229 exact
+tokens over 145 instructions. This includes publishing both limbs of
+a 32-bit word across groups, independent barriers, and deadlock.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted

@@ -1,0 +1,4 @@
+interleaved-merged.json interleaved_publish: 44 instructions, 425 exact generated tokens
+interleaved-merged.json barrier_groups: 39 instructions, 332 exact generated tokens
+interleaved-merged.json deadlock: 14 instructions, 145 exact generated tokens
+interleaved-merged.json cross_group_high_limb: 48 instructions, 327 exact generated tokens
