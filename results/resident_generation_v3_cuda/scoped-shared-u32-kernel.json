@@ -1,0 +1,99 @@
+{
+  "workgroups": 2,
+  "interleaved": true,
+  "programs": [
+    [
+      {
+        "op": "GLOBAL_ID"
+      },
+      {
+        "op": "SHL32I",
+        "arg": 1
+      },
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "GLOBAL_ID"
+      },
+      {
+        "op": "ADD32I",
+        "arg": 250
+      },
+      {
+        "op": "SHL32",
+        "arg": 16
+      },
+      {
+        "op": "ADD32I",
+        "arg": 250
+      },
+      {
+        "op": "STORE_SHARED"
+      },
+      {
+        "op": "SHR32",
+        "arg": 16
+      },
+      {
+        "op": "ADDIDX",
+        "arg": 1
+      },
+      {
+        "op": "STORE_SHARED"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "HALT"
+      }
+    ],
+    [
+      {
+        "op": "GLOBAL_ID"
+      },
+      {
+        "op": "SHL32I",
+        "arg": 1
+      },
+      {
+        "op": "SAVE_INDEX"
+      },
+      {
+        "op": "BARRIER"
+      },
+      {
+        "op": "ADDIDX",
+        "arg": 1
+      },
+      {
+        "op": "LOAD_SHARED"
+      },
+      {
+        "op": "SHL32",
+        "arg": 16
+      },
+      {
+        "op": "ADDIDX",
+        "arg": -1
+      },
+      {
+        "op": "LOAD_SHARED"
+      },
+      {
+        "op": "ADD32I",
+        "arg": 10
+      },
+      {
+        "op": "STORE_INDEX"
+      },
+      {
+        "op": "STORE_INDEX_HI"
+      },
+      {
+        "op": "HALT"
+      }
+    ]
+  ]
+}

@@ -365,6 +365,11 @@ One retained cache ran eight generated panels across two K passes.
 All 256 output words matched the scalar matrix and the prior merged
 checkpoint's panel traces.
 See [the exact report](results/resident_generation_v3_cuda/matmul16.json).
+The assembled two-workgroup uint32 shared-memory program also passed.
+Both scoped banks and all 16 reconstructed global outputs matched
+the reference. With these final reports present,
+`python3 scripts/check_resident_generation_v3.py results/resident_generation_v3_cuda`
+passes the complete pinned v3 CUDA qualification.
 On the 27 inherited fixtures, the prior driver made 5,411 explicit
 forward calls and submitted 109,276 tokens, including 18,657 state
 read requests and 4,772 store read requests. V3 makes 27 host generation
