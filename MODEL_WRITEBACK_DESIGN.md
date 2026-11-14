@@ -103,3 +103,16 @@ snapshot columns directly. In the same standalone publication case this
 uses 3,082 input tokens and 97 forward calls, with zero register-plan,
 read, or feedback tokens. See
 `results/cache_register_edge_cuda/standalone_planless.json`.
+
+On merged Qwen3.5-9B with model-owned stores, the fused adapter matched
+all three frozen resident scheduling traces. Publication used 2,462
+input tokens and 89 model calls versus 3,602 and 117 with stock
+model-store transport. The barrier and deadlock cases used 1,873 and
+1,628 input tokens, down from 2,841 and 2,024. All three issued no
+register plan, read, or feedback tokens and no RAM address/value tags.
+The adapter copies tensors outside the stock model; it does not solve
+weights-only cyclic register writeback.
+
+```bash
+bash scripts/qualify_cache_register_edge.sh "$model" "$stock_reports" "$edge_reports"
+```
