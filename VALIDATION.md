@@ -437,9 +437,12 @@ All four interleaved and four sequential workgroup fixtures pass on the
 standalone CUDA circuit and merged 9B. Native text remains at 24 of 24 first
 tokens and 21 of 24 greedy continuations, with no GPU token IDs. The
 existing reference and baseline checkers passed on the saved reports in
-[the v4 result directory](results/resident_generation_v4_cuda/). The larger
-compute, cache handoff, single-launch matrix, package and restore gates
-remain in progress.
+[the v4 result directory](results/resident_generation_v4_cuda/). The
+64-element vector addition, 128-element two-pass reduction, and 8×4 by
+4×4 multiply are exact. The reduction's second launch re-uploaded zero
+global words. Four native-text handoffs and the scoped-memory reset are
+also exact. Interleaved handoff, single-launch matrix, package and restore
+gates remain in progress.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
