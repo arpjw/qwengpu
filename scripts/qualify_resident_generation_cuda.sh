@@ -55,6 +55,10 @@ PY
   --suite eval/frozen/memory512_compute_v1/cases.json \
   --case vector_64 --case reduce_128 --case matmul_8x4x4 --out "$reports/bounds.json"
 "$python" scripts/eval_resident_generation_handoff.py "$model" --out "$reports/handoff.json"
+"$python" scripts/eval_scoped_reset.py --model "$model" --device cuda \
+  --resident-generate --out "$reports/scoped_reset.json"
+"$python" scripts/eval_interleaved_handoff.py --model "$model" --device cuda \
+  --resident-generate --out "$reports/interleaved_handoff.json"
 "$python" -m qwengpu.run_compute examples/memory512_reduce_128.json \
   --model "$model" --device cuda --out "$reports/cli-reduction.json"
 status=0

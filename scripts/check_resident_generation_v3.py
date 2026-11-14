@@ -64,6 +64,22 @@ def check_integer_programs(root):
     print("Full-width indexed arithmetic, signed edges and upper-half ROM loop exact")
 
 
+def check_relaunches(root):
+    for name in ("scoped_reset", "interleaved_handoff"):
+        got = read(root, name + ".json")
+        old = read(BASELINE, name + ".json")
+        assert got["exact"] and old["exact"]
+        for phase in ("producer", "consumer"):
+            new_run, old_run = got[phase], old[phase]
+            check_launch(new_run)
+            assert new_run["global_words"] == old_run["global_words"]
+            assert new_run["scoped_words"] == old_run.get("scoped_words")
+            assert new_run["steps"] == len(old_run["trace"])
+        assert got["consumer"]["global_upload_words"] == 0
+        assert got["consumer"]["cache_retained_exact"]
+        print(f"{name}: state and retained global memory exact")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
@@ -125,6 +141,7 @@ def main():
     print("Native text, retained handoff and public CLI exact")
     check_memory512(root)
     check_integer_programs(root)
+    check_relaunches(root)
 
 
 if __name__ == "__main__":
