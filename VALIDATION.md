@@ -333,6 +333,10 @@ full final global RAM. The probes cover collisions, masked stores,
 bank edges, and barriers. The same merge also passed the four-prompt
 native-text handoff. All audited rows stayed exact and the retained
 reduction returned `1521272620` with zero global-memory upload.
+The complete 512-byte workload replay matched all 31 requests and 46
+launches. The check covered 1,926 instructions, 30,063 generated tokens,
+ROM, and final RAM. Every dependent launch reused global memory
+without an upload.
 The public launchers also passed on v3. `run_resident` reported the
 expected deadlock with exit status 3 and exact state. `run_compute`
 returned `4294967168` for the 128-element reduction, with 256 global
