@@ -4,6 +4,9 @@ The fixed v4 CUDA checkpoint is qualified and recoverable. Both the
 GitHub source repository and Hugging Face model repository remain
 private, as requested for review. This page records what a future
 public release would expose and which checks remain at that boundary.
+The [claim audit](results/public-readiness/v4-claim-audit-2026-11-14.json)
+compares the README and model card's key numeric statements with the
+saved CUDA reports and two checksum-verified package metadata assets.
 
 | Item | Current state | Evidence |
 | --- | --- | --- |

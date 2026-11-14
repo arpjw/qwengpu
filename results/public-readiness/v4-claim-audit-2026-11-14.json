@@ -1,0 +1,47 @@
+{
+  "checked_at_utc": "2026-11-14T21:16:16Z",
+  "source_commit": "b9c61365fe7c3ec9886bd8600f55f1ebd63dd71c",
+  "github_release_id": 445423220,
+  "package_metadata_assets": {
+    "qwengpu9b.json": {
+      "asset_id": 748381581,
+      "sha256": "b849f286aa16e2e05f39fe27e402abb9cb430f979c49110ebc49e241b8e1e113",
+      "chip_layers": 53,
+      "chip_token_offset": 248320,
+      "chip_vocab": 212992,
+      "hidden": 7936,
+      "output_head_tied": false
+    },
+    "config.json": {
+      "asset_id": 748186256,
+      "sha256": "61bbb0929adf10d87c7deaf39b916aa7668884b748b29685170d22c6ba6e611c",
+      "num_hidden_layers": 85,
+      "hidden_size": 7936,
+      "vocab_size": 461312,
+      "tie_word_embeddings": false
+    }
+  },
+  "model_card_sha256": "c214c59bdfd9bb7cbeb4ab854fc0c5eecea8ad3c61ec5c14862afc07c7d5616f",
+  "qualified_report_checks": {
+    "common_compute_cases_exact": "31/31",
+    "inherited_cases_exact": "27/27",
+    "sequential_workgroup_cases": 4,
+    "interleaved_workgroup_cases": 4,
+    "text_first_tokens_matching": "24/24",
+    "text_greedy_continuations_matching": "21/24",
+    "text_chip_tokens": 0,
+    "matrix_instructions": 928,
+    "matrix_generated_tokens": 20167,
+    "matrix_generation_calls": 1,
+    "matrix_panel_transitions": [1, 2, 3, 4, 5, 6, 7],
+    "matrix_shape": [16, 16],
+    "matrix_exact_cells": 256
+  },
+  "reproduction": [
+    "gh api repos/arpjw/qwengpu/releases/assets/748381581 -H 'Accept: application/octet-stream' > /tmp/qwengpu-v4-qwengpu9b.json",
+    "gh api repos/arpjw/qwengpu/releases/assets/748186256 -H 'Accept: application/octet-stream' > /tmp/qwengpu-v4-config.json",
+    "shasum -a 256 /tmp/qwengpu-v4-qwengpu9b.json /tmp/qwengpu-v4-config.json",
+    "Read results/resident_generation_v4_cuda/{memory512-compute,inherited-merged,sequential-merged,interleaved-merged,text,matmul16-single-launch}.json and compare the summary fields above."
+  ],
+  "qualification": "This checks selected published claims against small packaged metadata assets and saved CUDA reports. It does not rerun inference or inspect every README claim."
+}
