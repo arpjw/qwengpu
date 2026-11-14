@@ -343,3 +343,12 @@ before deletion. The API returned HTTP 204 and then HTTP 404.
 Conservative project headroom is about $35.40 under the $74 cap,
 including existing reserves and the two CPU attempts. This is not a
 verified RunPod account balance. See `results/alu32_integrated_runpod_cost.json`.
+
+The follow-up CPU3 General Purpose pod `id25l4k0x4kysb` ran all 46
+compiler and regression tests on Linux at `632bfee`. It had two vCPUs,
+8 GB RAM and 5 GB ephemeral disk, with a quoted compute rate of
+$0.08/hour. RunPod created it at 00:51:05 UTC and confirmed deletion by
+00:55:53 UTC on November 14 (HTTP 204 followed by HTTP 404). The compute
+estimate is $0.0064, with $0.02 reserved for compute and disk. No charge
+had posted on the immediate billing recheck. The transcript and setup
+commands are in `results/runpod_cpu/`.
