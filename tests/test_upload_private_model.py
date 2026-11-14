@@ -60,16 +60,20 @@ class UploadModelTests(unittest.TestCase):
     def test_public_upload_verifies_revision_and_file_list(self):
         api = MagicMock()
         api.model_info.side_effect = [
-            SimpleNamespace(private=False),
+            SimpleNamespace(private=False, sha="main-revision"),
+            SimpleNamespace(private=False, sha="before-revision"),
             SimpleNamespace(private=False, sha="uploaded-revision"),
+            SimpleNamespace(private=False, sha="main-revision"),
         ]
+        api.list_repo_refs.return_value.branches = [SimpleNamespace(name="v4-staging")]
         api.list_repo_files.side_effect = [
             ["old.txt", ".gitattributes"],
             sorted(path.name for path in self.package.iterdir()) + [".gitattributes"],
         ]
         api.upload_folder.return_value = SimpleNamespace(oid="uploaded-revision")
         argv = ["upload_private_model.py", str(self.package), "owner/model",
-                "--public", "--pinned-manifest", str(self.pinned),
+                "--public", "--revision", "v4-staging",
+                "--pinned-manifest", str(self.pinned),
                 "--expected-checksum-digest", self.checksum_digest]
         with patch.object(sys, "argv", argv), patch.object(sys, "stdin", io.StringIO("token\n")), \
              patch("scripts.upload_private_model.HfApi", return_value=api), \
@@ -79,18 +83,47 @@ class UploadModelTests(unittest.TestCase):
         self.assertFalse(report["private"])
         self.assertEqual(report["revision"], "uploaded-revision")
         self.assertEqual(report["removed_stale_files"], ["old.txt"])
+        self.assertEqual(report["staging_branch"], "v4-staging")
         self.assertEqual(api.upload_folder.call_args.kwargs["delete_patterns"], ["old.txt"])
+        self.assertEqual(api.upload_folder.call_args.kwargs["parent_commit"], "before-revision")
+        self.assertEqual(api.upload_folder.call_args.kwargs["revision"], "v4-staging")
 
     def test_public_upload_rejects_private_destination_before_sending(self):
         api = MagicMock()
         api.model_info.return_value = SimpleNamespace(private=True)
         argv = ["upload_private_model.py", str(self.package), "owner/model",
-                "--public", "--pinned-manifest", str(self.pinned),
+                "--public", "--revision", "v4-staging",
+                "--pinned-manifest", str(self.pinned),
                 "--expected-checksum-digest", self.checksum_digest]
         with patch.object(sys, "argv", argv), patch.object(sys, "stdin", io.StringIO("token\n")), \
              patch("scripts.upload_private_model.HfApi", return_value=api), \
              patch("scripts.upload_private_model.verify_package",
                    side_effect=AssertionError("should reject before hashing")), \
+             patch("sys.stderr", new_callable=io.StringIO), self.assertRaises(SystemExit):
+            main()
+        api.upload_folder.assert_not_called()
+
+    def test_public_upload_rejects_default_branch(self):
+        argv = ["upload_private_model.py", str(self.package), "owner/model",
+                "--public", "--revision", "main",
+                "--pinned-manifest", str(self.pinned),
+                "--expected-checksum-digest", self.checksum_digest]
+        with patch.object(sys, "argv", argv), patch.object(sys, "stdin", io.StringIO("token\n")), \
+             patch("scripts.upload_private_model.HfApi") as api, \
+             patch("sys.stderr", new_callable=io.StringIO), self.assertRaises(SystemExit):
+            main()
+        api.assert_not_called()
+
+    def test_public_upload_rejects_missing_staging_branch(self):
+        api = MagicMock()
+        api.model_info.return_value = SimpleNamespace(private=False, sha="main-revision")
+        api.list_repo_refs.return_value.branches = [SimpleNamespace(name="main")]
+        argv = ["upload_private_model.py", str(self.package), "owner/model",
+                "--public", "--revision", "v4-staging",
+                "--pinned-manifest", str(self.pinned),
+                "--expected-checksum-digest", self.checksum_digest]
+        with patch.object(sys, "argv", argv), patch.object(sys, "stdin", io.StringIO("token\n")), \
+             patch("scripts.upload_private_model.HfApi", return_value=api), \
              patch("sys.stderr", new_callable=io.StringIO), self.assertRaises(SystemExit):
             main()
         api.upload_folder.assert_not_called()

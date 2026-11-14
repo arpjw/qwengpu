@@ -43,6 +43,8 @@ def main() -> None:
     parser.add_argument("--expected-checksum-digest", required=True)
     parser.add_argument("--public", action="store_true",
                         help="require an already public destination; never changes visibility")
+    parser.add_argument("--revision",
+                        help="existing staging branch; required and non-main for public uploads")
     parser.add_argument("--message", default="Upload qualified Qwen-GPU checkpoint")
     args = parser.parse_args()
     if not args.package.is_dir():
@@ -50,8 +52,19 @@ def main() -> None:
     token = sys.stdin.readline().strip()
     if not token:
         parser.error("provide a Hugging Face token on standard input")
+    if args.public and (not args.revision or args.revision in {"main", "refs/heads/main"}):
+        parser.error("public upload requires an existing non-main staging branch")
     api = HfApi(token=token)
-    before = api.model_info(args.repo_id)
+    main_before = api.model_info(args.repo_id) if args.public else None
+    if main_before is not None:
+        try:
+            check_visibility(main_before.private, True)
+        except ValueError as exc:
+            parser.error(str(exc))
+        branches = {branch.name for branch in api.list_repo_refs(args.repo_id).branches}
+        if args.revision not in branches:
+            parser.error("public staging branch does not exist")
+    before = api.model_info(args.repo_id, revision=args.revision)
     try:
         check_visibility(before.private, args.public)
     except ValueError as exc:
@@ -61,7 +74,7 @@ def main() -> None:
                                        args.expected_checksum_digest)
     except (OSError, KeyError, ValueError) as exc:
         parser.error(str(exc))
-    remote_files = set(api.list_repo_files(args.repo_id))
+    remote_files = set(api.list_repo_files(args.repo_id, revision=args.revision))
     stale_files = sorted(remote_files - package_files - {".gitattributes"})
     commit = api.upload_folder(
         folder_path=str(args.package),
@@ -69,6 +82,8 @@ def main() -> None:
         repo_type="model",
         commit_message=args.message,
         delete_patterns=stale_files or None,
+        parent_commit=before.sha,
+        revision=args.revision,
     )
     after = api.model_info(args.repo_id, revision=commit.oid)
     check_visibility(after.private, args.public)
@@ -77,8 +92,11 @@ def main() -> None:
     after_files = set(api.list_repo_files(args.repo_id, revision=commit.oid))
     if after_files - {".gitattributes"} != package_files:
         raise RuntimeError("uploaded revision does not match the flat package file list")
+    if main_before is not None and api.model_info(args.repo_id).sha != main_before.sha:
+        raise RuntimeError("default branch changed during staging")
     print(json.dumps({"repo_id": args.repo_id, "revision": after.sha,
                       "private": after.private, "files": len(package_files),
+                      "staging_branch": args.revision if args.public else None,
                       "package_checksum_digest": args.expected_checksum_digest,
                       "removed_stale_files": stale_files}, sort_keys=True))
 

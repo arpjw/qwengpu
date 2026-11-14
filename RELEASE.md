@@ -256,25 +256,64 @@ Run `scripts/check_release_assets.py` with `--public` too. Publication
 still requires an explicit visibility decision, a fresh source scan,
 and a pinned v4 Hugging Face revision if that destination is used.
 
-The Hugging Face upload helper now verifies the pinned build manifest,
-all package file hashes, and the `SHA256SUMS` digest before sending any
-files. It cannot change repository visibility. After an explicit public
-release decision, make the model repository public through its settings,
-then upload the verified corrected package from a machine with enough
-disk space:
+The Hugging Face upload helper verifies the pinned build manifest, all
+package file hashes, and the `SHA256SUMS` digest before sending files.
+It cannot change repository visibility. Free public Hub storage is best
+effort, so capacity for this 86 GB package is not guaranteed. Large
+folder uploads may span multiple commits. Upload to an existing staging
+branch after an explicit public release decision, leaving `main` at v3
+until the complete staged revision has been restored and qualified.
+The staging branch itself is public and may be incomplete during upload.
+[Hub storage limits](https://huggingface.co/docs/hub/storage-limits) ·
+[Hub upload guide](https://huggingface.co/docs/huggingface_hub/main/guides/upload)
+
+Make the model repository public through its settings, then create the
+staging branch from `main`. These commands use the pinned environment
+described in [REPRODUCE.md](REPRODUCE.md):
+
+```bash
+hf repos branch create arpjw/Qwen-GPU v4-staging
+```
+
+Upload the corrected package from a machine with enough disk space:
 
 ```bash
 printf '%s\n' "$HF_TOKEN" | python scripts/upload_private_model.py \
-  "$restored" arpjw/Qwen-GPU --public \
+  "$restored" arpjw/Qwen-GPU --public --revision v4-staging \
   --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
   --expected-checksum-digest \
   67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
   --message "Upload qualified Qwen-GPU v4"
 ```
 
-Record the returned Hub revision. Clean-download that revision and run
-the package checker, a frozen GPU kernel, and the native-text gate
-before updating the public model card or claiming a Hub restore.
+Record the returned staging commit SHA. Clean-download that immutable
+revision into an empty directory and run the pinned package checker,
+a frozen CUDA kernel, the matrix gate, and the native-text gate. Save
+the reports and compare them with the qualified v4 evidence. The helper
+checks the staged file list, but a clean restore is still required to
+verify every remote byte.
+
+Once staging passes and publication is approved, preview the operation
+list and promote the staged files to `main` in one parent-pinned Hub
+commit. Replace `$staging_sha` with the immutable SHA returned above:
+
+```bash
+printf '%s\n' "$HF_TOKEN" | python scripts/promote_hf_model.py \
+  arpjw/Qwen-GPU "$staging_sha" \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913
+printf '%s\n' "$HF_TOKEN" | python scripts/promote_hf_model.py \
+  arpjw/Qwen-GPU "$staging_sha" \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
+  --apply
+```
+
+The promotion helper checks the staged checksum digest and exact file
+list, copies all staged package files, and removes stale `main` files
+in one commit. It checks the resulting revision and file list. This
+path is covered by local mock tests but has not been exercised against
+the live Hub. Verify the public `main` file list, a signed-out download,
+card images, and checksum before announcing the release.
+[Hub commit operations](https://huggingface.co/docs/huggingface_hub/main/package_reference/hf_api)
 
 ## Standalone v4 Apple MPS candidate
 
