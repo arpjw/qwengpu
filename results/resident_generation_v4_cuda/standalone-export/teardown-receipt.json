@@ -1,0 +1,19 @@
+{
+  "pod_id": "1odnhe4hcw4087",
+  "pod_name": "qwengpu-v4-standalone-export",
+  "pod_created_at": "2026-11-14T15:27:19.782Z",
+  "pod_deleted_before": "2026-11-14T15:47:04Z",
+  "live_quoted_cpu_usd_per_hour": 1.28,
+  "estimated_cpu_usd_upper_bound": 0.422,
+  "conservative_cpu_and_disk_reserve_usd": 0.48,
+  "posted_billing_at_teardown_usd": 0,
+  "delete_status": 204,
+  "followup_get_status": 404,
+  "pod_list_after_delete_count": 0,
+  "github_release_id": 445397359,
+  "github_repository_private": true,
+  "github_release_draft": true,
+  "package_checksum_digest": "98e29de12f2896aa755076a3ba54e773aa3bed3582724a029333f0f288dd8687",
+  "clean_restore_files_verified": 9,
+  "clean_restore_cpu_smoke": "cooperative_addmem32.json: 15 instructions, 205 exact generated tokens"
+}

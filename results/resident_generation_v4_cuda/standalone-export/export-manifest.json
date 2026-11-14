@@ -1,0 +1,18 @@
+{
+  "artifact": "qwengpu-resident-generation-9b-v4-standalone-mps-candidate",
+  "source_revision": "efd0111a1c971af2edaeb740446125b480a5bd17",
+  "compiler_revision": "ca13310e2f9f788d1dd3feeea8213c1b0c23913c",
+  "export_command": "PYTHONPATH=/workspace/qwenputer/experimental/riscv:/workspace/qwengpu OMP_NUM_THREADS=16 /workspace/qwenputer/experimental/riscv/.venv/bin/python -u scripts/export_resident_generation_standalone.py --generated-tilegrid /workspace/standalone-v4",
+  "model_safetensors_bytes": 12048670904,
+  "model_safetensors_sha256": "67bcb12dee641c6605a93e2ba79bcf4b3da7949baf9cfb6727ed4a2b02ee6e31",
+  "layout": "qwengpu-resident-generation-9b-v4",
+  "compiled_circuit_layers": 52,
+  "inert_full_attention_layers": 1,
+  "hidden_size": 3840,
+  "vocab_size": 212992,
+  "cpu_smoke": {
+    "tile8_deadlock": {"exit_code": 0, "generated_tokens": 7},
+    "cooperative_addmem32": {"exit_code": 0, "generated_tokens": 205}
+  },
+  "qualification": "CPU smoke passed; Apple MPS full replay pending"
+}

@@ -145,6 +145,50 @@ python scripts/check_checkpoint_package.py "$restored" \
   f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
 ```
 
+## Standalone v4 Apple MPS candidate
+
+The standalone v4 circuit was exported separately from the 86 GB merged
+checkpoint. Its 12,048,670,904-byte SafeTensors file has SHA-256
+`67bcb12dee641c6605a93e2ba79bcf4b3da7949baf9cfb6727ed4a2b02ee6e31`.
+The package's `SHA256SUMS` has SHA-256
+`98e29de12f2896aa755076a3ba54e773aa3bed3582724a029333f0f288dd8687`.
+It contains the v4 SIMT circuit but no pretrained Qwen3.5 text tower.
+Two exact CPU smoke traces passed; full Apple MPS qualification is pending.
+The [artifact card](release/standalone-v4-card.md),
+[export manifest](results/resident_generation_v4_cuda/standalone-export/export-manifest.json),
+and [CPU reports](results/resident_generation_v4_cuda/standalone-export)
+record the build and checks.
+
+The private draft release
+[`v4-standalone-mps-candidate-2026-11-14`](https://github.com/arpjw/qwengpu/releases/tag/untagged-774774d9793eae763296)
+has release ID `445397359`. GitHub reported 17 assets totaling
+12,048,693,460 bytes, all with SHA-256 digests. The [asset receipt](results/resident_generation_v4_cuda/standalone-export/github-backup-receipt.json)
+records the private and draft status, and the [backup manifest](results/resident_generation_v4_cuda/standalone-export/standalone-backup-manifest.json)
+maps every file to its verified assets. Restore into a nonexistent directory using
+an authenticated GitHub CLI. The helper verifies the package checksum,
+each asset part, and every reconstructed file:
+
+```bash
+gh auth token | python3 scripts/restore_private_release.py \
+  arpjw/qwengpu v4-standalone-mps-candidate-2026-11-14 445397359 \
+  98e29de12f2896aa755076a3ba54e773aa3bed3582724a029333f0f288dd8687 \
+  "$standalone" --backup-manifest standalone-backup-manifest.json
+```
+
+On November 14, a clean download reconstructed and verified all nine
+package files, including the full SafeTensors file. The restored copy
+again matched the 15-instruction cooperative 32-bit shared-memory
+fixture on CPU, with 205 exact generated tokens and exact machine state.
+The [restore transcript](results/resident_generation_v4_cuda/standalone-export/restore.log),
+[restored run report](results/resident_generation_v4_cuda/standalone-export/restored-addmem32.json),
+and [pod teardown receipt](results/resident_generation_v4_cuda/standalone-export/teardown-receipt.json)
+are saved. The pod was deleted after these checks.
+
+Set `QWENGPU_STANDALONE_WEIGHTS="$standalone"` before running the
+[v4 MPS qualification script](scripts/qualify_resident_generation_mps.sh).
+The standalone circuit is a candidate for that script, not an MPS
+qualified checkpoint.
+
 ## Restore receipt
 
 | Item | Verified value |

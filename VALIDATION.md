@@ -2131,3 +2131,40 @@ python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
 python scripts/check_restored_checkpoint.py "$reports" \
   --qualified results/resident_generation_v4_cuda --v4
 ```
+
+## Standalone v4 export for Apple MPS
+
+A 128 GB RunPod CPU pod exported the 52-layer v4 circuit into a 12.05 GB
+SafeTensors file without the pretrained Qwen3.5 text tower. The pinned
+[export manifest](results/resident_generation_v4_cuda/standalone-export/export-manifest.json)
+records the source and compiler revisions, model digest, and layout.
+The [package checksum list](results/resident_generation_v4_cuda/standalone-export/SHA256SUMS)
+has SHA-256 `98e29de12f2896aa755076a3ba54e773aa3bed3582724a029333f0f288dd8687`.
+
+The exported file loaded on CPU. The [deadlock report](results/resident_generation_v4_cuda/standalone-export/cpu-deadlock.json)
+matched its expected outcome, seven generated tokens, ROM, control,
+registers, and memory. The [cooperative 32-bit shared-memory report](results/resident_generation_v4_cuda/standalone-export/cpu-addmem32.json)
+matched all 205 generated tokens, a halted outcome, ROM, control,
+registers, and memory. Both required one generation call and zero host
+execution tokens. These are CPU smoke checks; full Apple MPS replay
+remains pending. The [artifact card](release/standalone-v4-card.md)
+contains the MPS command.
+
+A clean GitHub download reconstructed all nine package files with
+matching hashes. Running the cooperative shared-memory fixture against
+that restored copy again matched all 205 generated tokens and the
+checked machine state. The [restore log](results/resident_generation_v4_cuda/standalone-export/restore.log)
+and [restored report](results/resident_generation_v4_cuda/standalone-export/restored-addmem32.json)
+record the independent file round trip and CPU replay.
+
+To repeat the restored CPU smoke trace after the private release restore
+in `RELEASE.md`, use the pinned Qwenputer environment from `REPRODUCE.md`:
+
+```sh
+export QWENPUTER_DIR=/path/to/qwenputer/experimental/riscv
+export PYTHONPATH="$QWENPUTER_DIR:$PWD"
+export QWENGPU_STANDALONE_WEIGHTS="$standalone"
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.eval_resident_generation \
+  --device cpu --out restored-addmem32.json \
+  eval/frozen/resident_addmem32_gate_v1/cooperative_addmem32.json
+```

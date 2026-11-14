@@ -68,6 +68,13 @@ python3 scripts/check_checkpoint_package.py "$checkpoint" \
 The [release guide](RELEASE.md#qualified-v4-private-draft-backup)
 records the full matrix and native-text replay.
 
+## Apple MPS candidate
+
+A 12.05 GB standalone export of the same v4 circuit passed exact CPU
+smoke traces for deadlock and cooperative 32-bit shared memory. It
+contains no pretrained text weights. The [standalone artifact card](release/standalone-v4-card.md)
+records how to run the full Apple MPS qualification; that run is pending.
+
 ## Older v3 Hugging Face checkpoint
 
 The verified v3 release remains at its immutable Hugging Face revision.

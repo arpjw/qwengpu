@@ -48,6 +48,7 @@ def main() -> None:
     parser.add_argument("release_id", type=int)
     parser.add_argument("expected_checksum_digest")
     parser.add_argument("out", type=Path)
+    parser.add_argument("--backup-manifest", default="github-backup-manifest.json")
     args = parser.parse_args()
     token = sys.stdin.readline().strip()
     if not token:
@@ -66,7 +67,7 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix="qwengpu-restore-") as scratch:
         temporary = Path(scratch)
-        manifest_path = download(args.repo, args.tag, "github-backup-manifest.json",
+        manifest_path = download(args.repo, args.tag, args.backup_manifest,
                                  temporary, token)
         manifest = json.loads(manifest_path.read_text())
         if any(manifest[key] != value for key, value in (

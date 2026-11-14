@@ -12,6 +12,8 @@ A checksum-verified backup is now in a private GitHub draft release.
 A clean download passed all package checks and reproduced the seeded
 tile, native text, and 16×16 matrix on a separate 96 GB CUDA GPU.
 Full standalone Apple MPS qualification also remains pending.
+For that gate, a 12.05 GB standalone v4 circuit was exported and passed
+two exact CPU smoke traces. It is an MPS candidate, not an MPS result.
 See [VALIDATION.md](VALIDATION.md)
 and [RELEASE.md](RELEASE.md).
 

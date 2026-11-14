@@ -1,0 +1,98 @@
+{
+  "repository": "arpjw/qwengpu",
+  "repository_private": true,
+  "release_id": 445397359,
+  "release_tag": "v4-standalone-mps-candidate-2026-11-14",
+  "release_draft": true,
+  "release_target": "efd0111a1c971af2edaeb740446125b480a5bd17",
+  "package_checksum_digest": "98e29de12f2896aa755076a3ba54e773aa3bed3582724a029333f0f288dd8687",
+  "asset_count": 17,
+  "asset_bytes": 12048693460,
+  "assets": [
+    {
+      "name": "LICENSE",
+      "size": 1066,
+      "digest": "sha256:644fe8637401ee7c05bdb820c24f0215796ba1fffed2c5b639e635298c857c66"
+    },
+    {
+      "name": "README.md",
+      "size": 1944,
+      "digest": "sha256:468b0844ade29fb5c6c6ab93ccaf9d35008c6c831af9772caf42ebac00aca5c8"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 656,
+      "digest": "sha256:98e29de12f2896aa755076a3ba54e773aa3bed3582724a029333f0f288dd8687"
+    },
+    {
+      "name": "config.json",
+      "size": 2391,
+      "digest": "sha256:eb6ac18c39571983104656c73ad8a5258df07a84e700ffe69c646d440a906b0b"
+    },
+    {
+      "name": "cpu-addmem32.json",
+      "size": 8938,
+      "digest": "sha256:3835028b57ece74a33d42e4471321f6e07ad0bcbeda3ac94c333872cac39b991"
+    },
+    {
+      "name": "cpu-deadlock.json",
+      "size": 2754,
+      "digest": "sha256:ae4579008b39a1bfcc7f1e4781e2daa18743a6ae2ef3098ab82cafbf16956027"
+    },
+    {
+      "name": "export-manifest.json",
+      "size": 1008,
+      "digest": "sha256:dde36e2a8327b364713d36d549ff935d3c917838e2bb9c9b10c9d70b23e43938"
+    },
+    {
+      "name": "generation_config.json",
+      "size": 153,
+      "digest": "sha256:57ef3923597f292316b0875ee75fc7ba832862116bddbc18cce16a8b139e642e"
+    },
+    {
+      "name": "model.safetensors.part000",
+      "size": 1700000000,
+      "digest": "sha256:0bf18eb9b4ac9388ed5487ec0935c56ad4900a2d9479993e56fd9aa9b3ed6bfb"
+    },
+    {
+      "name": "model.safetensors.part001",
+      "size": 1700000000,
+      "digest": "sha256:335bc55ef9a50c0f84a8a4e537ffbd1ae2bc799308241ed01ffd9ce67b9e4053"
+    },
+    {
+      "name": "model.safetensors.part002",
+      "size": 1700000000,
+      "digest": "sha256:ec96ef0b28de020ac8c13b1f995cfa24f75fa9edda5d08851ba086f4b6ee87b5"
+    },
+    {
+      "name": "model.safetensors.part003",
+      "size": 1700000000,
+      "digest": "sha256:729989adc8af966ef3164448a0bdf54fa63d096a6b68263a5fd4f14f13d945b4"
+    },
+    {
+      "name": "model.safetensors.part004",
+      "size": 1700000000,
+      "digest": "sha256:fad250a347bb77136f927f9082f2fc6406df34810f5eb38c6190a5c9101f8fc0"
+    },
+    {
+      "name": "model.safetensors.part005",
+      "size": 1700000000,
+      "digest": "sha256:b69942d2a2a3b53a4743b152c0165ef9076928a473f27784d22aaaac28277feb"
+    },
+    {
+      "name": "model.safetensors.part006",
+      "size": 1700000000,
+      "digest": "sha256:57b643d62802d3fe42b5929e15120ebfcf1eab9dcd825dbe3d8f690516c94ac3"
+    },
+    {
+      "name": "model.safetensors.part007",
+      "size": 148670904,
+      "digest": "sha256:07f0e4429d36fdc8fe97c2836d9892469e66ea492c146f051b0b45d70152492e"
+    },
+    {
+      "name": "standalone-backup-manifest.json",
+      "size": 3646,
+      "digest": "sha256:d6d475b03691d768b84500695fef2828655edf5ec1b7c1bb22a615efed1f00cf"
+    }
+  ]
+}

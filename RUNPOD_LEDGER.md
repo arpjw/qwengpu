@@ -492,3 +492,16 @@ the project cap has approximately $0.78 of headroom left until final
 billing reconciles. The exact [receipt](results/resident_generation_v4_cuda/restored-reports/teardown-receipt.json)
 and [reports](results/resident_generation_v4_cuda/restored-reports) are
 saved in the repository.
+
+## November 14 standalone v4 export
+
+CPU3 General Purpose pod `1odnhe4hcw4087` used 32 vCPUs and 128 GB
+RAM at the live quoted $1.28/hour rate. It ran from 15:27:19 UTC until
+verified deletion before 15:47:04 UTC. The CPU compute estimate is at
+most $0.422; reserve $0.48 for compute and disk pending posted billing.
+The billing query immediately after teardown showed $0 posted for this
+pod, so that is not a final invoice. Deletion returned 204, the next
+lookup returned 404, and the pod list was empty. The [teardown receipt](results/resident_generation_v4_cuda/standalone-export/teardown-receipt.json)
+and [package evidence](results/resident_generation_v4_cuda/standalone-export)
+are saved. Using the earlier conservative $0.78 project headroom, this
+leaves approximately $0.30 under the $74 cap pending reconciliation.
