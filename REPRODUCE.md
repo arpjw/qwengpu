@@ -2009,6 +2009,18 @@ python -m qwengpu.textcheck_9b "$base" "$v4_model" --device cuda \
 python scripts/check_single_launch_matmul16.py "$reports"
 ```
 
+To exercise the v4 panel scheduler on Apple MPS, export its standalone
+weights on a Linux builder. Copy the resulting directory to the Apple
+host, then run the same frozen fixture with the standalone launch mode.
+
+```bash
+python scripts/export_resident_generation_standalone.py "$v4_standalone" --generated-tilegrid
+QWENGPU_STANDALONE_WEIGHTS="$v4_standalone" \
+  python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --resident-generate --device mps --out "$reports/matmul16-single-launch.json"
+python scripts/check_single_launch_matmul16.py "$reports" --mps
+```
+
 The following assembled program communicates 32-bit values between two warps
 through each workgroup's scoped shared bank. Each value uses two adjacent
 16-bit shared words. A barrier orders the producer before the consumer,

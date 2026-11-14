@@ -233,7 +233,10 @@ def load_generation_model(checkpoint, device):
         # Match build_standalone's circuit schedule. The model pads its MLP
         # beyond the circuit's scheduling capacity for the emitter.
         config = Qwen3_5TextConfig.from_pretrained(checkpoint)
-        circuit = build(generate=True)
+        layout = getattr(config, "qwengpu_layout", gen.LAYOUT)
+        if layout not in gen.LAYOUTS:
+            raise ValueError(f"unknown standalone generation layout {layout!r}")
+        circuit = build(generate=True, generated_tilegrid=layout == gen.TILEGRID_LAYOUT)
         expected_layers = ["linear_attention"] * circuit.n_layers() + ["full_attention"]
         if (config.layer_types != expected_layers or config.vocab_size != ALU_VOCAB
                 or config.linear_num_key_heads != circuit.target.key_heads

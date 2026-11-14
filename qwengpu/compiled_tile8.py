@@ -488,6 +488,7 @@ def build(
     c.full_integer = full_integer
     c.internal_stores = internal_stores
     c.stock_generation_tile = generate
+    c.generated_tilegrid = generated_tilegrid
     c.memory_geometry = geometry
     one = c.one
     warp_banks = (
@@ -2767,6 +2768,7 @@ def build_standalone(
     resident_interleaved: bool = False,
     internal_stores: bool = False,
     generate: bool = False,
+    generated_tilegrid: bool = False,
 ):
     from chipformer.q35 import tiny
 
@@ -2804,6 +2806,7 @@ def build_standalone(
         resident_interleaved=resident_interleaved,
         internal_stores=internal_stores,
         generate=generate,
+        generated_tilegrid=generated_tilegrid,
     )
     if internal_stores:
         # This experimental layout needs extra exit cleanup slots on the

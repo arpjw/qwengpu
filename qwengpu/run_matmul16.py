@@ -666,14 +666,16 @@ def main() -> None:
         )
     if generated:
         model, circuit, offset = load_generation_model(args.model, device)
-        runner = run_generated_tilegrid if generated_tilegrid else run_generated_matmul
+        runner = run_generated_tilegrid if circuit.generated_tilegrid else run_generated_matmul
         result = {
             "format": FORMAT,
             "input_sha256": hashlib.sha256(payload).hexdigest(),
             "device": device,
             "torch": torch.__version__,
             "merge": meta,
-            "checkpoint": meta["layout"] if meta else "standalone-resident-generate",
+            "checkpoint": meta["layout"] if meta else (
+                gen.TILEGRID_LAYOUT if circuit.generated_tilegrid else "standalone-resident-generate"
+            ),
             "transport_mode": "stock_generation",
             "retain_c": True,
             **runner(model, circuit, device, offset, a, b, c),
