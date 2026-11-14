@@ -330,6 +330,12 @@ The public launchers also passed on v3. `run_resident` reported the
 expected deadlock with exit status 3 and exact state. `run_compute`
 returned `4294967168` for the 128-element reduction, with 256 global
 words uploaded for the first launch and zero for the second.
+The `3×5 × 5×2` and `9×7 × 7×5` non-square tiled multiplies
+also match the earlier checkpoint's scalar output and final RAM.
+Their later K panels upload 48 operand words while retaining C.
+The original v3 release also passed the GPU and native-text tests
+after a clean download from the private model repository.
+See [the restore receipt](RELEASE.md#restore-receipt).
 On the 27 inherited fixtures, the prior driver made 5,411 explicit
 forward calls and submitted 109,276 tokens, including 18,657 state
 read requests and 4,772 store read requests. V3 makes 27 host generation
