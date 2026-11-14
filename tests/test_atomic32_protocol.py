@@ -8,6 +8,7 @@ from chipformer.q35.prims import Circ
 
 from qwengpu.model_stores import ATOMIC_HIGH_COMMIT_BASE, COMMIT_BASE, COMMIT_COUNT
 from qwengpu import resident_generation as gen
+from qwengpu.memory_geometry import WIDE_MEMORY
 
 
 def selected_commit_tokens(c, grants, token_ids):
@@ -43,6 +44,69 @@ def selected_commit_tokens(c, grants, token_ids):
 
 
 class Atomic32ProtocolTests(unittest.TestCase):
+    def test_atomic_commands_wait_for_four_nibble_completion(self):
+        low_done = WIDE_MEMORY.base + 3 * 16
+        high_done = WIDE_MEMORY.base + 64 + 3 * 16
+        token_ids = [
+            *[gen.COMMIT + lane for lane in range(8)],
+            *[gen.ATOMIC_HIGH_COMMIT + lane for lane in range(8)],
+        ]
+        c = Circ(Target())
+        request = c.token_feature("atomic.request", lambda token: int(token == 1), full=True)
+        inputs = [
+            c.token_feature(
+                f"atomic.commit.{index}",
+                lambda token, expected=expected: int(token == expected),
+                full=True,
+            )
+            for index, expected in enumerate(token_ids)
+        ]
+        raw = [
+            c.token_feature(
+                f"atomic.raw.{bit}", lambda token, bit=bit: token >> bit & 1,
+                full=True,
+            )
+            for bit in range(11)
+        ]
+        defer = c.token_feature(
+            "atomic.defer",
+            lambda token: int(token in (token_ids[0], token_ids[8])),
+            full=True,
+        )
+        resume = c.token_feature(
+            "atomic.resume",
+            lambda token: int(token in (low_done, high_done)),
+            full=True,
+        )
+        cursor = c.token_feature(
+            "atomic.resume_cursor",
+            lambda token: 8 if token == high_done else 0,
+            full=True,
+        )
+        outputs = list(gen.generated_writeback(
+            c, request, Expr(), inputs, raw, [Expr(), Expr()], [], [],
+            [c.one if index in (0, 8) else Expr() for index in range(16)],
+            token_ids, defer, resume, cursor,
+        ))
+        residual = evaluate(
+            c, [1, token_ids[0], low_done, token_ids[8], high_done], check=True
+        )
+        observed = []
+        for position in range(5):
+            emitted = [
+                sum(
+                    int(ev(as_expr(bit), residual)[position]) << offset
+                    for offset, bit in enumerate(bits)
+                )
+                for gates, bits in outputs
+                if all(int(ev(gate, residual)[position]) for gate in gates)
+            ]
+            observed.append(emitted)
+        self.assertEqual(
+            observed,
+            [[token_ids[0]], [], [token_ids[8]], [], [gen.SCHEDULE]],
+        )
+
     def test_extra_commit_tokens_do_not_overlap_controls(self):
         legacy = set(range(COMMIT_BASE, COMMIT_BASE + COMMIT_COUNT))
         legacy_high = set(range(ATOMIC_HIGH_COMMIT_BASE, ATOMIC_HIGH_COMMIT_BASE + 8))

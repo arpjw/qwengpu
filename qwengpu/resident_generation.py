@@ -87,8 +87,14 @@ def generated_schedule(
 def generated_writeback(
     c, request, reg_input, commit_inputs, raw, bank_bits, values, dirty, grants,
     commit_tokens=None,
+    defer_commit=None,
+    resume=None,
+    resume_cursor=None,
 ):
     """Drain changed register nibbles, then commit stores in lane order."""
+    defer_commit = Expr() if defer_commit is None else defer_commit
+    resume = Expr() if resume is None else resume
+    resume_cursor = Expr() if resume_cursor is None else resume_cursor
     cursor = from_bits(raw[4:11])
     registers = first_after(c, request, reg_input, cursor, dirty, "generate.register")
     value = [
@@ -104,9 +110,9 @@ def generated_writeback(
         *value, *onehot_bits(registers, 7), *bank_bits, *token_bits(REGISTER)[13:],
     ]
 
-    commit = sum(commit_inputs, Expr())
+    commit = sum(commit_inputs, Expr()) - defer_commit + resume
     store_request = c.and_([request, c.one - any_register], "generate.store.request") + commit
-    lane = sum((i * hit for i, hit in enumerate(commit_inputs)), Expr())
+    lane = sum((i * hit for i, hit in enumerate(commit_inputs)), Expr()) + resume_cursor
     stores = first_after(c, store_request, commit, lane, grants, "generate.store")
     if commit_tokens is None:
         yield [sum(stores, Expr())], [*onehot_bits(stores, 3), *token_bits(COMMIT)[3:]]
