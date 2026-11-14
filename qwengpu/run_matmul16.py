@@ -22,6 +22,7 @@ from qwengpu.compiled_tile8 import (
     WARP_DIRTY_OFFSET,
 )
 from qwengpu.eval_tile import _unsigned
+from qwengpu.eval_resident_generation import evaluate, load_generation_model
 from qwengpu.eval_tile8 import (
     RESIDENT_ADD32_LAYOUTS,
     RESIDENT_ADDMEM32_LAYOUTS,
@@ -46,6 +47,7 @@ from qwengpu.memory_geometry import (
     ROM32_LAYOUTS,
     WIDE_MEMORY,
 )
+from qwengpu.resident_generation import LAYOUT as GENERATION_LAYOUT
 
 SIZE = 16
 TILE = 8
@@ -319,6 +321,43 @@ def run_matmul(
     return {"matrix": passes[SIZE - TILE]["matrix"], "passes": list(passes.values())}
 
 
+def run_generated_matmul(model, circuit, device, offset, a, b, c):
+    passes = [{"k": k, "matrix": [row[:] for row in c], "launches": []}
+              for k in (0, TILE)]
+    for row in range(0, SIZE, TILE):
+        for col in range(0, SIZE, TILE):
+            cache = None
+            output = _tile(c, row, col)
+            for panel in passes:
+                k = panel["k"]
+                case = parse_launch(
+                    {"a": _tile(a, row, k), "b": _tile(b, k, col), "c": output},
+                    full_integer=True,
+                )
+                cache, report = evaluate(
+                    model, circuit, case, device, offset, cache=cache,
+                    retain_tile_output=k > 0,
+                )
+                if report["outcome"] != "halted" or not all(
+                    value for key, value in report.items() if key.endswith("_exact")
+                ):
+                    raise ValueError(f"tile ({row}, {col}), K={k}, failed generation or cache audit")
+                output = report["tile_words"][64:]
+                for i in range(TILE):
+                    panel["matrix"][row + i][col:col + TILE] = output[i * TILE:(i + 1) * TILE]
+                panel["launches"].append({"row": row, "col": col, **report})
+    for panel in passes:
+        end = panel["k"] + TILE
+        expected = [
+            [(c[i][j] + sum(a[i][k] * b[k][j] for k in range(end))) & 65535
+             for j in range(SIZE)]
+            for i in range(SIZE)
+        ]
+        if panel["matrix"] != expected:
+            raise ValueError(f"matrix through K={end} differs from scalar")
+    return {"matrix": passes[-1]["matrix"], "passes": passes}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
@@ -331,6 +370,7 @@ def main() -> None:
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
     variants.add_argument("--full-integer", action="store_true")
+    variants.add_argument("--resident-generate", action="store_true")
     variants.add_argument("--resident-memory512", action="store_true")
     variants.add_argument(
         "--resident-compute",
@@ -401,6 +441,21 @@ def main() -> None:
     try:
         payload = args.input.read_bytes()
         a, b, c = parse_inputs(json.loads(payload))
+        if args.model:
+            meta = json.loads((args.model / "qwengpu9b.json").read_text())
+            if not isinstance(meta, dict):
+                raise ValueError("expected checkpoint metadata")
+        generated = args.resident_generate or (meta is not None and meta.get("layout") == GENERATION_LAYOUT)
+        if generated:
+            if args.schedule_k or args.grid_2x2:
+                raise ValueError("stock generation runs one launch per output tile and K panel")
+            if meta is not None and (
+                meta.get("layout") != GENERATION_LAYOUT
+                or meta.get("chip_vocab") != ALU_VOCAB
+                or type(meta.get("chip_token_offset")) is not int
+                or meta["chip_token_offset"] < 0
+            ):
+                raise ValueError("expected a merged resident generation checkpoint")
         if (
             (args.schedule_k or args.grid_2x2)
             and args.model is None
@@ -415,8 +470,7 @@ def main() -> None:
             )
         ):
             raise ValueError("scheduled modes select their own standalone checkpoint")
-        if args.model:
-            meta = json.loads((args.model / "qwengpu9b.json").read_text())
+        if meta is not None and not generated:
             if (
                 not isinstance(meta, dict)
                 or meta.get("layout")
@@ -489,7 +543,7 @@ def main() -> None:
             raise ValueError("--schedule-k requires a tilepipe checkpoint")
         if args.grid_2x2 and not resident_tilegrid:
             raise ValueError("--grid-2x2 requires a tilegrid checkpoint")
-        if args.retain_c and not resident_add32:
+        if args.retain_c and not (resident_add32 or generated):
             raise ValueError("--retain-c requires a resident ADD32 checkpoint")
     except (OSError, TypeError, ValueError) as exc:
         parser.error(str(exc))
@@ -503,6 +557,21 @@ def main() -> None:
             if torch.backends.mps.is_available()
             else "cpu"
         )
+    if generated:
+        model, circuit, offset = load_generation_model(args.model, device)
+        result = {
+            "format": FORMAT,
+            "input_sha256": hashlib.sha256(payload).hexdigest(),
+            "device": device,
+            "torch": torch.__version__,
+            "merge": meta,
+            "checkpoint": GENERATION_LAYOUT if meta else "standalone-resident-generate",
+            "transport_mode": "stock_generation",
+            "retain_c": True,
+            **run_generated_matmul(model, circuit, device, offset, a, b, c),
+        }
+        write_result(result, args.out)
+        return
     model, circuit = load_tile_model(
         args.model,
         device,
@@ -578,10 +647,14 @@ def main() -> None:
         ),
         **execution,
     }
+    write_result(result, args.out)
+
+
+def write_result(result, destination):
     output = json.dumps(result, indent=2) + "\n"
-    if args.out:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(output)
+    if destination:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(output)
     else:
         print(output, end="")
 

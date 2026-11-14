@@ -80,6 +80,26 @@ def check_relaunches(root):
         print(f"{name}: state and retained global memory exact")
 
 
+def check_matmul16(root):
+    got = read(root, "matmul16.json")
+    old = read(BASELINE, "matmul16.json")
+    assert got["input_sha256"] == old["input_sha256"]
+    assert got["matrix"] == old["matrix"] and got["retain_c"]
+    assert [panel["k"] for panel in got["passes"]] == [0, 8]
+    for panel in got["passes"]:
+        bank = panel["k"] // 8
+        assert len(panel["launches"]) == 4
+        for group, run in enumerate(panel["launches"]):
+            check_launch(run)
+            earlier = old["passes"][2 * group + bank]
+            assert (earlier["workgroup"], earlier["bank"]) == (group, bank)
+            assert run["steps"] == earlier["instructions"]
+            assert run["tile_words"][64:] == [v for row in earlier["matrix"] for v in row]
+            assert run["tile_output_upload_words"] == (0 if bank else 64)
+            assert run["cache_retained_exact"]
+    print("16x16 modular multiply: eight panels and retained output tiles exact")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
@@ -142,6 +162,7 @@ def main():
     check_memory512(root)
     check_integer_programs(root)
     check_relaunches(root)
+    check_matmul16(root)
 
 
 if __name__ == "__main__":

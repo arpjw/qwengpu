@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from qwengpu import resident_generation as gen
-from qwengpu.compiled_tile8 import WIDE_WARP_TAGS, rom_address
+from qwengpu.compiled_tile8 import C_MEMORY, WIDE_WARP_TAGS, rom_address
 from qwengpu.eval_resident_generation import (
     expected_tokens, launch_prompt, launch_registers, resident_reference,
 )
@@ -14,6 +14,15 @@ from qwengpu.resident_scheduler import resident_control
 
 
 class ResidentGenerationTests(unittest.TestCase):
+    def test_tile_relaunch_uploads_operands_without_output_words(self):
+        case = parse_launch({"c": [123] * 64}, full_integer=True)
+        initial = launch_prompt(case)
+        continued = launch_prompt(case, retain_tile_output=True)
+        self.assertEqual(
+            continued, [token for token in initial if not C_MEMORY <= token < C_MEMORY + 4096],
+        )
+        self.assertEqual(len(initial) - len(continued), 256)
+
     def test_tile_row_transition_preserves_seeded_registers(self):
         case = parse_launch({
             "programs": [[{"op": "ADD16I", "arg": 1}, {"op": "HALT"}],

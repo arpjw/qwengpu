@@ -28,7 +28,7 @@ from qwengpu.resident_scheduler import (
 from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_WORDS
 
 
-def launch_prompt(case, refresh_words=None):
+def launch_prompt(case, refresh_words=None, *, retain_tile_output=False):
     groups = case.get("workgroups")
     if groups is not None and groups not in (1, 2, 3, 4):
         raise ValueError("stock generation requires one through four workgroups")
@@ -45,7 +45,8 @@ def launch_prompt(case, refresh_words=None):
               RESIDENT_TICKET + 3, descriptor]
     if groups is None:
         tokens.extend(nibbles(INDEX_OPERAND, _digits(case["a"] + case["b"], 8)))
-        tokens.extend(nibbles(C_MEMORY, _digits(case["c"], 16)))
+        if not retain_tile_output:
+            tokens.extend(nibbles(C_MEMORY, _digits(case["c"], 16)))
         tokens.append(gen.ROW + case["first_row_pair"])
     elif groups > 1 and not interleaved:
         tokens.append(gen.GROUP)
@@ -217,16 +218,19 @@ def load_generation_model(checkpoint, device):
 @torch.no_grad()
 def evaluate(
     model, circuit, case, device, offset=0, *, max_new_tokens=32768,
-    cache=None, refresh_words=None, max_steps=256,
+    cache=None, refresh_words=None, max_steps=256, retain_tile_output=False,
 ):
     start = time.monotonic()
+    tiled = "workgroups" not in case
+    if retain_tile_output and (not tiled or cache is None):
+        raise ValueError("retaining tile output requires a tiled launch with an existing cache")
     if refresh_words is not None and (
         cache is None
         or type(refresh_words) is not int
         or not 0 <= refresh_words <= WIDE_MEMORY.words
     ):
         raise ValueError("global refresh requires a retained cache and a valid prefix length")
-    prompt = launch_prompt(case, refresh_words)
+    prompt = launch_prompt(case, refresh_words, retain_tile_output=retain_tile_output)
     cache_length = 0 if cache is None else cache.get_seq_length()
     inputs = torch.tensor([[token + offset for token in prompt]], device=device)
     if cache_length:
@@ -244,7 +248,6 @@ def evaluate(
     retained = output.past_key_values
     reference = oracle(case, max_steps, looping=True)
     sequential = not case.get("interleaved")
-    tiled = "workgroups" not in case
     if sequential:
         reference = resident_reference(reference, tiled=tiled)
     expected, controls, registers = expected_tokens(
@@ -293,6 +296,8 @@ def evaluate(
         "generation_seconds": round(generation_seconds, 3),
         "host_execution_tokens": 0,
         "global_upload_words": 0 if tiled else WIDE_MEMORY.words if refresh_words is None else refresh_words,
+        **({"tile_output_upload_words": 0 if retain_tile_output else len(case["c"])}
+           if tiled else {}),
         "cache_length_exact": (
             retained.get_seq_length() == cache_length + len(prompt) + len(tokens) - 1
         ),
