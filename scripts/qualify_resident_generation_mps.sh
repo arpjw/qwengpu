@@ -2,11 +2,32 @@
 # Replay the final circuit on Apple MPS without loading the merged weights.
 set -euo pipefail
 
+v4=0
+if [[ "${1:-}" == --v4 ]]; then
+  v4=1
+  shift
+fi
 reports="${1:?expected report directory}"
-cuda_reports="${2:-results/resident_generation_v3_cuda}"
 python="${QWENGPU_PYTHON:-python}"
+verify=(--mps)
+matrix_report=matmul16.json
+if (( v4 )); then
+  cuda_reports="${2:?expected merged v4 CUDA report directory}"
+  weights="${QWENGPU_STANDALONE_WEIGHTS:?expected v4 standalone weights}"
+  "$python" - "$weights/config.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1]) as stream:
+    if json.load(stream).get("qwengpu_layout") != "qwengpu-resident-generation-9b-v4":
+        raise SystemExit("expected the v4 standalone circuit")
+PY
+  verify+=(--v4)
+  matrix_report=matmul16-single-launch.json
+else
+  cuda_reports="${2:-results/resident_generation_v3_cuda}"
+fi
 mkdir -p "$reports"
-"$python" -c 'import torch; assert torch.backends.mps.is_available(), "Apple MPS is unavailable"'
+"$python" -c 'import torch; assert torch.backends.mps.is_available(), "Apple MPS is unavailable"; assert (torch.ones(1, device="mps") + 1).item() == 2'
 
 inherited=()
 for gate in tile8 resident indexed masked divergent loop grid wide resident_add32 window \
@@ -51,5 +72,5 @@ done
 "$python" -m qwengpu.run_resident "$reports/scoped-shared-u32-kernel.json" \
   --resident-generate --device mps --check-reference --trace --out "$reports/scoped-shared-u32.json"
 "$python" -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
-  --resident-generate --device mps --out "$reports/matmul16.json"
-"$python" scripts/check_resident_generation_v3.py --mps "$reports" --compare-cuda "$cuda_reports"
+  --resident-generate --device mps --out "$reports/$matrix_report"
+"$python" scripts/check_resident_generation_v3.py "${verify[@]}" "$reports" --compare-cuda "$cuda_reports"

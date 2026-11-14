@@ -71,7 +71,7 @@ def check_fixtures(report, expected):
         check_launch(case)
 
 
-def check_cross_backend(mps, cuda):
+def check_cross_backend(mps, cuda, *, v4=False):
     def compare(left, right):
         for key in ("generated_tokens", "outcome", "global_words", "tile_words", "scoped_words"):
             if key in left or key in right:
@@ -104,10 +104,16 @@ def check_cross_backend(mps, cuda):
         for phase in ("producer", "consumer"):
             compare(left[phase], right[phase])
     compare(read(mps, "scoped-shared-u32.json"), read(cuda, "scoped-shared-u32.json"))
-    left, right = read(mps, "matmul16.json"), read(cuda, "matmul16.json")
-    for panel, merged_panel in zip(left["passes"], right["passes"], strict=True):
-        for run, merged in zip(panel["launches"], merged_panel["launches"], strict=True):
-            compare(run, merged)
+    if v4:
+        name = "matmul16-single-launch.json"
+        left, right = read(mps, name), read(cuda, name)
+        compare(left, right)
+        assert left["matrix"] == right["matrix"]
+    else:
+        left, right = read(mps, "matmul16.json"), read(cuda, "matmul16.json")
+        for panel, merged_panel in zip(left["passes"], right["passes"], strict=True):
+            for run, merged in zip(panel["launches"], merged_panel["launches"], strict=True):
+                compare(run, merged)
     print("Apple MPS and merged CUDA match on the remaining launch tokens and memory")
 
 
@@ -251,14 +257,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
     parser.add_argument("--mps", action="store_true", help="check standalone Apple MPS reports")
-    parser.add_argument("--v4", action="store_true", help="check the v4 CUDA candidate and single-launch tilegrid")
+    parser.add_argument("--v4", action="store_true", help="check the v4 layout and single-launch tilegrid")
     parser.add_argument("--compare-cuda", type=Path,
                         help="compare MPS reports with a complete merged CUDA report directory")
     args = parser.parse_args()
     if args.compare_cuda is not None and not args.mps:
         parser.error("--compare-cuda requires --mps")
-    if args.v4 and args.mps:
-        parser.error("use check_single_launch_matmul16.py --mps for the v4 MPS matrix gate")
+    if args.v4 and args.mps and args.compare_cuda is None:
+        parser.error("v4 MPS qualification requires --compare-cuda with merged v4 reports")
     root = args.reports
     backend = "mps" if args.mps else "merged"
     device = "mps" if args.mps else "cuda"
@@ -275,7 +281,12 @@ def main():
         assert read(root, name)["device"] == device, f"{name}: expected {device}"
     check_inherited(inherited, BASELINE / "inherited.json")
     if args.mps:
-        comparison = PINNED_V3.with_name("inherited-merged.json")
+        cuda = args.compare_cuda or PINNED_V3.parent
+        if args.v4:
+            manifest = read(cuda, "manifest.json")
+            check_manifest(manifest, v4=True)
+            check_candidate_reports(cuda, manifest["files"]["qwengpu9b.json"])
+        comparison = cuda / "inherited-merged.json"
     else:
         comparison = root / "inherited-standalone.json"
         check_inherited(comparison, BASELINE / "inherited.json")
@@ -300,12 +311,12 @@ def main():
     check_relaunches(root)
     check_scoped_shared_u32(root)
     if args.v4:
-        check_single_launch_matmul16(root)
+        check_single_launch_matmul16(root, mps=args.mps)
     else:
         check_matmul16(root)
     if args.mps:
         if args.compare_cuda is not None:
-            check_cross_backend(root, args.compare_cuda)
+            check_cross_backend(root, args.compare_cuda, v4=args.v4)
         return
 
     manifest = read(root, "manifest.json")

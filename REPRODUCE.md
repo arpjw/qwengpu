@@ -2029,6 +2029,14 @@ QWENGPU_STANDALONE_WEIGHTS="$v4_standalone" \
 python scripts/check_single_launch_matmul16.py "$reports" --mps
 ```
 
+Once the merged v4 CUDA reports are available, qualify the entire
+standalone v4 suite on the Apple host and compare the traces directly.
+
+```bash
+QWENGPU_STANDALONE_WEIGHTS="$v4_standalone" \
+  bash scripts/qualify_resident_generation_mps.sh --v4 "$reports" "$v4_cuda_reports"
+```
+
 The following assembled program communicates 32-bit values between two warps
 through each workgroup's scoped shared bank. Each value uses two adjacent
 16-bit shared words. A barrier orders the producer before the consumer,
