@@ -15,9 +15,9 @@ from qwengpu.alu32 import RUNTIME_EXTENT_BASE
 from qwengpu.cache_register_edge import register_head_names
 from qwengpu.compiled_tile8 import (
     ADVANCE, C_MEMORY, DEADLOCK, DONE, GLOBAL_GRID, GRID, INDEX_OPERAND, MASK_REGISTER, ROM32_PC_HIGH,
-    ROM_BANK, ROW_PAIRS, TICKET,
+    ROM_BANK, ROM_PAYLOAD_BITS, ROW_PAIRS, TICKET,
     WARP_BANKS, WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, WORKGROUP_TICKETS,
-    build, build_standalone, program_tokens,
+    build, build_standalone, program_tokens, rom_payload,
 )
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_tile8 import _check_resident_memory, _digits, _words, nibbles, oracle, parse_launch
@@ -26,6 +26,14 @@ from qwengpu.resident_scheduler import (
     EXTRA_WARP_BANKS, RESIDENT_ENABLE, RESIDENT_TICKET, resident_control,
 )
 from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_WORDS
+
+
+def launch_rom(case):
+    return [
+        program_tokens(program, resident_rom32=True, resident_alu32=True,
+                       resident_scoped="scoped_words" in case, full_integer=True)
+        for program in case["programs"]
+    ]
 
 
 def launch_prompt(case, refresh_words=None, *, retain_tile_output=False):
@@ -59,10 +67,9 @@ def launch_prompt(case, refresh_words=None, *, retain_tile_output=False):
         tokens.extend(nibbles(SCOPED_BASE, _digits(case["scoped_words"], 16)))
     if "extent" in case:
         tokens.append(RUNTIME_EXTENT_BASE + case["extent"])
-    for warp, program in enumerate(case["programs"]):
+    for warp, program in enumerate(launch_rom(case)):
         tokens.append(ROM_BANK + warp)
-        tokens.extend(program_tokens(program, resident_rom32=True, resident_alu32=True,
-                                     resident_scoped="scoped_words" in case, full_integer=True))
+        tokens.extend(program)
     for bank, digits in zip((*WARP_BANKS, *EXTRA_WARP_BANKS), launch_registers(case), strict=True):
         tokens.extend(nibbles(bank, digits))
     return [*tokens, gen.SCHEDULE]
@@ -266,6 +273,18 @@ def evaluate(
         head_row(retained, circuit, f"resident.control.{warp}", 0, 7) == (token & 127)
         for warp, token in enumerate(controls)
     )
+    rom_exact = all(
+        head_row(retained, circuit, "rom", len(program) * warp + address, ROM_PAYLOAD_BITS + 3)
+        == rom_payload(
+            token, indexed=True, masked=True, divergent=True, looping=True,
+            resident_add32=True, resident_shared32=True, resident_addmem32=True,
+            resident_branch32=True, resident_loop32=True, resident_globalgrid=True,
+            resident_compute=True, resident_memory512=True, resident_rom32=True,
+            resident_alu32=True, resident_scoped=True, full_integer=True,
+        )
+        for warp, program in enumerate(launch_rom(case))
+        for address, token in enumerate(program)
+    )
     group_exact = True
     if sequential:
         cursor = head_row(retained, circuit, "workgroup", 0, 3)
@@ -311,6 +330,7 @@ def evaluate(
         "outcome_exact": outcome == reference["outcome"],
         "registers_exact": observed_registers == registers,
         "control_exact": control_exact,
+        "rom_exact": rom_exact,
         "workgroup_cursor_exact": group_exact,
         "memory_exact" if tiled else "global_exact": mirrors and words == reference["shared_words"],
         "scoped_exact": scoped is None or (scoped[1] and scoped[0] == reference["scoped_words"]),
