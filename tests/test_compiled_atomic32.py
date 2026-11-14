@@ -5,7 +5,12 @@ import unittest
 from chipformer.q35.ir import Target, ev, evaluate
 from chipformer.q35.prims import Circ
 
-from qwengpu.compiled_atomic32 import atomic_add32_results
+from qwengpu.compiled_atomic32 import (
+    atomic_add32_results,
+    atomic_nibble_step,
+    atomic_nibble_token_bits,
+)
+from qwengpu.memory_geometry import WIDE_MEMORY
 
 
 def bits(c, cases, name, width, value):
@@ -27,6 +32,90 @@ def number(expressions, residual, position):
 
 
 class CompiledAtomic32Tests(unittest.TestCase):
+    def test_staged_word_emits_four_memory_tokens_before_completion(self):
+        address_value, word_value = 255, 0xABCD
+        tags = [
+            WIDE_MEMORY.base + 64 * address_value + 16 * nibble
+            + (word_value >> (4 * nibble) & 15)
+            for nibble in range(4)
+        ]
+        c = Circ(Target())
+        command = c.token_feature("stream.command", lambda token: int(token == 1), full=True)
+        memory_token = c.token_feature(
+            "stream.memory",
+            lambda token: int(WIDE_MEMORY.base <= token < WIDE_MEMORY.vocab),
+            full=True,
+        )
+        address = [
+            c.token_feature(
+                f"stream.address.{bit}",
+                lambda token, bit=bit: int(token == 1) * (address_value >> bit & 1),
+                full=True,
+            )
+            for bit in range(8)
+        ]
+        word = [
+            c.token_feature(
+                f"stream.word.{bit}",
+                lambda token, bit=bit: int(token == 1) * (word_value >> bit & 1),
+                full=True,
+            )
+            for bit in range(16)
+        ]
+        staged = c.slot_head(
+            "atomic.stream.staged",
+            {0: command},
+            {0: command + memory_token},
+            {2 + bit: value for bit, value in enumerate([*address, *word])},
+            command,
+        )
+        input_nibble = [
+            c.token_feature(
+                f"stream.nibble.{bit}",
+                lambda token, bit=bit: (token >> (4 + bit)) & 1,
+                full=True,
+            )
+            for bit in range(2)
+        ]
+        emit, output, done = atomic_nibble_step(
+            c, command, memory_token, input_nibble, staged[:8], staged[8:]
+        )
+        residual = evaluate(c, [1, *tags], check=True)
+        self.assertEqual(
+            [int(ev(emit, residual)[position]) for position in range(5)],
+            [1, 1, 1, 1, 0],
+        )
+        self.assertEqual(
+            [number(output, residual, position) for position in range(4)],
+            tags,
+        )
+        self.assertEqual(
+            [int(ev(done, residual)[position]) for position in range(5)],
+            [0, 0, 0, 0, 1],
+        )
+
+    def test_generated_memory_tokens_carry_address_and_nibble_value(self):
+        cases = [
+            {"address": address, "word": word, "nibble": nibble}
+            for address, word in ((0, 0), (128, 0x1234), (255, 0xABCD))
+            for nibble in range(4)
+        ]
+        c = Circ(Target())
+        address = bits(c, cases, "token.address", 8, lambda case: case["address"])
+        word = bits(c, cases, "token.word", 16, lambda case: case["word"])
+        nibble = bits(c, cases, "token.nibble", 2, lambda case: case["nibble"])
+        encoded = atomic_nibble_token_bits(c, address, word, nibble)
+        residual = evaluate(c, list(range(len(cases))), check=True)
+        for position, case in enumerate(cases):
+            with self.subTest(position=position):
+                self.assertEqual(
+                    number(encoded, residual, position),
+                    WIDE_MEMORY.base
+                    + 64 * case["address"]
+                    + 16 * case["nibble"]
+                    + (case["word"] >> (4 * case["nibble"]) & 15),
+                )
+
     def assert_cases(self, cases):
         lanes = len(cases[0]["indices"])
         c = Circ(Target())

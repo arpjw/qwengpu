@@ -86,3 +86,56 @@ def atomic_add32_results(
         old_words.append(old)
         final_words.append(final)
     return old_words, final_words, grants
+
+
+def atomic_nibble_token_bits(
+    c: Circ,
+    address: list[Expr],
+    word: list[Expr],
+    nibble: list[Expr],
+) -> list[Expr]:
+    """Encode one value-bearing 512-byte RAM write token for generation.
+
+    The token format is 0x20000 + 64 * address + 16 * nibble + value_nibble.
+    A later generation step can feed that token back into the RAM head using
+    only token features, avoiding a same-layer RAM read/write dependency.
+    """
+    if len(address) != 8 or len(word) != 16 or len(nibble) != 2:
+        raise ValueError("RAM token needs an 8-bit address, 16-bit word, and 2-bit nibble")
+    selected = c.select_bits(
+        [([hot], word[4 * index : 4 * index + 4])
+         for index, hot in enumerate(c.onehot_of_bits(nibble, "atomic.token.nibble", 4))],
+        4,
+        "atomic.token.value",
+    )
+    return [*selected, *nibble, *address, Expr(), Expr(), Expr(), c.one]
+
+
+def atomic_nibble_step(
+    c: Circ,
+    command: Expr,
+    memory_token: Expr,
+    input_nibble: list[Expr],
+    address: list[Expr],
+    word: list[Expr],
+) -> tuple[Expr, list[Expr], Expr]:
+    """Emit nibble zero after a command, then nibbles one through three.
+
+    Return the emission gate, generated memory token bits, and a completion
+    gate. Completion after nibble three lets the scheduler select the next
+    committed limb. The caller keeps address and word in a staged head and
+    enables memory_token only while an atomic writeback is active.
+    """
+    if len(input_nibble) != 2:
+        raise ValueError("input memory nibble must have two bits")
+    hot = c.onehot_of_bits(input_nibble, "atomic.stream.input_nibble", 4)
+    continuation = c.and_([memory_token, c.one - hot[3]], "atomic.stream.continue")
+    next_nibble = [
+        c.and_([memory_token, hot[0] + hot[2]], "atomic.stream.next_low"),
+        c.and_([memory_token, hot[1] + hot[2]], "atomic.stream.next_high"),
+    ]
+    return (
+        command + continuation,
+        atomic_nibble_token_bits(c, address, word, next_nibble),
+        c.and_([memory_token, hot[3]], "atomic.stream.done"),
+    )

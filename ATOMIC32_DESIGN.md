@@ -43,6 +43,8 @@ The [isolated circuit log](results/atomic32/isolated-circuit-tests.txt)
 records exact Qwenputer graph evaluation for three and eight lanes.
 The [commit protocol log](results/atomic32/commit-protocol-tests.txt)
 covers both commit widths and the existing resident-generation tests.
+The [value-token log](results/atomic32/value-token-tests.txt) covers the
+four-nibble stream and commit selector in isolated graphs.
 
 ## Circuit and qualification work
 
@@ -58,13 +60,20 @@ covers both commit widths and the existing resident-generation tests.
    evaluator passes overflow, masks, distinct pairs, and an eight-lane
    collision. It is not connected to model memory or generation yet.
 3. Commit each distinct pair's final low and high limbs before issuing the
-   next instruction. Reuse the model-owned memory writeback protocol with
-   enough commit slots for both limbs. Keep the ordering within one model
-   generation cache and account for any extra generated tokens. An optional
+   next instruction. The current RAM head derives store data before its own
+   read stage. An atomic result depends on that read, so a lane-only commit
+   command would introduce a same-layer feedback dependency. Stage the
+   result after the RAM read, select a low or high limb, and have Qwen emit
+   four address-and-value nibble tokens for that limb. Feed each generated
+   token into the existing RAM upload port before scheduling another
+   instruction. At most sixteen limbs require 64 memory tokens. An optional
    sixteen-slot generated-writeback selector now emits separate high-limb
-   commit tokens after the existing eight slots. Its isolated protocol
-   test checks both the old eight-slot and new sixteen-slot sequences.
-   The RAM journal is not wired to those high-limb tokens yet.
+   commit commands, and its isolated protocol test preserves the old
+   eight-slot sequence. The isolated `atomic_nibble_token_bits` graph emits
+   the exact 512-byte RAM token encoding. `atomic_nibble_step` also passes an
+   exact staged four-token stream test. The caller must gate this stream so
+   ordinary launch uploads cannot trigger it. The selector, staged values,
+   and nibble stream are not yet connected in one checkpoint.
 4. Freeze boundary, carry, overflow, same-pair collision, masked lane,
    cross-warp, interleaved-workgroup, barrier, and native-text handoff cases.
    Compare the complete generated trace and final recurrent memory against
@@ -74,6 +83,6 @@ covers both commit widths and the existing resident-generation tests.
    the new layout. Record compile allocation, model revision, device,
    latency, and provider cost before calling the new checkpoint qualified.
 
-The model may physically emit two limb commits per pair. Atomicity is the
-instruction-level visibility rule: the scheduler must not issue another
-instruction or text handoff between those commits.
+The model may physically emit eight memory tokens per distinct pair.
+Atomicity is the instruction-level visibility rule: the scheduler must not
+issue another instruction or text handoff between those tokens.

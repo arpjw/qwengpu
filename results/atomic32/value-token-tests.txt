@@ -1,0 +1,12 @@
+test_all_eight_lanes_collide_with_wrap (tests.test_compiled_atomic32.CompiledAtomic32Tests.test_all_eight_lanes_collide_with_wrap) ... ok
+test_collisions_wrap_masks_and_last_pair (tests.test_compiled_atomic32.CompiledAtomic32Tests.test_collisions_wrap_masks_and_last_pair) ... ok
+test_generated_memory_tokens_carry_address_and_nibble_value (tests.test_compiled_atomic32.CompiledAtomic32Tests.test_generated_memory_tokens_carry_address_and_nibble_value) ... ok
+test_staged_word_emits_four_memory_tokens_before_completion (tests.test_compiled_atomic32.CompiledAtomic32Tests.test_staged_word_emits_four_memory_tokens_before_completion) ... ok
+test_existing_eight_lane_commit_sequence (tests.test_atomic32_protocol.Atomic32ProtocolTests.test_existing_eight_lane_commit_sequence) ... ok
+test_extra_commit_tokens_do_not_overlap_controls (tests.test_atomic32_protocol.Atomic32ProtocolTests.test_extra_commit_tokens_do_not_overlap_controls) ... ok
+test_new_sixteen_limb_commit_sequence (tests.test_atomic32_protocol.Atomic32ProtocolTests.test_new_sixteen_limb_commit_sequence) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.197s
+
+OK
