@@ -50,13 +50,13 @@ with open(sys.argv[1]) as stream:
 assert report["next_top1_same"] == 24 and report["greedy_identical"] >= 21
 assert report["merged_chip_tokens"] == 0
 PY
-"$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/merged.json" "${fixtures[@]}"
+"$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/interleaved-merged.json" "${fixtures[@]}"
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/sequential-merged.json" "${sequential[@]}"
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/inherited-merged.json" "${inherited[@]}"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/inherited-merged.json" --inherited-baseline results/model_stores_merged_cuda/inherited.json
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
-  "$reports/standalone.json" "$reports/merged.json"
+  "$reports/standalone.json" "$reports/interleaved-merged.json"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/sequential-standalone.json" "$reports/sequential-merged.json" \
   --sequential-baseline results/model_stores_merged_cuda \
