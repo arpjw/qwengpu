@@ -46,7 +46,10 @@ the visibility boundary.
 ## Model publication boundary
 
 The corrected package has a verified public GitHub release. The model
-repository still has v3 on `main`. The [staged Hub procedure](RELEASE.md#corrected-v4-public-package)
+repository still has v3 on `main`. Its
+[current public card](results/public-readiness/hf-v3-public-card-2026-11-14.json)
+links to the v4 GitHub release and has an updated checksum list. The
+[staged Hub procedure](RELEASE.md#corrected-v4-public-package)
 would upload v4 to a non-main branch, clean-restore and qualify that
 immutable revision, then promote its files to `main` in one commit. A
 small live private probe verified branch-to-branch copy and deletion;

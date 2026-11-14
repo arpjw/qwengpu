@@ -1,0 +1,21 @@
+{
+  "checked_at_utc": "2026-11-14T21:34:20.731389+00:00",
+  "repo": "arpjw/Qwen-GPU",
+  "public": true,
+  "main_before": "7182ddec3349cace59850f706af11dbe0e7232dc",
+  "main_after": "db718229b5da8a22a636d784c02ebd7e41ff3576",
+  "pinned_qualified_v3_revision": "fe671778a2409a218dde757871f33f5ca46d9219",
+  "signed_out_card_sha256": "c931132aa504cc216c97967048071c3e7e73e9d3f4c7942a902e609b9d7d4502",
+  "signed_out_checksum_list_sha256": "4229bb5f50c0e43626f820fa747bc1ac60978d831d275b5d5028b722840fa111",
+  "listed_content_files": 49,
+  "changed_from_qualified_v3_revision": [
+    "README.md",
+    "SHA256SUMS"
+  ],
+  "new_presentation_files": [
+    "docs/media/architecture.png",
+    "docs/media/validation.png"
+  ],
+  "unchanged_weight_shards": 35,
+  "qualification": "The current public Hub card links to the public v4 GitHub release. The checksum list now matches the current card. Remote file metadata shows the same 35 v3 weight shards and all other v3 package files unchanged. The immutable qualified v3 revision remains available. No v4 weights were uploaded to the Hub."
+}

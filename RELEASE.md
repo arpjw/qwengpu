@@ -87,8 +87,10 @@ confirms that the v4 model card and both graphics in this checkout match
 the corrected package's checksums. Its simple local-link check found no
 missing targets in the main README, scope, or release guide. The pinned
 QwenCPU repository, Qwenputer commit, and public Qwen3.5 base revision
-resolve; the base license digest matches the corrected package. This
-does not verify signed-out access to the still-private repositories.
+resolve; the base license digest matches the corrected package. That
+prepublication audit did not test signed-out access. The later
+[public verification](results/public-readiness/publication-verification-2026-11-14.json)
+did.
 
 ## Pinned checkpoint
 
@@ -96,6 +98,13 @@ The verified v3 package is stored in the Hugging Face model repository
 [`arpjw/Qwen-GPU`](https://huggingface.co/arpjw/Qwen-GPU). Hugging Face
 listed all 50 package files at revision
 [`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
+The public Hub `main` card now points to the v4 GitHub release at revision
+[`db718229b5da8a22a636d784c02ebd7e41ff3576`](https://huggingface.co/arpjw/Qwen-GPU/tree/db718229b5da8a22a636d784c02ebd7e41ff3576).
+Its checksum list matches the updated card. The 35 v3 weight shards and
+all other package files retain the pinned revision's remote digests.
+The [card refresh receipt](results/public-readiness/hf-v3-public-card-2026-11-14.json)
+records a signed-out check. Pin the earlier qualified revision above to
+reproduce the original v3 clean restore.
 
 ## Qualified v4 private draft backup
 

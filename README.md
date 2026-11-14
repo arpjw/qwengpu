@@ -87,7 +87,8 @@ records how to run the full Apple MPS qualification; that run is pending.
 ## Hugging Face v3 checkpoint
 
 The verified v3 release remains at its immutable Hugging Face revision.
-The pinned revision is available without signing in.
+The public model card links to v4. The pinned v3 revision is available
+without signing in.
 
 ```bash
 checkpoint=./Qwen-GPU-v3
