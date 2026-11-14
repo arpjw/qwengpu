@@ -415,3 +415,17 @@ Blackwell Server at $2.69/hour from 04:48:39 to verified deletion by
 matched all package digests and passed GPU and native-text checks.
 Deletion returned HTTP 204 followed by HTTP 404. Estimated compute
 was $0.414 and no charge had posted. Reserve $0.50 including disk.
+
+## November 14 final resident generation qualification
+
+Pod `gmgmirb2mz2hyy` was running on one RTX PRO 6000 Blackwell Server
+at the live quoted $2.69/hour. RunPod reported $6.676808 in posted
+GPU and disk charges through its latest billing records queried after
+07:00 UTC. This is partial billing for the still-running pod. The
+145 GB persistent disk reached its quota during the first v4 merge.
+After the v3 CUDA qualification and standalone v4 matrix run finished,
+the existing pod's persistent volume was expanded to 250 GB. RunPod
+lists running persistent disk at $0.10/GB/month. The additional
+105 GB is approximately $0.014/hour while the pod runs. The pod
+reset on update, and the merged v4 build resumed from the preserved
+`/workspace` files.
