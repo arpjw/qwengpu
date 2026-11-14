@@ -325,6 +325,8 @@ def launch_compute(model, circuit, raw, device, offset, cache, *, transport_mode
     failures = [key for key, value in report.items() if key.endswith("_exact") and not value]
     if failures:
         raise ValueError(f"generation differs at token {report['first_token_difference']}: {failures}")
+    if report["outcome"] != "halted":
+        raise ValueError(f"compute launch ended with {report['outcome']}")
     return retained, report
 
 
