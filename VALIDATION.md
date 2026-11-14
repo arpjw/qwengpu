@@ -444,8 +444,10 @@ global words. Four native-text handoffs and the scoped-memory reset are
 also exact. The interleaved producer-consumer handoff and public reduction
 and deadlock CLI checks are exact. The CLI reduction uses one generation
 call per pass and uploads `[256, 0]` global words. The scoped 32-bit
-workgroup, tiled workloads, single-launch matrix, package and restore
-gates remain in progress.
+workgroup is exact across 52 instructions, including both scoped and global
+memory. The 3×5 by 5×2 and 9×7 by 7×5 tiled workloads match their scalar
+results and retained-memory audits. The single-launch matrix, package and
+restore gates remain in progress.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
