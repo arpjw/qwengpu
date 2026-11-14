@@ -2153,7 +2153,7 @@ contains the MPS command.
 A clean GitHub download reconstructed all nine package files with
 matching hashes. Running the cooperative shared-memory fixture against
 that restored copy again matched all 205 generated tokens and the
-checked machine state. The [restore log](results/resident_generation_v4_cuda/standalone-export/restore.log)
+checked machine state. The [restore log](results/resident_generation_v4_cuda/standalone-export/restore-transcript.txt)
 and [restored report](results/resident_generation_v4_cuda/standalone-export/restored-addmem32.json)
 record the independent file round trip and CPU replay.
 

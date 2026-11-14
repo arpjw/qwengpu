@@ -158,6 +158,9 @@ The [artifact card](release/standalone-v4-card.md),
 [export manifest](results/resident_generation_v4_cuda/standalone-export/export-manifest.json),
 and [CPU reports](results/resident_generation_v4_cuda/standalone-export)
 record the build and checks.
+The [export transcript](results/resident_generation_v4_cuda/standalone-export/export-transcript.txt)
+and [upload transcript](results/resident_generation_v4_cuda/standalone-export/upload-transcript.txt)
+record the artifact creation and verified assets.
 
 The private draft release
 [`v4-standalone-mps-candidate-2026-11-14`](https://github.com/arpjw/qwengpu/releases/tag/untagged-774774d9793eae763296)
@@ -179,7 +182,7 @@ On November 14, a clean download reconstructed and verified all nine
 package files, including the full SafeTensors file. The restored copy
 again matched the 15-instruction cooperative 32-bit shared-memory
 fixture on CPU, with 205 exact generated tokens and exact machine state.
-The [restore transcript](results/resident_generation_v4_cuda/standalone-export/restore.log),
+The [restore transcript](results/resident_generation_v4_cuda/standalone-export/restore-transcript.txt),
 [restored run report](results/resident_generation_v4_cuda/standalone-export/restored-addmem32.json),
 and [pod teardown receipt](results/resident_generation_v4_cuda/standalone-export/teardown-receipt.json)
 are saved. The pod was deleted after these checks.

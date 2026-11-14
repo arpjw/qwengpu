@@ -1,0 +1,10 @@
+SHA256SUMS: restored and verified (656 bytes)
+README.md: restored and verified (1944 bytes)
+LICENSE: restored and verified (1066 bytes)
+config.json: restored and verified (2391 bytes)
+generation_config.json: restored and verified (153 bytes)
+model.safetensors: restored and verified (12048670904 bytes)
+cpu-deadlock.json: restored and verified (2754 bytes)
+cpu-addmem32.json: restored and verified (8938 bytes)
+export-manifest.json: restored and verified (1008 bytes)
+Verified 9 restored files at /workspace/standalone-v4-restored
