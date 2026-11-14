@@ -3,17 +3,53 @@
 import json
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+
+import torch
+from chipformer.q35.ir import A_BIT, A_REF
 
 from qwengpu import resident_generation as gen
 from qwengpu.compiled_tile8 import C_MEMORY, WIDE_WARP_TAGS, rom_address
+from qwengpu.eval_compiled_rom import head_rows
 from qwengpu.eval_resident_generation import (
-    expected_tokens, launch_prompt, launch_registers, resident_reference,
+    cache_words, expected_tokens, launch_prompt, launch_registers, resident_reference,
 )
 from qwengpu.eval_tile8 import oracle, parse_launch
 from qwengpu.resident_scheduler import resident_control
 
 
 class ResidentGenerationTests(unittest.TestCase):
+    def test_batched_ram_read_preserves_banks_nibbles_and_mirrors(self):
+        fixture = SimpleNamespace(
+            nodes=[], target=SimpleNamespace(value_heads=2, key_heads=1),
+        )
+        names = [
+            f"{port}.{lane}.{nib}{suffix}"
+            for port, suffix in (("shared", ""), ("ram", ".0"), ("ram", ".1"))
+            for lane in range(8)
+            for nib in range(4)
+        ]
+        fixture._qwengpu_head_location_cache = (0, {name: (i, 0) for i, name in enumerate(names)})
+        words = [0x8000 + 113 * i for i in range(256)]
+        layers = []
+        for i, _ in enumerate(names):
+            bank = int(i >= 64)
+            nib = i % 4
+            digits = [(word >> (4 * nib)) & 15 for word in words[128 * bank:128 * (bank + 1)]]
+            state = torch.tensor(
+                [[A_REF, A_REF, *(A_BIT if digit >> bit & 1 else 0 for bit in range(4))]
+                 for digit in digits],
+            ).reshape(1, 1, 128, 6)
+            layers.append(SimpleNamespace(recurrent_states=(state,)))
+        cache = SimpleNamespace(layers=layers)
+        self.assertEqual(cache_words(cache, fixture), (words, True))
+        self.assertEqual(cache_words(cache, fixture, scoped=True), (words[:128], True))
+        layers[0].recurrent_states[0][0, 0, 3] = 0
+        self.assertFalse(cache_words(cache, fixture, scoped=True)[1])
+        layers[0].recurrent_states[0][0, 0, 3, 2] = A_BIT
+        with self.assertRaisesRegex(ValueError, r"unwritten shared\.0\.0\[3\]"):
+            head_rows(cache, fixture, "shared.0.0", 1, 4, 4)
+
     def test_tile_relaunch_uploads_operands_without_output_words(self):
         case = parse_launch({"c": [123] * 64}, full_integer=True)
         initial = launch_prompt(case)

@@ -19,7 +19,7 @@ from qwengpu.compiled_tile8 import (
     WARP_BANKS, WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, WORKGROUP_TICKETS,
     build, build_standalone, program_tokens, rom_payload,
 )
-from qwengpu.eval_compiled_rom import head_row
+from qwengpu.eval_compiled_rom import head_row, head_rows
 from qwengpu.eval_tile8 import _check_resident_memory, _digits, _words, nibbles, oracle, parse_launch
 from qwengpu.memory_geometry import WIDE_MEMORY
 from qwengpu.resident_scheduler import (
@@ -178,19 +178,23 @@ class InstructionLimit(StoppingCriteria):
 
 
 def cache_words(cache, circuit, *, scoped=False):
-    words = SCOPED_WORDS if scoped else WIDE_MEMORY.words
     result = []
     mirrored = True
-    for word in range(words):
-        digits = []
+    words_per_bank = SCOPED_WORDS if scoped else 128
+    for bank in range(1 if scoped else WIDE_MEMORY.words // words_per_bank):
+        columns = []
         for nib in range(4):
-            rows = ([head_row(cache, circuit, f"shared.{lane}.{nib}", word, 4)
-                     for lane in range(8)] if scoped else
-                    [head_row(cache, circuit, f"ram.{lane}.{nib}.{word // 128}", word % 128, 4)
-                     for lane in range(8)])
-            mirrored &= rows[0] is not None and all(value == rows[0] for value in rows)
-            digits.append(rows[0] or 0)
-        result.extend(digits)
+            mirrors = [
+                head_rows(
+                    cache, circuit, f"shared.{lane}.{nib}" if scoped else f"ram.{lane}.{nib}.{bank}",
+                    0, words_per_bank, 4,
+                )
+                for lane in range(8)
+            ]
+            canonical, *copies = mirrors
+            mirrored &= None not in canonical and all(copy == canonical for copy in copies)
+            columns.append(canonical)
+        result.extend(value or 0 for word in zip(*columns, strict=True) for value in word)
     return _words(result), mirrored
 
 

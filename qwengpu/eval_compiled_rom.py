@@ -39,9 +39,20 @@ def _head_location(circuit, name: str) -> tuple[int, int]:
 
 
 def head_row(cache, circuit, name: str, slot: int, bits: int) -> int | None:
+    return head_rows(cache, circuit, name, slot, 1, bits)[0]
+
+
+def head_rows(cache, circuit, name: str, start: int, count: int, bits: int) -> list[int | None]:
     layer, index = _head_location(circuit, name)
     ratio = circuit.target.value_heads // circuit.target.key_heads
-    row = cache.layers[layer].recurrent_states[0][0, index * ratio, slot, :2 + bits].float().tolist()
+    state = cache.layers[layer].recurrent_states[0]
+    rows = state[0, index * ratio, start:start + count, :2 + bits].float().tolist()
+    if len(rows) != count:
+        raise IndexError(f"{name}: expected {count} recurrent rows starting at {start}")
+    return [_decode_head_row(row, name, slot) for slot, row in enumerate(rows, start)]
+
+
+def _decode_head_row(row, name: str, slot: int) -> int | None:
     if tuple(row[:2]) == (0.0, 0.0):
         if any(value != 0.0 for value in row[2:]):
             raise ValueError(f"unwritten {name}[{slot}] contains data")
