@@ -64,8 +64,8 @@ The 48 packaged content files are listed in
 whose SHA-256 is
 `f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213`.
 The [CUDA verifier output](results/resident_generation_v4_cuda/verification.txt)
-exited zero. This is a CUDA-qualified package; the restored copy has
-only passed file-integrity checks.
+exited zero. The restored copy also passed its own CUDA execution checks
+on a separate 96 GB GPU.
 
 The authorized private upload to `arpjw/Qwen-GPU` failed on November
 14 with Hugging Face's response: `Private storage limit reached for
@@ -94,20 +94,33 @@ records 49 reconstructed files, including all 35 weight shards, with
 matching part and full-file digests. The separate package checker
 confirmed the frozen build manifest, exact shard index, and the original
 SHA256SUMS digest in [restore-checksum.txt](results/resident_generation_v4_cuda/restore-checksum.txt).
-This is a clean byte-for-byte file restore. GPU execution on the restored
-copy is still pending.
+This is a clean byte-for-byte file restore. On November 14 a new RunPod
+network volume was mounted on a separate RTX PRO 6000 Blackwell Server
+Edition GPU. The [restored reports](results/resident_generation_v4_cuda/restored-reports)
+record a 116-instruction seeded tile with exact generated tokens and
+state, 24 of 24 matching first text tokens and 21 of 24 matching short
+continuations, and a 928-instruction 16×16 matrix with all 20,167
+generated tokens, panel transitions, and 256 output cells identical to
+the qualified original. The matrix used one generation call and one
+fresh cache with zero host execution tokens. The independent
+[v4 restore verifier](results/resident_generation_v4_cuda/restored-reports/restored-verifier.txt)
+exited zero. [Environment](results/resident_generation_v4_cuda/restored-reports/restored-environment.txt)
+and [full-file restore transcript](results/resident_generation_v4_cuda/restored-reports/restore-transcript.txt)
+are saved with the reports.
 
-RunPod could not place the retained volume on a GPU after the restore:
+The earlier RunPod migration could not place the retained volume on a GPU:
 its migration dialog reported `There are no instances currently
 available`. Pod `gmgmirb2mz2hyy` was terminated after the restore
 evidence was pushed. Deletion returned HTTP 204, a follow-up lookup
 returned 404, and the pod list was empty. A post-teardown download of
 the private release's `SHA256SUMS` matched the pinned digest. The
 [teardown receipt](results/resident_generation_v4_cuda/teardown-receipt.json)
-records the checks and billing boundary. GPU execution on the clean
-v4 download still needs a 96 GB CUDA host. A full v4 Hugging Face upload
-also needs private storage capacity. The existing v3 revision remains
-the verified downloadable model below.
+records the earlier checks and billing boundary. The later independent
+network-volume restore passed GPU execution as recorded above. The
+temporary GPU pod and network volume were deleted after the reports were
+copied and verified locally. A full v4 Hugging Face upload still needs
+private storage capacity. The existing v3 revision remains the verified
+Hugging Face download below.
 
 Reproduce this private file restore with GitHub access and the release
 ID above. The helper reads a token from standard input and requires a

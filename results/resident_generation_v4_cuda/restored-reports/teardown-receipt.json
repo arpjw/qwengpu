@@ -1,0 +1,36 @@
+{
+  "date_utc": "2026-11-14",
+  "source_revision": "ed62016232e5f4d1a82dc1355c88f541d42c5469",
+  "compiler_revision": "ca13310e2f9f788d1dd3feeea8213c1b0c23913c",
+  "private_backup_release_id": 445244518,
+  "checksum_manifest_sha256": "f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213",
+  "restore_file_count": 49,
+  "package_checker_exit_code": 0,
+  "tile_exit_code": 0,
+  "text_exit_code": 0,
+  "matrix_exit_code": 0,
+  "restored_v4_verifier_exit_code": 0,
+  "runpod": {
+    "cpu_pod_id": "ls8s571rmx9na3",
+    "cpu_pod_price_usd_per_hour": 0.08,
+    "cpu_pod_deleted_http_status": 204,
+    "cpu_pod_followup_http_status": 404,
+    "gpu_pod_id": "qd8yw7kfzuktlq",
+    "gpu_pod_price_usd_per_hour": 2.69,
+    "gpu_pod_deleted_http_status": 204,
+    "gpu_pod_followup_http_status": 404,
+    "network_volume_id": "cvfkmzhj4t",
+    "network_volume_size_gb": 140,
+    "network_volume_deleted_http_status": 204,
+    "network_volume_followup_http_status": 404,
+    "post_teardown_pod_count": 0,
+    "post_teardown_network_volume_count": 0,
+    "teardown_verified_before_utc": "2026-11-14T15:15:21Z"
+  },
+  "billing_read_after_teardown_usd": {
+    "cpu_pod_posted": 0,
+    "gpu_pod_posted": 0,
+    "network_volume_posted": 0.013611110858619213,
+    "conservative_phase_reserve": 1.65
+  }
+}

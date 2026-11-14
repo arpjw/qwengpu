@@ -33,10 +33,12 @@ Each generated token requires a model forward pass, so the current
 machine is slow. Apple MPS qualification of v4 remains pending. The
 private v4 checkpoint package passed its 48-file checksum pass and is
 backed up in a private GitHub draft release. A clean download passed
-all file and package checks; execution on that copy remains unverified
-because RunPod had no GPU instance available for the retained volume.
-The [release receipt](RELEASE.md) tracks that gate. The previously verified
-v3 checkpoint remains available at its pinned revision.
+all file and package checks, then reproduced the seeded tile, native text,
+and full 16×16 matrix on a separate 96 GB CUDA GPU. The
+[release receipt](RELEASE.md) and [restored-run reports](results/resident_generation_v4_cuda/restored-reports)
+record the comparison. The previously verified v3 checkpoint remains
+available at its pinned revision. The v4 Hugging Face upload is blocked by
+the account's private storage limit.
 
 ## Run the verified v3 checkpoint
 

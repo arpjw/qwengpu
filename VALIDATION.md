@@ -2080,3 +2080,53 @@ address/value feedback or readback. The same weights preserve all
 8,192 indexed RAM nibbles across native text. The full CUDA evidence is
 in `results/model_stores_merged_cuda/qualification.txt`. The model-store
 layout has not been run on MPS because local model workloads are paused.
+
+## Independent v4 restored-copy replay
+
+On November 14 the private GitHub draft release was downloaded into an
+empty directory on a new RunPod network volume in US-NC-1. The helper
+verified every asset chunk and all 49 reconstructed files. The separate
+package checker matched the frozen build manifest, exact weight-shard
+index, and original `SHA256SUMS` digest
+`f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213`.
+The [restore transcript](results/resident_generation_v4_cuda/restored-reports/restore-transcript.txt)
+and [checksum receipt](results/resident_generation_v4_cuda/restored-reports/restore-checksum.txt)
+are saved.
+
+The volume was then mounted on a separate RTX PRO 6000 Blackwell Server
+Edition GPU. Source revision `ed62016232e5f4d1a82dc1355c88f541d42c5469`
+and compiler revision `ca13310e2f9f788d1dd3feeea8213c1b0c23913c`
+were used with the [recorded environment](results/resident_generation_v4_cuda/restored-reports/restored-environment.txt).
+The seeded tile halted after 116 instructions with exact tokens, ROM,
+registers, control, and memory. Native text matched 24/24 first tokens
+and 21/24 short continuations with zero chip tokens. The full 16×16
+matrix emitted 20,167 exact tokens across 928 instructions in one
+generation call and produced all 256 correct cells. The local
+`scripts/check_restored_checkpoint.py --v4` run compared its token
+stream, panel transitions, output, tile state, and native text against
+the original qualified reports and exited zero. The
+[verifier output](results/resident_generation_v4_cuda/restored-reports/restored-verifier.txt)
+and [teardown receipt](results/resident_generation_v4_cuda/restored-reports/teardown-receipt.json)
+record the result. The task pods and network volume were deleted.
+
+To repeat the execution checks after restoring the private package,
+from the QwenGPU checkout with the pinned Qwenputer directory on
+`PYTHONPATH`, set `restored`, `base`, and `reports` to the restored
+checkpoint, pinned Qwen3.5-9B base, and an empty report directory:
+
+```sh
+python scripts/check_checkpoint_package.py "$restored" \
+  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
+  --expected-checksum-digest f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
+  > "$reports/restore-checksum.txt"
+python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
+  --model "$restored" --device cuda --check-reference --trace \
+  --out "$reports/restored-tile.json"
+python -m qwengpu.textcheck_9b "$base" "$restored" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out "$reports/restored-text.json"
+python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --model "$restored" --device cuda --out "$reports/restored-matmul16.json"
+python scripts/check_restored_checkpoint.py "$reports" \
+  --qualified results/resident_generation_v4_cuda --v4
+```

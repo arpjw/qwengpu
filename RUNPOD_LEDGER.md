@@ -464,3 +464,31 @@ short stopped interval. Together with the earlier $21.50 GPU-phase
 reserve, the conservative pod reserve is $25.45. The $74 project cap
 has approximately $2.43 of headroom after all earlier reserves and
 this one. No RunPod pods remain active.
+
+## November 14 independent v4 execution restore
+
+A 140 GB standard network volume `cvfkmzhj4t` in US-NC-1 staged a
+fresh restore from the private GitHub draft release. CPU pod
+`ls8s571rmx9na3` used two CPU3 General Purpose vCPUs at the live
+$0.08/hour quote from 14:23:36 UTC until deletion before 14:41:57 UTC.
+It verified all 49 restored files and the original package checksum.
+The CPU compute estimate is at most $0.025. Deletion returned 204 and
+a follow-up lookup returned 404.
+
+GPU pod `qd8yw7kfzuktlq` used one RTX PRO 6000 Blackwell Server Edition
+at the live $2.69/hour quote from 14:41:57 UTC until verified deletion
+by 15:15:21 UTC. It replayed the restored seeded tile, native text, and
+16×16 matrix; the v4 comparison script exited zero. GPU compute is
+estimated at no more than $1.50 for that interval. Deletion returned
+204 and a follow-up lookup returned 404. The network volume was then
+deleted with 204 and a follow-up 404. The post-teardown pod and network
+volume lists were both empty.
+
+At the immediate post-teardown billing read, neither pod had a posted
+charge. The volume had posted $0.013611. These figures are partial.
+Reserve $1.65 for the complete phase, including delayed CPU and GPU
+billing and storage. Against the earlier conservative $2.43 headroom,
+the project cap has approximately $0.78 of headroom left until final
+billing reconciles. The exact [receipt](results/resident_generation_v4_cuda/restored-reports/teardown-receipt.json)
+and [reports](results/resident_generation_v4_cuda/restored-reports) are
+saved in the repository.
