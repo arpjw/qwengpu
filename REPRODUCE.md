@@ -2028,6 +2028,23 @@ QWENGPU_STANDALONE_WEIGHTS="$standalone" \
   bash scripts/qualify_resident_generation_mps.sh "$reports" "$cuda_reports"
 ```
 
+The exported weights occupy about 12 GB once unpacked. On a 16 GiB
+Apple Silicon host, PyTorch reported a 12.7 GB recommended MPS working
+set. The weights plus recurrent-state estimate leave about 610 MB
+before prefill, logits and allocator buffers. Use a host with more
+headroom for the full suite. To check one short launch on an Apple host
+with the exported weights, run the deadlock fixture and check its
+expected exit status.
+
+```bash
+status=0
+QWENGPU_STANDALONE_WEIGHTS="$standalone" \
+  python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/deadlock.json \
+  --resident-generate --device mps --check-reference --trace \
+  --out "$reports/deadlock-mps.json" || status=$?
+test "$status" -eq 3
+```
+
 ### Run general tiled uint32 matrix multiply
 
 Use the existing compiler environment. The 9×7 by 7×5 fixture exercises
