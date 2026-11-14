@@ -396,12 +396,11 @@ Both report sets passed the existing reference and baseline checks.
 These standalone results precede the merged v4 qualification.
 See [the standalone reports](results/resident_generation_v4_cuda/).
 
-The candidate v4 merge preserves the native-text gate: all 24 first
+The fixed v4 merge preserves the native-text gate: all 24 first
 tokens and 21 of 24 greedy continuations match the pinned base, with
 zero GPU token IDs. Its four interleaved workgroup programs match the
 standalone circuit and reference over 145 instructions and 1,229
-generated tokens. The complete merged regression remains in progress.
-See [the candidate text and interleaved reports](results/resident_generation_v4_cuda/).
+generated tokens. See [the text and interleaved reports](results/resident_generation_v4_cuda/).
 
 The first merged v4 candidate failed the sequential scoped-memory
 isolation fixture after two exact sequential cases. Its first wrong
@@ -419,7 +418,7 @@ merged Qwen3.5-9B checkpoint then passed the same fixture with all 1,305
 generated tokens, registers, scoped and global memory, and cache audits
 exact. The [compiler replay](results/resident_generation_v4_cuda/isolation-fixed-ir.txt)
 and [merged report](results/resident_generation_v4_cuda/isolation-fixed-merged.json)
-record this targeted result. Full v4 qualification is still pending.
+record this targeted result. The complete qualification result follows below.
 
 Reproduce the targeted checks on a CUDA host with the pinned compiler
 environment and a merge built from `702a6f9`:
@@ -453,9 +452,20 @@ Generation took 1,424.663 seconds on the RTX PRO 6000 Blackwell Server.
 All seven raw 512-byte memory fixtures and the three full-width indexed
 integer, signed-edge, and upper-ROM-loop fixtures are exact. The complete
 31-case compute sweep is exact, including 64-element vectors and
-128-element reductions. The inherited standalone replay, manifest
-verifier, package, and restore gates are in progress. See the
+128-element reductions. All 27 inherited fixtures also pass on the
+exported standalone circuit. The complete CUDA verifier exited zero
+and checked the manifest's 35 shard digests. The private package and
+clean restore gates are in progress. See the
 [v4 validation graphic](docs/media/validation-v4.png).
+The model weights were built from QwenGPU `702a6f9`; the complete
+[qualified manifest](results/resident_generation_v4_cuda/manifest.json),
+[RunPod log](results/resident_generation_v4_cuda/qualification.txt), and
+[local verifier output](results/resident_generation_v4_cuda/verification.txt)
+retain the source, device, package, and exact replay evidence.
+
+```bash
+python3 scripts/check_resident_generation_v3.py --v4 results/resident_generation_v4_cuda
+```
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
