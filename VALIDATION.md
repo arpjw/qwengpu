@@ -337,6 +337,10 @@ The complete 512-byte workload replay matched all 31 requests and 46
 launches. The check covered 1,926 instructions, 30,063 generated tokens,
 ROM, and final RAM. Every dependent launch reused global memory
 without an upload.
+The merged v3 also matched all three frozen integer edge programs,
+covering full-width indexed arithmetic, signed comparisons, and loops
+above ROM slot 15. All 2,795 tokens across 202 instructions matched,
+along with the ROM, registers, control and final memory.
 The public launchers also passed on v3. `run_resident` reported the
 expected deadlock with exit status 3 and exact state. `run_compute`
 returned `4294967168` for the 128-element reduction, with 256 global
