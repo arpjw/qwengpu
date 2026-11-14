@@ -441,7 +441,10 @@ existing reference and baseline checkers passed on the saved reports in
 64-element vector addition, 128-element two-pass reduction, and 8×4 by
 4×4 multiply are exact. The reduction's second launch re-uploaded zero
 global words. Four native-text handoffs and the scoped-memory reset are
-also exact. Interleaved handoff, single-launch matrix, package and restore
+also exact. The interleaved producer-consumer handoff and public reduction
+and deadlock CLI checks are exact. The CLI reduction uses one generation
+call per pass and uploads `[256, 0]` global words. The scoped 32-bit
+workgroup, tiled workloads, single-launch matrix, package and restore
 gates remain in progress.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
