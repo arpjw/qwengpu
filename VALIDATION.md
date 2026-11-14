@@ -277,6 +277,16 @@ reduction's second pass uploads zero global words. The checker also
 compares all final RAM words, including untouched guards, to scalar
 arithmetic. See `results/resident_generation_cuda/compute.json`.
 
+The sequential v2 merge adds 53 circuit layers at hidden width 7,424
+and produces 80,739,889,024 bytes of weights. Emitting one circuit
+layer at a time let the build complete on a host with a 125 GB RAM
+limit after two builds hit that limit. The Linux regression suite
+passed all 51 tests, including a bitwise comparison of the two
+emission paths across layer gaps, slot reuse, and final cleanup.
+The v2 checkpoint matches 24/24 first tokens and 22/24 continuations
+of up to 16 tokens with zero chip IDs. Its manifest, text report,
+and CPU regression transcript are in `results/resident_generation_v2_cuda/`.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
