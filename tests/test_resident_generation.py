@@ -6,11 +6,25 @@ from pathlib import Path
 
 from qwengpu import resident_generation as gen
 from qwengpu.compiled_tile8 import WIDE_WARP_TAGS, rom_address
-from qwengpu.eval_resident_generation import expected_tokens, launch_prompt
+from qwengpu.eval_resident_generation import expected_tokens, launch_prompt, resident_reference
 from qwengpu.eval_tile8 import oracle, parse_launch
+from qwengpu.resident_scheduler import resident_control
 
 
 class ResidentGenerationTests(unittest.TestCase):
+    def test_single_workgroup_leaves_two_warps_halted(self):
+        root = Path(__file__).resolve().parents[1] / "eval/frozen/full_integer_v1"
+        raw = json.loads((root / "indexed_words.json").read_text())
+        case = parse_launch(raw, resident_globalgrid=True, full_integer=True)
+        prompt = launch_prompt(case)
+        inactive = [resident_control(warp, status=1) for warp in (2, 3)]
+        self.assertEqual(prompt[3:5], inactive)
+        reference = resident_reference(oracle(case, 256, looping=True))
+        tokens, controls, _ = expected_tokens(reference, active_warps=2)
+        self.assertEqual(controls[2:], inactive)
+        self.assertIn(gen.STEP_CONTROL + 16, tokens)
+        self.assertFalse(any(gen.TICKET + 2 <= token < gen.TICKET + 4 for token in tokens))
+
     def test_cross_group_high_limb(self):
         fixture = Path(__file__).resolve().parents[1] / (
             "eval/frozen/resident_interleaved_v1/cross_group_high_limb.json"

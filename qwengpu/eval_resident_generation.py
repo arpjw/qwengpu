@@ -1,4 +1,4 @@
-"""Run the interleaved integer GPU through stock generation and audit its cache."""
+"""Run resident integer GPU workgroups through stock generation and audit the cache."""
 
 import argparse
 import hashlib
@@ -14,8 +14,8 @@ from qwengpu import resident_generation as gen
 from qwengpu.alu32 import RUNTIME_EXTENT_BASE
 from qwengpu.cache_register_edge import register_head_names
 from qwengpu.compiled_tile8 import (
-    DEADLOCK, DONE, GLOBAL_GRID, GRID, MASK_REGISTER, ROM_BANK, ROW_PAIRS, WARP_BANKS,
-    WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, build, build_standalone, program_tokens,
+    DEADLOCK, DONE, GLOBAL_GRID, GRID, MASK_REGISTER, ROM32_PC_HIGH, ROM_BANK, ROW_PAIRS,
+    WARP_BANKS, WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, build, build_standalone, program_tokens,
 )
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_tile8 import _digits, _words, nibbles, oracle, parse_launch
@@ -27,10 +27,13 @@ from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_WORDS
 
 
 def launch_prompt(case, refresh_words=None):
-    if not case.get("interleaved"):
-        raise ValueError("stock generation requires two interleaved workgroups")
-    tokens = [RESIDENT_ENABLE, *(resident_control(warp) for warp in range(4)),
-              RESIDENT_TICKET + 3, GRID + GLOBAL_GRID + ROW_PAIRS]
+    groups = case.get("workgroups")
+    if groups != 1 and not (groups == 2 and case.get("interleaved")):
+        raise ValueError("stock generation requires one workgroup or two interleaved workgroups")
+    active_warps = 2 * groups
+    tokens = [RESIDENT_ENABLE,
+              *(resident_control(warp, status=int(warp >= active_warps)) for warp in range(4)),
+              RESIDENT_TICKET + 3, GRID + GLOBAL_GRID + ROW_PAIRS * (groups - 1)]
     words = case["global_words"]
     if refresh_words is not None:
         words = words[:refresh_words]
@@ -53,10 +56,38 @@ def initial_registers():
             for token in WIDE_WARP_TAGS]
 
 
-def expected_tokens(reference):
+def resident_reference(reference):
+    """Translate one workgroup's reference trace into the four-bank wire format."""
+
+    def control(warp, token):
+        pc = (token & 15) + (16 if token & ROM32_PC_HIGH else 0)
+        return resident_control(warp, pc, (token >> 4) & 3)
+
+    inactive = [resident_control(warp, status=1) for warp in (2, 3)]
+    return {
+        **reference,
+        "schedules": [
+            {
+                "ticket": (
+                    schedule["ticket"] if schedule["ticket"] in (DONE, DEADLOCK)
+                    else RESIDENT_TICKET + (schedule["ticket"] & 1)
+                ),
+                "controls": [control(warp, token) for warp, token in enumerate(schedule["controls"])]
+                + inactive,
+            }
+            for schedule in reference["schedules"]
+        ],
+        "trace": [
+            {**record, "control": control(record["warp"], record["control"])}
+            for record in reference["trace"]
+        ],
+    }
+
+
+def expected_tokens(reference, active_warps=4):
     """Encode the independent interpreter's trace for comparison after generation."""
     records = []
-    controls = [resident_control(warp) for warp in range(4)]
+    controls = [resident_control(warp, status=int(warp >= active_warps)) for warp in range(4)]
     registers = [initial_registers() for _ in range(4)]
     for index, schedule in enumerate(reference["schedules"]):
         if controls != schedule["controls"]:
@@ -132,7 +163,10 @@ def evaluate(
     tokens = [t - offset for t in output.sequences[0, inputs.size(1):].tolist()]
     retained = output.past_key_values
     reference = oracle(case, 256, looping=True)
-    expected, controls, registers = expected_tokens(reference)
+    single_group = case["workgroups"] == 1
+    if single_group:
+        reference = resident_reference(reference)
+    expected, controls, registers = expected_tokens(reference, 2 if single_group else 4)
     words, mirrors = cache_words(retained, circuit)
     scoped = cache_words(retained, circuit, scoped=True) if "scoped_words" in case else None
     observed_registers = [
@@ -187,6 +221,7 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("fixtures", type=Path, nargs="+")
     args = parser.parse_args()
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text())
         if meta["layout"] != gen.LAYOUT:

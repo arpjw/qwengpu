@@ -194,6 +194,20 @@ python scripts/eval_resident_generation_workloads.py "$model" \
   --out "$reports/workloads.json" eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json
 ```
 
+The native-text handoff check runs the reduction producer, replaces the
+pretrained layers' cache entries, and compares four text prompts to
+fresh-cache controls on the same weights. It audits all global-memory
+mirrors, register nibbles, ROM rows, and control words before and after
+each prompt. The consumer then uses the same GPU cache without a RAM
+upload and must match a separate cold consumer.
+
+```bash
+python scripts/eval_resident_generation_handoff.py "$model" \
+  --out "$reports/handoff.json"
+python -m qwengpu.eval_resident_generation --model "$model" --out "$reports/single.json" \
+  eval/frozen/full_integer_v1/indexed_words.json eval/frozen/memory512_v1/*.json
+```
+
 ```bash
 bash scripts/qualify_cache_register_edge.sh "$model" "$stock_reports" "$edge_reports"
 ```
