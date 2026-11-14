@@ -113,6 +113,62 @@ register plan, read, or feedback tokens and no RAM address/value tags.
 The adapter copies tensors outside the stock model; it does not solve
 weights-only cyclic register writeback.
 
+## Stock generation on the bounded control circuit
+
+The bounded control experiment can use an active PC/stage token as the
+clock for the next instruction. The launch prompt carries the lane inputs,
+ROM, control links, and first PC/stage. Stock greedy generation then
+consumes each predicted PC/stage token as its next input and stops when
+the circuit emits a halt or exhaustion token. Stage-local recurrent heads
+retain all lane, scratch, mask, and stack state. The caller can audit
+those rows after generation without using them to drive execution.
+
+This configuration uses one depth stage per executed instruction and has
+the original sixteen-stage limit. It tests a way to remove the per-step
+host protocol. The integrated integer GPU still requires a separate
+solution for feeding its four late register banks into later instructions
+without cloning the full datapath once per step.
+
+```bash
+python -m qwengpu.eval_control --generate --device cuda --out control-generate-cuda.json
+python -m qwengpu.merge9b "$base" --control-generate --out "$model"
+python -m qwengpu.eval_control "$model" --generate --device cuda --out control-generate-9b.json
+python scripts/check_control_generation.py results/control_cuda_fla.json \
+  control-generate-cuda.json control-generate-9b.json
+```
+
+Run `bash scripts/qualify_control_generation_cuda.sh "$base" "$model" "$reports"`
+for the compiler checks, both CUDA replays, and the fixed text corpus.
+The merged artifact can be rebuilt using the source and compiler pins in
+`results/control_generation_cuda/manifest.json`.
+
+## Reusing the integrated register banks through generation
+
+The pinned Qwenputer RV core shows a second stock-model approach. Its exit
+emits value chunks and a commit token, and the register heads accept those
+tokens on later forwards. The core reuses the same register rows across
+instructions. QwenGPU already has a matching bank-tag range and a late
+state snapshot. The next experiment can reuse both.
+
+1. Decode a generated resident ticket as the instruction clock. Save the
+   snapshot, then emit the new control word.
+2. Let the control word request the first changed snapshot nibble. On a
+   register tag, the existing head commits that nibble while the late
+   readout selects the next changed nibble. The token identifies the
+   current bank and nibble, so generation needs no external cursor.
+3. After the last register update, issue the fixed store commit tokens
+   selected by the same model snapshot. Only then schedule the next
+   instruction. Serialize the barrier-ready control updates before the
+   next ticket.
+
+Start with a two-warp cross-group dependency whose consumer needs a
+previously written high-limb register and a global store. Require the
+same physical register rows to be reused at least twice. Compare every
+generated record and the final RAM to both the current integrated path
+and the interpreter. A generated data token is still a token-level
+writeback edge. This test would establish that stock generation drives
+that edge without a host protocol or a runtime tensor copy.
+
 ```bash
 bash scripts/qualify_cache_register_edge.sh "$model" "$stock_reports" "$edge_reports"
 ```

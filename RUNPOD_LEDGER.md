@@ -352,3 +352,15 @@ $0.08/hour. RunPod created it at 00:51:05 UTC and confirmed deletion by
 estimate is $0.0064, with $0.02 reserved for compute and disk. No charge
 had posted on the immediate billing recheck. The transcript and setup
 commands are in `results/runpod_cpu/`.
+
+## November 14 stock control generation
+
+Both RTX PRO 6000 Blackwell Server pods were quoted at $2.69/hour.
+The first, `vaciis65zskpjl`, repeatedly failed to create its container
+and was verified deleted at 01:02:16 UTC. Estimated compute was $0.091.
+The replacement, `9txecrsz7qmlqk`, completed compiler, standalone CUDA,
+merged CUDA, and text checks. It ran from 01:02:52 to verified deletion
+at 01:11:51 UTC, for an estimated $0.402 of compute. Both deletions
+returned HTTP 204 followed by HTTP 404. Neither had posted charges at
+the immediate recheck. Reserve $0.60 for both, including disk. The
+artifact hashes and test reports are in `results/control_generation_cuda/`.

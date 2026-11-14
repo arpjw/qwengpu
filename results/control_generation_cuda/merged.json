@@ -1,0 +1,1449 @@
+{
+  "device": "cuda",
+  "torch": "2.14.1+cu130",
+  "transformers": "5.19.0",
+  "circuit": {
+    "layers": 69,
+    "dims": 19254,
+    "heads": 74,
+    "ffn_units": 26115,
+    "max_units": 809,
+    "max_heads": 8
+  },
+  "merge": {
+    "layout": "qwengpu-control-generate-9b-v1",
+    "chip_token_offset": 248320,
+    "chip_vocab": 65536,
+    "chip_layers": 70,
+    "hidden": 5120,
+    "slots": 850,
+    "code_dims": [
+      4195,
+      4196,
+      4197,
+      4198,
+      4199,
+      4200,
+      4201,
+      4202,
+      4203,
+      4204,
+      4205,
+      4206,
+      4207,
+      4208,
+      4209,
+      4210
+    ],
+    "tau_dim": 4116,
+    "mute_dim": 4211,
+    "fit_anti_sink": true,
+    "circuit": {
+      "layers": 70,
+      "dims": 19255,
+      "heads": 74,
+      "ffn_units": 26116,
+      "max_units": 809,
+      "max_heads": 8
+    },
+    "output_head_tied": false
+  },
+  "cases": [
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4144,
+          "expected_token": 4144,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 0,
+          "generated": 4161,
+          "expected_token": 4161,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 1,
+          "generated": 4178,
+          "expected_token": 4178,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 2,
+          "generated": 4192,
+          "expected_token": 4192,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 0,
+          "generated": 4209,
+          "expected_token": 4209,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 1,
+          "generated": 4226,
+          "expected_token": 4226,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 2,
+          "generated": 4240,
+          "expected_token": 4240,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 0,
+          "generated": 4257,
+          "expected_token": 4257,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 1,
+          "generated": 4274,
+          "expected_token": 4274,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 11,
+          "executed_pc": 2,
+          "generated": 4288,
+          "expected_token": 4288,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 12,
+          "executed_pc": 0,
+          "generated": 4305,
+          "expected_token": 4305,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 13,
+          "executed_pc": 1,
+          "generated": 4322,
+          "expected_token": 4322,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 14,
+          "executed_pc": 2,
+          "generated": 4336,
+          "expected_token": 4336,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 15,
+          "executed_pc": 0,
+          "generated": 4849,
+          "expected_token": 4849,
+          "observed_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff400000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        }
+      ],
+      "outcome": "exhausted",
+      "exact": true,
+      "generated_tokens": 16,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 1.76,
+      "fixture": "budget_exhaustion.json",
+      "fixture_sha256": "b5ff9f96de721d27822952fdc8a1e8d635a1f002d06da35d70d3e9250ce67043",
+      "expected_outcome": "exhausted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4164,
+          "expected_token": 4164,
+          "observed_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 4,
+          "generated": 4181,
+          "expected_token": 4181,
+          "observed_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "010f83ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 5,
+          "generated": 4195,
+          "expected_token": 4195,
+          "observed_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 3,
+          "generated": 4214,
+          "expected_token": 4214,
+          "observed_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000f43ffffffe0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 6,
+          "generated": 4226,
+          "expected_token": 4226,
+          "observed_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 2,
+          "generated": 4247,
+          "expected_token": 4247,
+          "observed_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000003ffffffe0f00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 7,
+          "generated": 4264,
+          "expected_token": 4264,
+          "observed_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 8,
+          "generated": 4281,
+          "expected_token": 4281,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 11,
+          "executed_pc": 9,
+          "generated": 4537,
+          "expected_token": 4537,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 12,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.68,
+      "fixture": "combined_depth.json",
+      "fixture_sha256": "1cd1e98e2117606156a03c8ef980a3aa025f35398e8e71c8a1eb0b87e60ff7f3",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403030201",
+          "expected_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403030201",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4144,
+          "expected_token": 4144,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030201",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030201",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 0,
+          "generated": 4161,
+          "expected_token": 4161,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030201",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030201",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 1,
+          "generated": 4178,
+          "expected_token": 4178,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030302",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030302",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 2,
+          "generated": 4192,
+          "expected_token": 4192,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030302",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030302",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 0,
+          "generated": 4209,
+          "expected_token": 4209,
+          "observed_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000000000706050403030302",
+          "expected_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000000000706050403030302",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 1,
+          "generated": 4226,
+          "expected_token": 4226,
+          "observed_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 2,
+          "generated": 4240,
+          "expected_token": 4240,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 0,
+          "generated": 4259,
+          "expected_token": 4259,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 3,
+          "generated": 4515,
+          "expected_token": 4515,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 11,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.625,
+      "fixture": "divergent_loop.json",
+      "fixture_sha256": "fc380b062b3f01de4124336df3a3114e36f5b09c5bb2b1c8a03431c01be7a0d6",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00000000003fd0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fd0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "00000000003fd0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fd0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4164,
+          "expected_token": 4164,
+          "observed_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 4,
+          "generated": 4181,
+          "expected_token": 4181,
+          "observed_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 5,
+          "generated": 4198,
+          "expected_token": 4198,
+          "observed_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fe0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 6,
+          "generated": 4215,
+          "expected_token": 4215,
+          "observed_snapshot_hex": "00000000003fd0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fd0000000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 7,
+          "generated": 4232,
+          "expected_token": 4232,
+          "observed_snapshot_hex": "00000000003fdff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fdff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 8,
+          "generated": 4249,
+          "expected_token": 4249,
+          "observed_snapshot_hex": "00000000003fdff00000000000000000000000000000000070605040302010000000000000000000706050403020100",
+          "expected_snapshot_hex": "00000000003fdff00000000000000000000000000000000070605040302010000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 9,
+          "generated": 4266,
+          "expected_token": 4266,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000070605040302010000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000070605040302010000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 10,
+          "generated": 4283,
+          "expected_token": 4283,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000070605040302010000000000000000000000000000000000",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000070605040302010000000000000000000000000000000000",
+          "exact": true
+        },
+        {
+          "stage": 11,
+          "executed_pc": 11,
+          "generated": 4539,
+          "expected_token": 4539,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000070605040302010000000000000000000000000000000000",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000070605040302010000000000000000000000000000000000",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 12,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.684,
+      "fixture": "empty_nested_mask.json",
+      "fixture_sha256": "c23f2f9eddd902fa91a4bd28268f4ada8da83683dc588d43766e016de619cce3",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "expected_snapshot_hex": "000000003fffdff00000000000000000000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "000000003fffdff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "expected_snapshot_hex": "000000003fffdff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "000000003fffdff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "expected_snapshot_hex": "000000003fffdff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4164,
+          "expected_token": 4164,
+          "observed_snapshot_hex": "000000003fffd002a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "expected_snapshot_hex": "000000003fffd002a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 4,
+          "generated": 4181,
+          "expected_token": 4181,
+          "observed_snapshot_hex": "000000003fffd002a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "expected_snapshot_hex": "000000003fffd002a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 5,
+          "generated": 4198,
+          "expected_token": 4198,
+          "observed_snapshot_hex": "0000000000000ff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "expected_snapshot_hex": "0000000000000ff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002b2b2b2b2b2b2b2b",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 6,
+          "generated": 4215,
+          "expected_token": 4215,
+          "observed_snapshot_hex": "0000000000000ff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "expected_snapshot_hex": "0000000000000ff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 7,
+          "generated": 4471,
+          "expected_token": 4471,
+          "observed_snapshot_hex": "0000000000000ff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "expected_snapshot_hex": "0000000000000ff2a2a2a2a2a2a2a2a0000000000000000000000000000000000000000000000002a2a2a2a2a2a2a2a",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 8,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.464,
+      "fixture": "full_mask.json",
+      "fixture_sha256": "fed1c5c6d5063a9027cb631c2d3db971953e6f59b9a5c826436bd3cda3a351ef",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4352,
+          "expected_token": 4352,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 1,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.085,
+      "fixture": "halt_only.json",
+      "fixture_sha256": "4ed8f0b8eacceb373018b5a5ed6e58707e12d723f2d72397656f5315df43b23f",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "00ff40000041d0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff40000041d0100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "00ff40000041d0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "00ff40000041d0100000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4164,
+          "expected_token": 4164,
+          "observed_snapshot_hex": "00ff40000041d0600000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "expected_snapshot_hex": "00ff40000041d0600000000000000000000000000000000000000000000000000000000000000000706050403020102",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 4,
+          "generated": 4181,
+          "expected_token": 4181,
+          "observed_snapshot_hex": "00ff40000041d0600000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "00ff40000041d0600000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 5,
+          "generated": 4198,
+          "expected_token": 4198,
+          "observed_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "00ff4000000000700000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 6,
+          "generated": 4208,
+          "expected_token": 4208,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 0,
+          "generated": 4225,
+          "expected_token": 4225,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 1,
+          "generated": 4242,
+          "expected_token": 4242,
+          "observed_snapshot_hex": "00ff40000000d0000000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "00ff40000000d0000000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 2,
+          "generated": 4259,
+          "expected_token": 4259,
+          "observed_snapshot_hex": "00ff40000000d0000000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "00ff40000000d0000000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 3,
+          "generated": 4276,
+          "expected_token": 4276,
+          "observed_snapshot_hex": "00ff40000000d0300000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "expected_snapshot_hex": "00ff40000000d0300000000000000000000000000000000000000000000000000000000000000000706050403030202",
+          "exact": true
+        },
+        {
+          "stage": 11,
+          "executed_pc": 4,
+          "generated": 4293,
+          "expected_token": 4293,
+          "observed_snapshot_hex": "00ff40000000d0300000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "00ff40000000d0300000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 12,
+          "executed_pc": 5,
+          "generated": 4310,
+          "expected_token": 4310,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 13,
+          "executed_pc": 6,
+          "generated": 4320,
+          "expected_token": 4320,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 14,
+          "executed_pc": 0,
+          "generated": 4343,
+          "expected_token": 4343,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        },
+        {
+          "stage": 15,
+          "executed_pc": 7,
+          "generated": 4599,
+          "expected_token": 4599,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000706050403030303",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 16,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.895,
+      "fixture": "if_inside_loop.json",
+      "fixture_sha256": "251ded3908b6aa016d478c28169a4890ee767d935facf49d9ef82e9039bf6e4d",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "0007400001ffd0300000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0007400001ffd0300000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "0007400001ffd0300000000000000000000000000000000000000000000000000000000000000000706050403020201",
+          "expected_snapshot_hex": "0007400001ffd0300000000000000000000000000000000000000000000000000000000000000000706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4161,
+          "expected_token": 4161,
+          "observed_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020201",
+          "expected_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 1,
+          "generated": 4178,
+          "expected_token": 4178,
+          "observed_snapshot_hex": "0007400001ffd0100000000000000000000000000000000000000000000000000000000000000000706050403020201",
+          "expected_snapshot_hex": "0007400001ffd0100000000000000000000000000000000000000000000000000000000000000000706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 2,
+          "generated": 4195,
+          "expected_token": 4195,
+          "observed_snapshot_hex": "0007400001ffd0100000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "expected_snapshot_hex": "0007400001ffd0100000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 3,
+          "generated": 4209,
+          "expected_token": 4209,
+          "observed_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "expected_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 1,
+          "generated": 4228,
+          "expected_token": 4228,
+          "observed_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "expected_snapshot_hex": "0000000001ffd0700000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 4,
+          "generated": 4245,
+          "expected_token": 4245,
+          "observed_snapshot_hex": "0000000001ffdf800000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "expected_snapshot_hex": "0000000001ffdf800000000000000000000000000000000000000000000000000000000000000000706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 5,
+          "generated": 4262,
+          "expected_token": 4262,
+          "observed_snapshot_hex": "0000000001ffdf80000000000000000000000000000000000000000000000000000000000000000f8f9fafbfc020202",
+          "expected_snapshot_hex": "0000000001ffdf80000000000000000000000000000000000000000000000000000000000000000f8f9fafbfc020202",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 6,
+          "generated": 4279,
+          "expected_token": 4279,
+          "observed_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000f8f9fafbfc020202",
+          "expected_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000f8f9fafbfc020202",
+          "exact": true
+        },
+        {
+          "stage": 11,
+          "executed_pc": 7,
+          "generated": 4535,
+          "expected_token": 4535,
+          "observed_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000f8f9fafbfc020202",
+          "expected_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000f8f9fafbfc020202",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 12,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.679,
+      "fixture": "loop_inside_if.json",
+      "fixture_sha256": "5b5ea5424c28378788fb455147bd280cb21e91867c3df6bd424dee2e0f024114",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "00ff40000000001000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "expected_snapshot_hex": "00ff40000000001000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4144,
+          "expected_token": 4144,
+          "observed_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "expected_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 0,
+          "generated": 4163,
+          "expected_token": 4163,
+          "observed_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "expected_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 3,
+          "generated": 4419,
+          "expected_token": 4419,
+          "observed_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "expected_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000007060504030201ff",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 5,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.301,
+      "fixture": "loop_wraparound.json",
+      "fixture_sha256": "0d599c54a08ad9eddb19e8db5d9f0124523cbfbfb1cac7d703617443a801f1f4",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000001000706050403020100",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000001000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000001000706050403020201",
+          "expected_snapshot_hex": "00ff4000000000300000000000000000000000000000000000000000000000000000000000001000706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4160,
+          "expected_token": 4160,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001000706050403020201",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001000706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 0,
+          "generated": 4177,
+          "expected_token": 4177,
+          "observed_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000001000706050403020201",
+          "expected_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000001000706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 1,
+          "generated": 4194,
+          "expected_token": 4194,
+          "observed_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000001010706050403020201",
+          "expected_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000001010706050403020201",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 2,
+          "generated": 4211,
+          "expected_token": 4211,
+          "observed_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000001010706050403020202",
+          "expected_snapshot_hex": "00ff4000000000100000000000000000000000000000000000000000000000000000000000001010706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 3,
+          "generated": 4224,
+          "expected_token": 4224,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010706050403020202",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 0,
+          "generated": 4244,
+          "expected_token": 4244,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010706050403020202",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010706050403020202",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 4,
+          "generated": 4261,
+          "expected_token": 4261,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010000000000000101",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010000000000000101",
+          "exact": true
+        },
+        {
+          "stage": 10,
+          "executed_pc": 5,
+          "generated": 4517,
+          "expected_token": 4517,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010000000000000101",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000001010000000000000101",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 11,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.625,
+      "fixture": "masked_scratch_loop.json",
+      "fixture_sha256": "34730e075276401240be153d0ad9587b0b2a0e4b89111de90a9b7d121e872936",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "0000000003ffd0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000003ffd0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "000000c3c3ffe0300000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "000000c3c3ffe0300000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "000000c3c3ffe0300000000000000000000000000000000000000000000000000000000000000000706050403020b0a",
+          "expected_snapshot_hex": "000000c3c3ffe0300000000000000000000000000000000000000000000000000000000000000000706050403020b0a",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4164,
+          "expected_token": 4164,
+          "observed_snapshot_hex": "000000c3c3ffe0c00000000000000000000000000000000000000000000000000000000000000000706050403020b0a",
+          "expected_snapshot_hex": "000000c3c3ffe0c00000000000000000000000000000000000000000000000000000000000000000706050403020b0a",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 4,
+          "generated": 4181,
+          "expected_token": 4181,
+          "observed_snapshot_hex": "000000c3c3ffe0c00000000000000000000000000000000000000000000000000000000000000000706050402030b0a",
+          "expected_snapshot_hex": "000000c3c3ffe0c00000000000000000000000000000000000000000000000000000000000000000706050402030b0a",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 5,
+          "generated": 4198,
+          "expected_token": 4198,
+          "observed_snapshot_hex": "0000000003ffd0f00000000000000000000000000000000000000000000000000000000000000000706050402030b0a",
+          "expected_snapshot_hex": "0000000003ffd0f00000000000000000000000000000000000000000000000000000000000000000706050402030b0a",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 6,
+          "generated": 4215,
+          "expected_token": 4215,
+          "observed_snapshot_hex": "0000000003ffdf000000000000000000000000000000000000000000000000000000000000000000706050402030b0a",
+          "expected_snapshot_hex": "0000000003ffdf000000000000000000000000000000000000000000000000000000000000000000706050402030b0a",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 7,
+          "generated": 4232,
+          "expected_token": 4232,
+          "observed_snapshot_hex": "0000000003ffdf000000000000000000000000000000000000000000000000000000000000000001b1a191802030b0a",
+          "expected_snapshot_hex": "0000000003ffdf000000000000000000000000000000000000000000000000000000000000000001b1a191802030b0a",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 8,
+          "generated": 4249,
+          "expected_token": 4249,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001b1a191802030b0a",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001b1a191802030b0a",
+          "exact": true
+        },
+        {
+          "stage": 9,
+          "executed_pc": 9,
+          "generated": 4505,
+          "expected_token": 4505,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001b1a191802030b0a",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001b1a191802030b0a",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 10,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.571,
+      "fixture": "nested_divergence.json",
+      "fixture_sha256": "5f298517fdb334a403ba16408ee23df44e240487c2ba57c5f053866f7ba73210",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302010003020100",
+          "expected_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302010003020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "33ff8000000001100000000000000000000000000000000000000000000000000000000000000000302010003020100",
+          "expected_snapshot_hex": "33ff8000000001100000000000000000000000000000000000000000000000000000000000000000302010003020100",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "33ff8000000001100000000000000000000000000000000000000000000000000000000000000000302010103020101",
+          "expected_snapshot_hex": "33ff8000000001100000000000000000000000000000000000000000000000000000000000000000302010103020101",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4161,
+          "expected_token": 4161,
+          "observed_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302010103020101",
+          "expected_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302010103020101",
+          "exact": true
+        },
+        {
+          "stage": 4,
+          "executed_pc": 1,
+          "generated": 4180,
+          "expected_token": 4180,
+          "observed_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302010103020101",
+          "expected_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302010103020101",
+          "exact": true
+        },
+        {
+          "stage": 5,
+          "executed_pc": 4,
+          "generated": 4197,
+          "expected_token": 4197,
+          "observed_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "expected_snapshot_hex": "00ff4000000003300000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "exact": true
+        },
+        {
+          "stage": 6,
+          "executed_pc": 5,
+          "generated": 4208,
+          "expected_token": 4208,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "exact": true
+        },
+        {
+          "stage": 7,
+          "executed_pc": 0,
+          "generated": 4230,
+          "expected_token": 4230,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "exact": true
+        },
+        {
+          "stage": 8,
+          "executed_pc": 6,
+          "generated": 4486,
+          "expected_token": 4486,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000000302020203020202",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 9,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.516,
+      "fixture": "nested_loops.json",
+      "fixture_sha256": "5a805b8de0b5bc46d6b8bab51f225da2f1a000257b54e9e068966fb02b5dd035",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4113,
+          "expected_token": 4113,
+          "observed_snapshot_hex": "0000000003ffd0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "expected_snapshot_hex": "0000000003ffd0f00000000000000000000000000000000000000000000000000000000000000000706050403020100",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 1,
+          "generated": 4130,
+          "expected_token": 4130,
+          "observed_snapshot_hex": "0000000003ffd0f0000000000000000000000000000000000000000000000000000000000000000070605040c0b0a09",
+          "expected_snapshot_hex": "0000000003ffd0f0000000000000000000000000000000000000000000000000000000000000000070605040c0b0a09",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 2,
+          "generated": 4147,
+          "expected_token": 4147,
+          "observed_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000070605040c0b0a09",
+          "expected_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000070605040c0b0a09",
+          "exact": true
+        },
+        {
+          "stage": 3,
+          "executed_pc": 3,
+          "generated": 4403,
+          "expected_token": 4403,
+          "observed_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000070605040c0b0a09",
+          "expected_snapshot_hex": "0000000000000ff0000000000000000000000000000000000000000000000000000000000000000070605040c0b0a09",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 4,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.247,
+      "fixture": "no_else.json",
+      "fixture_sha256": "036ae439dff9b77b98aca66531758e9ed914b3cc88886aeac26f9d6476f17cb1",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    },
+    {
+      "trace": [
+        {
+          "stage": 0,
+          "executed_pc": 0,
+          "generated": 4118,
+          "expected_token": 4118,
+          "observed_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000011100f0e0d0c0b0a",
+          "expected_snapshot_hex": "0000000000000ff000000000000000000000000000000000000000000000000000000000000000011100f0e0d0c0b0a",
+          "exact": true
+        },
+        {
+          "stage": 1,
+          "executed_pc": 6,
+          "generated": 4135,
+          "expected_token": 4135,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001a19181716151413",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001a19181716151413",
+          "exact": true
+        },
+        {
+          "stage": 2,
+          "executed_pc": 7,
+          "generated": 4391,
+          "expected_token": 4391,
+          "observed_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001a19181716151413",
+          "expected_snapshot_hex": "0000000000000ff00000000000000000000000000000000000000000000000000000000000000001a19181716151413",
+          "exact": true
+        }
+      ],
+      "outcome": "halted",
+      "exact": true,
+      "generated_tokens": 3,
+      "generation_calls": 1,
+      "host_tick_tokens": 0,
+      "host_control_feedback_tokens": 0,
+      "lane_feedback_tokens": 0,
+      "seconds": 0.193,
+      "fixture": "zero_iteration_loop.json",
+      "fixture_sha256": "58aa4f8462fcb0e6eced591efc6a4cbd3d669c10ce441c8b52c7ee97e7f76b09",
+      "expected_outcome": "halted",
+      "outcome_matched": true
+    }
+  ],
+  "all_exact": true,
+  "all_expected_outcomes": true
+}

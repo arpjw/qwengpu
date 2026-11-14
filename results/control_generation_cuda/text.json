@@ -1,0 +1,226 @@
+{
+  "device": "cuda",
+  "torch": "2.14.1+cu130",
+  "transformers": "5.19.0",
+  "merge": {
+    "layout": "qwengpu-control-generate-9b-v1",
+    "chip_token_offset": 248320,
+    "chip_vocab": 65536,
+    "chip_layers": 70,
+    "hidden": 5120,
+    "slots": 850,
+    "code_dims": [
+      4195,
+      4196,
+      4197,
+      4198,
+      4199,
+      4200,
+      4201,
+      4202,
+      4203,
+      4204,
+      4205,
+      4206,
+      4207,
+      4208,
+      4209,
+      4210
+    ],
+    "tau_dim": 4116,
+    "mute_dim": 4211,
+    "fit_anti_sink": true,
+    "circuit": {
+      "layers": 70,
+      "dims": 19255,
+      "heads": 74,
+      "ffn_units": 26116,
+      "max_units": 809,
+      "max_heads": 8
+    },
+    "output_head_tied": false
+  },
+  "prompts_sha256": "b42644e4f9da377da578cadbfe6d0da35b9bf6702d8f2493e29714ad0283e0ab",
+  "tokenized_prompts_sha256": "f1cc5c112b425f9adf8e49b73932b539e95ff52a452e77cde890ad75b4efe657",
+  "prompt_count": 6,
+  "max_new_tokens": 4,
+  "generation_config": {
+    "max_new_tokens": 4,
+    "do_sample": false,
+    "use_cache": true,
+    "pad_token_id": 248044,
+    "eos_token_id": 248044,
+    "_from_model_config": true,
+    "transformers_version": "5.19.0"
+  },
+  "records": [
+    {
+      "prompt": "Hello! Tell me one interesting fact about the Moon.",
+      "prompt_tokens": 23,
+      "base_next_top1": 8160,
+      "merged_next_top1": 8160,
+      "next_top1_same": true,
+      "base_next_margin": 0.75,
+      "merged_next_margin": 0.75,
+      "next_max_abs_logit_difference": 0.15625,
+      "next_mean_abs_logit_difference": 0.02365770936012268,
+      "greedy_identical": true,
+      "greedy_prefix_tokens": 4,
+      "base_greedy_ids": [
+        8160,
+        369,
+        264,
+        25450
+      ],
+      "merged_greedy_ids": [
+        8160,
+        369,
+        264,
+        25450
+      ],
+      "merged_chip_tokens": 0,
+      "greedy_four_identical": true
+    },
+    {
+      "prompt": "Write a Python function that reverses a list without changing the original.",
+      "prompt_tokens": 26,
+      "base_next_top1": 71093,
+      "merged_next_top1": 71093,
+      "next_top1_same": true,
+      "base_next_margin": 0.625,
+      "merged_next_margin": 0.875,
+      "next_max_abs_logit_difference": 0.34375,
+      "next_mean_abs_logit_difference": 0.05493289232254028,
+      "greedy_identical": true,
+      "greedy_prefix_tokens": 4,
+      "base_greedy_ids": [
+        71093,
+        12305,
+        198,
+        727
+      ],
+      "merged_greedy_ids": [
+        71093,
+        12305,
+        198,
+        727
+      ],
+      "merged_chip_tokens": 0,
+      "greedy_four_identical": true
+    },
+    {
+      "prompt": "What is the difference between a mutex and a semaphore?",
+      "prompt_tokens": 23,
+      "base_next_top1": 20003,
+      "merged_next_top1": 20003,
+      "next_top1_same": true,
+      "base_next_margin": 0.25,
+      "merged_next_margin": 0.25,
+      "next_max_abs_logit_difference": 0.234375,
+      "next_mean_abs_logit_difference": 0.036293864250183105,
+      "greedy_identical": true,
+      "greedy_prefix_tokens": 4,
+      "base_greedy_ids": [
+        20003,
+        2972,
+        21670,
+        287
+      ],
+      "merged_greedy_ids": [
+        20003,
+        2972,
+        21670,
+        287
+      ],
+      "merged_chip_tokens": 0,
+      "greedy_four_identical": true
+    },
+    {
+      "prompt": "Explain why ice floats on liquid water.",
+      "prompt_tokens": 21,
+      "base_next_top1": 760,
+      "merged_next_top1": 760,
+      "next_top1_same": true,
+      "base_next_margin": 0.125,
+      "merged_next_margin": 0.25,
+      "next_max_abs_logit_difference": 0.15625,
+      "next_mean_abs_logit_difference": 0.02641642466187477,
+      "greedy_identical": true,
+      "greedy_prefix_tokens": 4,
+      "base_greedy_ids": [
+        760,
+        2781,
+        9561,
+        46303
+      ],
+      "merged_greedy_ids": [
+        760,
+        2781,
+        9561,
+        46303
+      ],
+      "merged_chip_tokens": 0,
+      "greedy_four_identical": true
+    },
+    {
+      "prompt": "Continue this JSON object with one field: {\"status\": \"ok\"",
+      "prompt_tokens": 26,
+      "base_next_top1": 4754,
+      "merged_next_top1": 4754,
+      "next_top1_same": true,
+      "base_next_margin": 0.375,
+      "merged_next_margin": 0.25,
+      "next_max_abs_logit_difference": 0.1953125,
+      "next_mean_abs_logit_difference": 0.03189636766910553,
+      "greedy_identical": true,
+      "greedy_prefix_tokens": 4,
+      "base_greedy_ids": [
+        4754,
+        2738,
+        763,
+        328
+      ],
+      "merged_greedy_ids": [
+        4754,
+        2738,
+        763,
+        328
+      ],
+      "merged_chip_tokens": 0,
+      "greedy_four_identical": true
+    },
+    {
+      "prompt": "The caf\u00e9 opened in \u6771\u4eac. Describe the scene in English.",
+      "prompt_tokens": 25,
+      "base_next_top1": 45,
+      "merged_next_top1": 45,
+      "next_top1_same": true,
+      "base_next_margin": 1.5,
+      "merged_next_margin": 1.625,
+      "next_max_abs_logit_difference": 0.25,
+      "next_mean_abs_logit_difference": 0.02616013213992119,
+      "greedy_identical": true,
+      "greedy_prefix_tokens": 4,
+      "base_greedy_ids": [
+        45,
+        467,
+        806,
+        303
+      ],
+      "merged_greedy_ids": [
+        45,
+        467,
+        806,
+        303
+      ],
+      "merged_chip_tokens": 0,
+      "greedy_four_identical": true
+    }
+  ],
+  "next_top1_same": 6,
+  "greedy_identical": 6,
+  "median_next_max_abs_logit_difference": 0.21484375,
+  "max_next_abs_logit_difference": 0.34375,
+  "merged_chip_tokens": 0,
+  "greedy_four_identical": 6
+}

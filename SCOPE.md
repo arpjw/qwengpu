@@ -396,7 +396,12 @@ reads with scheduling and skips unchanged control tokens. The qualified
 model-owned store variant removes programmable global and scoped store
 tags, committing 2,086 words in the merged replay. General cyclic
 register writeback in stock Qwen remains open; the store checkpoint
-still relays register tags. Atomics, floating-point execution, graphics,
+still relays register tags. The bounded control experiment runs its
+sixteen-stage machine through stock greedy generation. The next
+experiment extends that protocol to the integrated checkpoint and
+reuses each register row across arbitrarily many instructions within a
+launch budget. See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
+Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
 The capacity step is qualified in MEMORY512_DESIGN.md. NEXT_MEMORY_DESIGN.md
 retains its historical proposal and the original encoding hazards. Future

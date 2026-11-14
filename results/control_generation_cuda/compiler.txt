@@ -1,0 +1,12 @@
+test_frozen_traces (test_control.CompiledControlTests.test_frozen_traces) ... ok
+test_generated_tokens_drive_next_instruction (test_control.CompiledControlTests.test_generated_tokens_drive_next_instruction) ... ok
+test_modular_product_all_byte_pairs (test_control.CompiledControlTests.test_modular_product_all_byte_pairs) ... ok
+test_unsigned_compare_all_byte_pairs (test_control.CompiledControlTests.test_unsigned_compare_all_byte_pairs) ... ok
+test_invalid_control_blocks (test_control.ControlLoaderTests.test_invalid_control_blocks) ... ok
+test_reference_outcomes (test_control.ControlLoaderTests.test_reference_outcomes) ... ok
+test_workgroup_barrier_requires_reconvergence (test_control.ControlLoaderTests.test_workgroup_barrier_requires_reconvergence) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 148.803s
+
+OK

@@ -195,6 +195,28 @@ Maximum absolute next-logit difference is 0.3203125. This is a small fresh-cache
 text integration check; broad language fidelity and text after execution
 remain untested.
 
+### Stock generation on the bounded control circuit
+
+`results/control_generation_cuda/standalone.json` records 14 frozen
+programs launched through stock greedy generation. All 130 predicted
+PC/stage tokens and 380-bit snapshots match the prior CUDA protocol and
+the independent interpreter. Thirteen programs halt and the infinite
+loop stops at the 16-instruction limit. The launch uses one
+`generate()` call per program, with zero host-supplied tick, control
+feedback, or lane feedback tokens after the prompt. Seven compiler tests
+also passed on the pod.
+
+The merged Qwen3.5-9B report in the same directory matches all 130
+records too. It uses 70 chip layers, 5,120 hidden dimensions, and 850
+live slots. The 16-instruction bound still comes from the number of
+stage-local snapshots in the checkpoint. Integrated MPS testing remains
+paused while the Mac is in use.
+
+On the fixed 24-prompt text corpus, all 24 first tokens and 21 full
+16-token greedy continuations match the base. The merged model emits zero
+chip tokens. The artifact manifest hashes all 28 weight shards and
+records 61,946,385,152 weight bytes.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
