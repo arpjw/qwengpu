@@ -51,6 +51,19 @@ def check_memory512(root):
     print(f"{len(cases)} common compute requests and {len(baseline['raw'])} raw RAM cases exact")
 
 
+def check_integer_programs(root):
+    cases = {run["fixture"]: run for run in read(root, "integer-programs.json")["cases"]}
+    assert set(cases) == {"indexed_words.json", "integer_edges.json", "loops_and_barrier.json"}
+    for name, run in cases.items():
+        old = read(BASELINE, name)
+        check_launch(run)
+        assert run["sha256"] == old["kernel_sha256"]
+        assert run["steps"] == old["instructions"] and run["outcome"] == old["outcome"]
+        memory_key = "global_words" if "global_words" in run else "tile_words"
+        assert run[memory_key] == old["shared_words"]
+    print("Full-width indexed arithmetic, signed edges and upper-half ROM loop exact")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
@@ -111,6 +124,7 @@ def main():
     assert deadlock["generated_tokens"] == deadlock["expected_tokens"]
     print("Native text, retained handoff and public CLI exact")
     check_memory512(root)
+    check_integer_programs(root)
 
 
 if __name__ == "__main__":
