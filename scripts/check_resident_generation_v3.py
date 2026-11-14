@@ -10,6 +10,12 @@ RESULTS = Path(__file__).resolve().parents[1] / "results"
 V2 = RESULTS / "resident_generation_v2_cuda"
 BASELINE = RESULTS / "model_stores_merged_cuda"
 PINNED_V3 = RESULTS / "resident_generation_v3_cuda" / "manifest.json"
+INTERLEAVED = {"interleaved_publish.json", "barrier_groups.json", "deadlock.json",
+               "cross_group_high_limb.json"}
+SEQUENTIAL = {"workgroup_reset.json", "address_walk.json", "isolation.json", "matrix_extent.json"}
+LAUNCH_AUDITS = {"tokens_exact", "outcome_exact", "registers_exact", "control_exact",
+                 "workgroup_cursor_exact", "scoped_exact", "cache_length_exact",
+                 "cache_retained_exact"}
 
 
 def read(directory, filename):
@@ -29,10 +35,20 @@ def check_manifest(manifest):
 
 
 def check_launch(run):
-    checks = [value for key, value in run.items() if key.endswith("_exact")]
-    assert checks and all(checks)
+    audits = {key for key in run if key.endswith("_exact")}
+    memory_audit = "memory_exact" if "tile_words" in run else "global_exact"
+    assert (LAUNCH_AUDITS | {memory_audit}) <= audits
+    assert all(run[key] is True for key in audits)
     assert run["generated_tokens"] == run["expected_tokens"]
     assert run["generation_calls"] == 1 and run["host_execution_tokens"] == 0
+
+
+def check_fixtures(report, expected):
+    cases = report["cases"]
+    assert len(cases) == len(expected)
+    assert {case["fixture"] for case in cases} == expected
+    for case in cases:
+        check_launch(case)
 
 
 def check_memory512(root):
@@ -150,8 +166,17 @@ def main():
     args = parser.parse_args()
     root = args.reports
     backend = "mps" if args.mps else "merged"
+    device = "mps" if args.mps else "cuda"
     inherited = root / f"inherited-{backend}.json"
-    assert read(root, inherited.name)["device"] == ("mps" if args.mps else "cuda")
+    reports = (inherited.name, f"interleaved-{backend}.json", f"sequential-{backend}.json",
+               "tiled.json", "memory512-raw.json", "memory512-compute.json",
+               "integer-programs.json", "scoped_reset.json", "interleaved_handoff.json",
+               "matmul16.json")
+    if not args.mps:
+        reports += ("bounds.json", "inherited-standalone.json", "text.json", "handoff.json",
+                    "cli-reduction.json", "cli-deadlock.json")
+    for name in reports:
+        assert read(root, name)["device"] == device, f"{name}: expected {device}"
     check_inherited(inherited, BASELINE / "inherited.json")
     if args.mps:
         comparison = PINNED_V3.with_name("inherited-merged.json")
@@ -160,10 +185,17 @@ def main():
         check_inherited(comparison, BASELINE / "inherited.json")
     by_fixture = {case["fixture"]: case for case in read(comparison.parent, comparison.name)["cases"]}
     for case in read(root, inherited.name)["cases"]:
-        assert case["generated_tokens"] == by_fixture.pop(case["fixture"])["generated_tokens"]
+        other = by_fixture.pop(case["fixture"])
+        check_launch(case)
+        check_launch(other)
+        assert case["generated_tokens"] == other["generated_tokens"]
     assert not by_fixture
-    check(RESULTS / "cache_register_edge_cuda", [root / f"interleaved-{backend}.json"])
-    check(RESULTS / "cache_register_edge_cuda", [root / f"sequential-{backend}.json"],
+    interleaved = root / f"interleaved-{backend}.json"
+    sequential = root / f"sequential-{backend}.json"
+    check_fixtures(read(root, interleaved.name), INTERLEAVED)
+    check_fixtures(read(root, sequential.name), SEQUENTIAL)
+    check(RESULTS / "cache_register_edge_cuda", [interleaved])
+    check(RESULTS / "cache_register_edge_cuda", [sequential],
           sequential_baseline=BASELINE,
           matrix_extent_baseline=RESULTS / "memory512_bounds_9b_cuda_fla.json")
     check_compute(root, mps=args.mps)
