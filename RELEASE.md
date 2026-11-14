@@ -5,6 +5,11 @@ of the qualified merged checkpoint. Keep the build pod until the
 restore checks and receipt below are complete. A public release is a
 separate decision.
 
+The v3 package is staged on the build pod. Its 49 file digests are
+recorded in `results/resident_generation_v3_cuda/package-SHA256SUMS`.
+The private remote locator, immutable revision, and clean restore
+reports are pending.
+
 ## Prepare the artifact
 
 Use the qualified merged directory on RunPod. Preserve all SafeTensors
