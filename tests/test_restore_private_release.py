@@ -1,11 +1,15 @@
 """Check interrupted private-release restore safety."""
 
 import hashlib
+import io
+import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from scripts.restore_private_release import check_source, resume_files
+from scripts.restore_private_release import check_source, main, resume_files
 
 
 class SourceModeTests(unittest.TestCase):
@@ -26,6 +30,49 @@ class SourceModeTests(unittest.TestCase):
             with self.subTest(public=public), self.assertRaisesRegex(RuntimeError, "tag differs"):
                 check_source({"tag_name": "wrong", "draft": not public},
                              {"private": not public}, "v4", public)
+
+    def test_public_mode_restores_and_verifies_tiny_package(self):
+        content = b"tiny verified content"
+        content_digest = hashlib.sha256(content).hexdigest()
+        checksums = f"{content_digest}  README.md\n".encode()
+        checksum_digest = hashlib.sha256(checksums).hexdigest()
+        manifest = json.dumps({
+            "repo": "owner/repo", "tag": "v4", "release_id": 42,
+            "package_checksum_digest": checksum_digest,
+            "parts": [
+                {"file": "SHA256SUMS", "asset": "SHA256SUMS", "offset": 0,
+                 "size": len(checksums), "sha256": checksum_digest},
+                {"file": "README.md", "asset": "README.md", "offset": 0,
+                 "size": len(content), "sha256": content_digest},
+            ],
+        }).encode()
+        payloads = {"backup-manifest.json": manifest,
+                    "SHA256SUMS": checksums, "README.md": content}
+
+        def download(_repo, _tag, name, directory, _token):
+            path = directory / name
+            path.write_bytes(payloads[name])
+            return path
+
+        def gh(args, _token):
+            if args[1].endswith("/releases/42"):
+                return json.dumps({"tag_name": "v4", "draft": False})
+            return json.dumps({"private": False})
+
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "restored"
+            argv = ["restore_private_release.py", "owner/repo", "v4", "42",
+                    checksum_digest, str(destination), "--public",
+                    "--backup-manifest", "backup-manifest.json"]
+            stdin = io.StringIO("unused token\n")
+            with patch.object(sys, "argv", argv), patch.object(sys, "stdin", stdin), \
+                 patch("scripts.restore_private_release.run_gh", side_effect=gh), \
+                 patch("scripts.restore_private_release.download", side_effect=download), \
+                 patch("sys.stdout", new_callable=io.StringIO):
+                main()
+            self.assertEqual(stdin.tell(), 0)
+            self.assertEqual((destination / "README.md").read_bytes(), content)
+            self.assertEqual((destination / "SHA256SUMS").read_bytes(), checksums)
 
 
 class ResumeFilesTests(unittest.TestCase):
