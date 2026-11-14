@@ -286,6 +286,11 @@ emission paths across layer gaps, slot reuse, and final cleanup.
 The v2 checkpoint matches 24/24 first tokens and 22/24 continuations
 of up to 16 tokens with zero chip IDs. Its manifest, text report,
 and CPU regression transcript are in `results/resident_generation_v2_cuda/`.
+Standalone and merged 9B CUDA match 4,138 generated tokens over 314
+instructions across the four sequential fixtures. Both match the
+interpreter, and final global and scoped memory agree with the saved
+model-owned-store baseline. The cache reads confirm exact register banks,
+control words, and the workgroup cursor after each launch.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
