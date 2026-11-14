@@ -39,11 +39,13 @@ checksums, and confirm the documentation matches the completed
 qualification. After a flip, check both READMEs, images, source pins,
 and the pinned model download in a signed-out session.
 
-The all-ref source scan at `53b513b` covered nine remote branches and
-no tags. Gitleaks 8.30.1 returned 26 generic API-key matches. Review
-of the matched lines found 24 tokenized-prompt SHA-256 fields, one
-matrix-token SHA-256 constant, and one tokenizer symbol. None is a
-credential. Rerun the scan after the final release receipt is pinned.
+The all-ref source scan after the v4 teardown receipt covered 532 commits,
+nine remote branches, and no tags. Gitleaks 8.30.1 returned the same 26
+generic API-key matches as the earlier scan. Review of the matched lines
+found 24 tokenized-prompt SHA-256 fields, one matrix-token SHA-256
+constant, and one tokenizer symbol. No new path was flagged and none of
+these matches is a credential. Rerun the scan if the refs change before
+publication.
 
 ## Pinned checkpoint
 
