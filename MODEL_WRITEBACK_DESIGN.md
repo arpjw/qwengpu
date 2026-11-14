@@ -182,6 +182,18 @@ bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports" \
   "$(git rev-parse HEAD)"
 ```
 
+The retained-cache workload checker uses the existing kernel compiler
+and runs one stock generation call per launch. It feeds the same cache
+into the reduction's second pass and into later K panels. The second
+pass uploads zero global words. Later panels upload the operand prefix
+and keep the output words in recurrent RAM. The checker compares
+each launch to the interpreter and each final result to scalar arithmetic.
+
+```bash
+python scripts/eval_resident_generation_workloads.py "$model" \
+  --out "$reports/workloads.json" eval/frozen/tiled_compute_v1/3x5x2.json
+```
+
 ```bash
 bash scripts/qualify_cache_register_edge.sh "$model" "$stock_reports" "$edge_reports"
 ```

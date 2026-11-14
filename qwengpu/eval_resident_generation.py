@@ -20,16 +20,21 @@ from qwengpu.compiled_tile8 import (
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_tile8 import _digits, _words, nibbles, oracle, parse_launch
 from qwengpu.memory_geometry import WIDE_MEMORY
-from qwengpu.resident_scheduler import EXTRA_WARP_BANKS, RESIDENT_ENABLE, RESIDENT_TICKET, resident_control
-from qwengpu.scoped_memory import SCOPED_BASE
+from qwengpu.resident_scheduler import (
+    EXTRA_WARP_BANKS, RESIDENT_ENABLE, RESIDENT_TICKET, resident_control,
+)
+from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_WORDS
 
 
-def launch_prompt(case):
+def launch_prompt(case, refresh_words=None):
     if not case.get("interleaved"):
         raise ValueError("stock generation requires two interleaved workgroups")
     tokens = [RESIDENT_ENABLE, *(resident_control(warp) for warp in range(4)),
               RESIDENT_TICKET + 3, GRID + GLOBAL_GRID + ROW_PAIRS]
-    tokens.extend(nibbles(WIDE_MEMORY.base, _digits(case["global_words"], 16)))
+    words = case["global_words"]
+    if refresh_words is not None:
+        words = words[:refresh_words]
+    tokens.extend(nibbles(WIDE_MEMORY.base, _digits(words, 16)))
     if "scoped_words" in case:
         tokens.extend(nibbles(SCOPED_BASE, _digits(case["scoped_words"], 16)))
     if "extent" in case:
@@ -83,7 +88,7 @@ def expected_tokens(reference):
 
 
 def cache_words(cache, circuit, *, scoped=False):
-    words = 128 if scoped else 256
+    words = SCOPED_WORDS if scoped else WIDE_MEMORY.words
     result = []
     mirrored = True
     for word in range(words):
@@ -100,12 +105,26 @@ def cache_words(cache, circuit, *, scoped=False):
 
 
 @torch.no_grad()
-def evaluate(model, circuit, case, device, offset=0, *, max_new_tokens=32768):
+def evaluate(
+    model, circuit, case, device, offset=0, *, max_new_tokens=32768,
+    cache=None, refresh_words=None,
+):
     start = time.monotonic()
-    prompt = launch_prompt(case)
+    if refresh_words is not None and (
+        cache is None
+        or type(refresh_words) is not int
+        or not 0 <= refresh_words <= WIDE_MEMORY.words
+    ):
+        raise ValueError("global refresh requires a retained cache and a valid prefix length")
+    prompt = launch_prompt(case, refresh_words)
+    cache_length = 0 if cache is None else cache.get_seq_length()
     inputs = torch.tensor([[token + offset for token in prompt]], device=device)
+    if cache_length:
+        # Generation slices this prefix using the existing cache length.
+        inputs = torch.cat((inputs.new_zeros((1, cache_length)), inputs), dim=1)
     output = model.generate(
         input_ids=inputs, attention_mask=torch.ones_like(inputs),
+        past_key_values=cache,
         do_sample=False, eos_token_id=[offset + DONE, offset + DEADLOCK],
         max_new_tokens=max_new_tokens, use_cache=True, return_dict_in_generate=True, pad_token_id=0,
     )
@@ -132,7 +151,7 @@ def evaluate(model, circuit, case, device, offset=0, *, max_new_tokens=32768):
          if actual != wanted),
         None if len(tokens) == len(expected) else min(len(tokens), len(expected)),
     )
-    return {
+    report = {
         "outcome": outcome,
         "expected_outcome": reference["outcome"],
         "steps": len(reference["trace"]),
@@ -140,6 +159,11 @@ def evaluate(model, circuit, case, device, offset=0, *, max_new_tokens=32768):
         "generation_calls": 1,
         "generation_seconds": round(generation_seconds, 3),
         "host_execution_tokens": 0,
+        "global_upload_words": WIDE_MEMORY.words if refresh_words is None else refresh_words,
+        "cache_length_exact": (
+            retained.get_seq_length() == cache_length + len(prompt) + len(tokens) - 1
+        ),
+        "cache_retained_exact": cache is None or retained is cache,
         "generated_tokens": tokens,
         "expected_tokens": expected,
         "global_words": words,
@@ -152,6 +176,7 @@ def evaluate(model, circuit, case, device, offset=0, *, max_new_tokens=32768):
         "global_exact": mirrors and words == reference["shared_words"],
         "scoped_exact": scoped is None or (scoped[1] and scoped[0] == reference["scoped_words"]),
     }
+    return retained, report
 
 
 def main():
@@ -182,7 +207,7 @@ def main():
         case = parse_launch(
             json.loads(payload), resident_globalgrid=True, resident_compute=True, full_integer=True,
         )
-        result = evaluate(
+        _, result = evaluate(
             model, circuit, case, args.device, offset, max_new_tokens=args.max_new_tokens,
         )
         result.update(fixture=fixture.name, sha256=hashlib.sha256(payload).hexdigest())
