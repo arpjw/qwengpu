@@ -388,6 +388,14 @@ All 256 output words match the scalar matrix. Generation took
 uses the exported standalone circuit; merged 9B qualification is
 tracked separately. See [the report](results/resident_generation_v4_cuda/standalone-matmul16.json).
 
+The same exported v4 circuit passed four interleaved and four sequential
+workgroup fixtures on CUDA, covering 459 instructions and 5,367 exact
+generated tokens. The sequential set includes workgroup reset, signed
+address arithmetic, scoped-memory isolation, and runtime matrix extents.
+Both report sets passed the existing reference and baseline checks.
+These standalone results precede the merged v4 qualification.
+See [the standalone reports](results/resident_generation_v4_cuda/).
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
