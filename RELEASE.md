@@ -5,13 +5,35 @@ of the qualified merged checkpoint. Keep the build pod until the
 restore checks and receipt below are complete. A public release is a
 separate decision.
 
-The v3 package is staged on the build pod. Its 49 file digests are
-recorded in `results/resident_generation_v3_cuda/package-SHA256SUMS`.
-The upload destination is the private Hugging Face model repository
+The verified v3 package is stored in the private Hugging Face model repository
 [`arpjw/Qwen-GPU`](https://huggingface.co/arpjw/Qwen-GPU). Hugging Face
 reports it as private and lists all 50 package files at revision
 [`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
-The clean restore reports are pending.
+
+## Restore receipt
+
+| Item | Verified value |
+| --- | --- |
+| Hugging Face revision | `fe671778a2409a218dde757871f33f5ca46d9219` |
+| QwenGPU checkpoint build | `b5f4898cb2e54ac559cd0fa81d93c2901ccb9222` |
+| Qwenputer compiler | `ca13310e2f9f788d1dd3feeea8213c1b0c23913c` |
+| Qwen3.5-9B base | `c202236235762e1c871ad0ccb60c8ee5ba337b9a` |
+| Restore runner source | `fab58f0` |
+| SHA-256 of SHA256SUMS | `f85fcb86f80668c57bfbc241aa8d9ca08378d50623eea405add56d499dcbd415` |
+
+On November 14, 2026 UTC, a separate RunPod fetched all 50 package
+files into an empty directory. The 49 content hashes, including all
+35 SafeTensors shards, matched the original package. With the Hub
+disabled during inference, the restored dense tile kernel matched 116
+instructions, 2,519 generated tokens, ROM, control, registers, and
+mirrored RAM. Native text matched 24 of 24 first tokens and 21 of 24
+continuations with zero chip IDs.
+
+[Build manifest](results/resident_generation_v3_cuda/manifest.json) ·
+[Package checksums](results/resident_generation_v3_cuda/package-SHA256SUMS) ·
+[GPU restore report](results/resident_generation_v3_cuda/restored-tile.json) ·
+[Native-text restore report](results/resident_generation_v3_cuda/restored-text.json) ·
+[Restore verifier output](results/resident_generation_v3_cuda/restore-verification.txt)
 
 The model card and charts are also available on the repository's
 default branch. The revision above is the checksum-pinned package
