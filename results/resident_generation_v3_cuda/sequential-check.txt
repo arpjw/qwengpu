@@ -1,0 +1,4 @@
+sequential-merged.json workgroup_reset: 128 instructions, 1479 exact generated tokens
+sequential-merged.json address_walk: 66 instructions, 1142 exact generated tokens
+sequential-merged.json isolation: 96 instructions, 1305 exact generated tokens
+sequential-merged.json matrix_extent: 24 instructions, 212 exact generated tokens
