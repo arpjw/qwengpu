@@ -55,7 +55,19 @@ PY
   --suite eval/frozen/memory512_compute_v1/cases.json \
   --case vector_64 --case reduce_128 --case matmul_8x4x4 --out "$reports/bounds.json"
 "$python" scripts/eval_resident_generation_handoff.py "$model" --out "$reports/handoff.json"
+"$python" -m qwengpu.run_compute examples/memory512_reduce_128.json \
+  --model "$model" --device cuda --out "$reports/cli-reduction.json"
+status=0
+"$python" -m qwengpu.run_resident eval/frozen/tile8_gate_v1/deadlock.json \
+  --model "$model" --device cuda --check-reference --trace \
+  --out "$reports/cli-deadlock.json" || status=$?
+test "$status" -eq 3
+"$python" scripts/eval_resident_generation_workloads.py "$model" \
+  --out "$reports/tiled.json" eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json
+"$python" -m qwengpu.eval_resident_generation --device cuda \
+  --out "$reports/inherited-standalone.json" "${inherited[@]}"
 "$python" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \
   --compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c \
   --base c202236235762e1c871ad0ccb60c8ee5ba337b9a --variant resident-generate \
   --out "$reports/manifest.json"
+"$python" scripts/check_resident_generation_v3.py "$reports"
