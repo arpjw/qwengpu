@@ -20,5 +20,6 @@ Restore with the pinned release ID and verification commands in
 [`RELEASE.md`](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#corrected-v4-private-draft-package).
 CUDA execution evidence comes from the byte-identical frozen checkpoint
 and its independent 96 GB GPU restore. Full Apple MPS qualification
-remains pending. Keep this draft and the source repository private until
+remains pending and is separate from this CUDA release. Atomics are
+follow-on work. Keep this draft and the source repository private until
 the public release review is complete.

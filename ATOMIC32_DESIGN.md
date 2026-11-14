@@ -81,10 +81,15 @@ eight generated nibble writes, and a second read in one exact graph.
    `SCHEDULE` token to gate generated memory writes. It reads `0xFFFFFFFE`,
    emits the low and high limb tags for the result `1`, then reads back `1`
    on the next tick. A second launch marker resets the gate before uploads.
+   The writeback selector can now defer each low or high commit until four
+   generated nibble tokens complete, then resume at the saved commit slot.
+   This sequencing is tested in isolation and still needs integration with
+   the atomic arithmetic and scheduler in one checkpoint.
 4. Freeze boundary, carry, overflow, same-pair collision, masked lane,
    cross-warp, interleaved-workgroup, barrier, and native-text handoff cases.
    Compare the complete generated trace and final recurrent memory against
-   the independent reference on standalone MPS and merged 9B CUDA.
+   the independent reference on standalone and merged 9B CUDA. Apple MPS
+   is optional follow-on validation, not an atomic qualification gate.
 5. Re-run the v4 inherited programs, 31 common compute requests, memory
    probes, non-square matrix shapes, 16×16 matrix, and native-text gate on
    the new layout. Record compile allocation, model revision, device,

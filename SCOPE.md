@@ -14,8 +14,11 @@ second private draft packages the corrected model card with the same
 all 49 file checks and the pinned build-manifest checker.
 A clean download passed all package checks and reproduced the seeded
 tile, native text, and 16×16 matrix on a separate 96 GB CUDA GPU.
-Full standalone Apple MPS qualification also remains pending.
-For that gate, a 12.05 GB standalone v4 circuit was exported and passed
+Full standalone Apple MPS qualification also remains pending and is not
+a condition for the fixed v4 CUDA release. A 32-bit global atomic-add
+instruction is a separate follow-on gate, not part of the v4 checkpoint.
+For optional MPS validation, a 12.05 GB standalone v4 circuit was
+exported and passed
 two exact CPU smoke traces. It is an MPS candidate, not an MPS result.
 See [VALIDATION.md](VALIDATION.md)
 and [RELEASE.md](RELEASE.md).

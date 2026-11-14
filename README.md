@@ -30,7 +30,8 @@ produced all 256 correct cells in one launch. Native text matched 24 of
 token IDs. [Reports and reproduction commands](VALIDATION.md)
 
 Each generated token requires a model forward pass, so the current
-machine is slow. Apple MPS qualification of v4 remains pending. The
+machine is slow. Apple MPS qualification of v4 remains pending and is
+separate from the CUDA-qualified v4 release scope. The
 private v4 checkpoint package passed its 48-file checksum pass and is
 backed up in a private GitHub draft release. A clean download of the frozen
 execution package passed
@@ -42,6 +43,8 @@ available at its pinned revision. The v4 Hugging Face upload is blocked by
 the account's private storage limit. A separate clean restore of the
 corrected model-card package passed all 49 file checks and the pinned
 build-manifest check.
+The v4 checkpoint does not implement 32-bit atomic memory operations;
+the [atomic instruction gate](ATOMIC32_DESIGN.md) is follow-on work.
 
 ## Run the verified v4 checkpoint
 
