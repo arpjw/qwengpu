@@ -299,6 +299,10 @@ The frozen 64-element vector add, 128-element two-pass reduction, and
 match 276 instructions and 4,960 generated tokens. The reduction returns
 `4294967168` and uploads zero global words for its second pass. The
 compute checker compares the full RAM image, including untouched words.
+The native-text handoff matches all four fresh-cache controls. It
+preserves 8,192 mirrored RAM nibbles, 384 register nibbles, four control
+rows, and 64 ROM rows. The resumed reduction returns `1521272620`
+and matches the cold consumer with zero global-memory upload.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted

@@ -390,3 +390,12 @@ to verified deletion by 03:03:26 UTC on November 14 (HTTP 204 followed
 by HTTP 404). Estimated compute was $0.013 and no charge had posted
 at teardown. Reserve $0.02 for compute and disk. The transcript and
 reproduction command are in `results/resident_generation_v2_cuda/`.
+
+RTX PRO 6000 Blackwell Server pod `tr7tg4b23z1mkf` ran the sequential
+v2 standalone and merged checks from 02:33:49 to verified deletion
+by 03:24:45 UTC on November 14. The quoted rate was $2.69/hour before
+disk. Two full emission attempts hit the host memory limit. The
+layer-at-a-time build and the subsequent merged checks completed.
+The API returned HTTP 204 and then HTTP 404. Approximate elapsed
+compute was $2.28, with $2.65 reserved including disk. No charge had
+posted at the immediate recheck. The account's pod list was empty.
