@@ -20,7 +20,9 @@ copied into the package. Write a model card that credits the base and
 describes the added circuit layers, widened text tower, reserved SIMT
 token range, text-only merge, and tested GPU limits. Include tested run
 commands and link to the source and validation evidence. Preserve the
-upstream attribution and mark the derived checkpoint as modified.
+upstream attribution and mark the derived checkpoint as modified. Start
+from [the v3 model card](release/model-card.md) and update its evidence
+section after qualification.
 [Pinned Qwen license](https://huggingface.co/Qwen/Qwen3.5-9B/blob/c202236235762e1c871ad0ccb60c8ee5ba337b9a/LICENSE)
 
 Generate `SHA256SUMS` over every shipped file except the checksum file
