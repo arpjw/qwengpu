@@ -2013,6 +2013,18 @@ python scripts/check_resident_generation.py results/cache_register_edge_cuda \
 bash scripts/qualify_resident_generation_mps.sh "$reports"
 ```
 
+To offload standalone weight compilation from the Apple host, build the
+weights on a Linux machine with the pinned compiler environment. Copy the
+resulting directory to the Apple host and point the suite at that directory.
+The standalone artifact has only the circuit and runs with chip token IDs
+starting at zero.
+
+```bash
+python scripts/export_resident_generation_standalone.py "$standalone"
+QWENGPU_STANDALONE_WEIGHTS="$standalone" \
+  bash scripts/qualify_resident_generation_mps.sh "$reports"
+```
+
 ### Run general tiled uint32 matrix multiply
 
 Use the existing compiler environment. The 9×7 by 7×5 fixture exercises

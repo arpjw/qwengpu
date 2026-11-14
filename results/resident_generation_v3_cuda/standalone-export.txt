@@ -1,0 +1,26 @@
+Standalone resident generation v3 export
+Qwenputer compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+
+Run on Linux with the pinned compiler environment.
+
+export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
+python scripts/export_resident_generation_standalone.py /tmp/qwengpu-v3-standalone
+(
+  cd /tmp/qwengpu-v3-standalone
+  sha256sum config.json generation_config.json model.safetensors > SHA256SUMS
+)
+tar -C /tmp -cf - qwengpu-v3-standalone | zstd -T2 -3 -o qwengpu-v3-standalone.tar.zst
+
+Saved 52 circuit layers in 3m31.708s. The saved model loaded on
+Linux CPU with hidden width 3840, 53 layers including the cache-support
+attention layer, and 12048584448 parameter bytes. Its embeddings and
+output head remained tied. The archive passed the zstd integrity check.
+
+The three file digests follow.
+
+71a962c245a7023353eb718b404c1029322cab2d8ed6773a71b9c7eb5325a0c2  config.json
+57ef3923597f292316b0875ee75fc7ba832862116bddbc18cce16a8b139e642e  generation_config.json
+8bc64d160fd3756333ceb9f5222f7310c1e8da798a8ad5a3e3649dfc787846b3  model.safetensors
+
+Archive SHA-256
+a3b851178fea49a24155b8152eef03e33318421ed0f43c7bd39bcf7d7d5c71d2

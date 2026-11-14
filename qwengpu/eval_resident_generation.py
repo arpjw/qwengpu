@@ -3,15 +3,16 @@
 import argparse
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 
 import torch
 from chipformer.q35.ir import Target
-from transformers import AutoModelForCausalLM, StoppingCriteria
+from transformers import AutoModelForCausalLM, Qwen3_5TextConfig, StoppingCriteria
 
 from qwengpu import resident_generation as gen
-from qwengpu.alu32 import RUNTIME_EXTENT_BASE
+from qwengpu.alu32 import ALU_VOCAB, RUNTIME_EXTENT_BASE
 from qwengpu.cache_register_edge import register_head_names
 from qwengpu.compiled_tile8 import (
     ADVANCE, C_MEMORY, DEADLOCK, DONE, GLOBAL_GRID, GRID, INDEX_OPERAND, MASK_REGISTER, ROM32_PC_HIGH,
@@ -213,17 +214,39 @@ def cache_tile_words(cache, circuit):
 
 
 def load_generation_model(checkpoint, device):
-    if checkpoint is None:
-        model, circuit = build_standalone(generate=True)
-        return model.to(device).eval(), circuit, 0
-    meta = json.loads((checkpoint / "qwengpu9b.json").read_text())
-    if meta.get("layout") != gen.LAYOUT:
-        raise ValueError(f"expected a {gen.LAYOUT} checkpoint")
-    model = AutoModelForCausalLM.from_pretrained(checkpoint, dtype=torch.bfloat16)
-    config = model.config
-    circuit = build(Target(config.linear_num_key_heads, config.linear_num_value_heads,
-                           config.intermediate_size), generate=True)
-    return model.to(device).eval(), circuit, meta["chip_token_offset"]
+    standalone = checkpoint is None
+    if standalone:
+        weights = os.environ.get("QWENGPU_STANDALONE_WEIGHTS")
+        if not weights:
+            model, circuit = build_standalone(generate=True)
+            return model.to(device).eval(), circuit, 0
+        checkpoint = Path(weights)
+        if not (checkpoint / "config.json").is_file() or (checkpoint / "qwengpu9b.json").exists():
+            raise ValueError("QWENGPU_STANDALONE_WEIGHTS requires the standalone circuit")
+        offset = 0
+    else:
+        meta = json.loads((checkpoint / "qwengpu9b.json").read_text())
+        if meta.get("layout") != gen.LAYOUT:
+            raise ValueError(f"expected a {gen.LAYOUT} checkpoint")
+        offset = meta["chip_token_offset"]
+    if standalone:
+        # Match build_standalone's circuit schedule. The model pads its MLP
+        # beyond the circuit's scheduling capacity for the emitter.
+        config = Qwen3_5TextConfig.from_pretrained(checkpoint)
+        circuit = build(generate=True)
+        expected_layers = ["linear_attention"] * circuit.n_layers() + ["full_attention"]
+        if (config.layer_types != expected_layers or config.vocab_size != ALU_VOCAB
+                or config.linear_num_key_heads != circuit.target.key_heads
+                or config.linear_num_value_heads != circuit.target.value_heads
+                or config.intermediate_size != 5120 or not config.tie_word_embeddings):
+            raise ValueError("expected a standalone resident generation model")
+        model = AutoModelForCausalLM.from_pretrained(checkpoint, config=config, dtype=torch.bfloat16)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(checkpoint, dtype=torch.bfloat16)
+        config = model.config
+        circuit = build(Target(config.linear_num_key_heads, config.linear_num_value_heads,
+                               config.intermediate_size), generate=True)
+    return model.to(device).eval(), circuit, offset
 
 
 @torch.no_grad()
