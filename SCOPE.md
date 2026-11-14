@@ -404,10 +404,11 @@ and 9×7 by 7×5 multiplies retain C across K panels. The v2 protocol
 adds sequential workgroups. Standalone and merged 9B CUDA match all four
 frozen sequential fixtures, including ROM reset, signed addressing, scoped
 isolation, and runtime matrix extents. The inherited suite also
-needs the legacy tile launch path. Of its 27 fixtures, 22 use
+now has a legacy tile launch path in v3. Of its 27 fixtures, 22 use
 `LOAD_TILE`, `MAC_K`, or `STORE_TILE`, four use legacy shared
 memory with seeded registers and row windows, and one is a
-barrier deadlock that only lacks the launch descriptor. The token-level
+barrier deadlock without a workgroup descriptor. The merged v3 replay
+and native-text check remain qualification gates. The token-level
 writeback edge remains visible in the generated stream.
 See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
 Atomics, floating-point execution, graphics,
