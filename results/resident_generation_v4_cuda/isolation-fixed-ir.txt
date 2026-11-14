@@ -1,0 +1,2 @@
+{'layers': 52, 'dims': 12919, 'heads': 375, 'ffn_units': 57419, 'max_units': 4993, 'max_heads': 16} 3766 (7936, 31)
+eval/frozen/scoped_memory_v1/isolation.json 96 1305 4bdedf061ede36810b4c4244f04ea9457d0920785bac5d5e5637835ccc670a8a

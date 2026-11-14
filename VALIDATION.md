@@ -412,6 +412,25 @@ reference tokens but retained the initial shared words at addresses
 retained in [the v4 result directory](results/resident_generation_v4_cuda/).
 This candidate is not qualified.
 
+At source commit `702a6f9`, the generated tilegrid store address preserves
+the shared operand-port bank bit. The frozen isolation fixture passed the
+compiler IR replay with 96 instructions and 1,305 exact tokens. A rebuilt
+merged Qwen3.5-9B checkpoint then passed the same fixture with all 1,305
+generated tokens, registers, scoped and global memory, and cache audits
+exact. The [compiler replay](results/resident_generation_v4_cuda/isolation-fixed-ir.txt)
+and [merged report](results/resident_generation_v4_cuda/isolation-fixed-merged.json)
+record this targeted result. Full v4 qualification is still pending.
+
+Reproduce the targeted checks on a CUDA host with the pinned compiler
+environment and a merge built from `702a6f9`:
+
+```bash
+python scripts/check_stock_tile_ir.py --generated-tilegrid \
+  eval/frozen/scoped_memory_v1/isolation.json
+python -m qwengpu.eval_resident_generation --model "$v4_model" \
+  --out isolation-fixed-merged.json eval/frozen/scoped_memory_v1/isolation.json
+```
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
