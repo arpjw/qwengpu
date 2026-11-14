@@ -1,0 +1,66 @@
+{
+  "format": "qwengpu-compute-v1",
+  "input_sha256": "4bf1ed483a401ff44d978a4f8d94166f495ebb57fbb9272e8f8aa861287a67a8",
+  "device": "cuda",
+  "merge": {
+    "layout": "qwengpu-resident-generation-9b-v3",
+    "chip_token_offset": 248320,
+    "chip_vocab": 212992,
+    "chip_layers": 53,
+    "hidden": 7936,
+    "slots": 3612,
+    "code_dims": [
+      4304,
+      4305,
+      4306,
+      4307,
+      4308,
+      4309,
+      4310,
+      4311,
+      4312,
+      4313,
+      4314,
+      4315,
+      4316,
+      4317,
+      4318,
+      4319,
+      4320,
+      4321
+    ],
+    "tau_dim": 4127,
+    "mute_dim": 4811,
+    "fit_anti_sink": true,
+    "circuit": {
+      "layers": 53,
+      "dims": 12858,
+      "heads": 372,
+      "ffn_units": 57313,
+      "max_units": 4993,
+      "max_heads": 16
+    },
+    "output_head_tied": false
+  },
+  "torch": "2.14.1+cu130",
+  "transport_mode": "stock-generation",
+  "kernel": "reduce",
+  "output": 4294967168,
+  "launches": [
+    {
+      "instructions": 120,
+      "generation_calls": 1,
+      "generated_tokens": 1893,
+      "host_execution_tokens": 0,
+      "global_upload_words": 256
+    },
+    {
+      "instructions": 12,
+      "generation_calls": 1,
+      "generated_tokens": 133,
+      "host_execution_tokens": 0,
+      "global_upload_words": 0
+    }
+  ],
+  "exact": true
+}

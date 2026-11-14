@@ -326,6 +326,10 @@ and final RAM, including the 128-input reduction with zero re-upload
 for its second launch. The same merge also passed the four-prompt
 native-text handoff. All audited rows stayed exact and the retained
 reduction returned `1521272620` with zero global-memory upload.
+The public launchers also passed on v3. `run_resident` reported the
+expected deadlock with exit status 3 and exact state. `run_compute`
+returned `4294967168` for the 128-element reduction, with 256 global
+words uploaded for the first launch and zero for the second.
 On the 27 inherited fixtures, the prior driver made 5,411 explicit
 forward calls and submitted 109,276 tokens, including 18,657 state
 read requests and 4,772 store read requests. V3 makes 27 host generation
