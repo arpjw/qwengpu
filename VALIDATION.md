@@ -321,6 +321,12 @@ workgroup fixtures. The sequential suite matches 4,138 tokens over
 314 instructions. The interleaved suite matches 1,229 tokens over 145
 instructions, including independent barriers and publication of both
 limbs of a 32-bit word across workgroups.
+On the 27 inherited fixtures, the prior driver made 5,411 explicit
+forward calls and submitted 109,276 tokens, including 18,657 state
+read requests and 4,772 store read requests. V3 makes 27 host generation
+calls, uploads 26,217 prompt tokens, and emits 26,225 tokens. Generation
+still performs a model forward pass for each emitted token. The host
+call counts describe interface traffic and do not measure a speedup.
 See `results/resident_generation_v3_cuda/`.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
