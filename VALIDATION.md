@@ -403,6 +403,15 @@ standalone circuit and reference over 145 instructions and 1,229
 generated tokens. The complete merged regression remains in progress.
 See [the candidate text and interleaved reports](results/resident_generation_v4_cuda/).
 
+The first merged v4 candidate failed the sequential scoped-memory
+isolation fixture after two exact sequential cases. Its first wrong
+generated token is position 172, the register update after a shared
+load. An early-stop replay after 13 instructions emitted the exact
+reference tokens but retained the initial shared words at addresses
+8 through 15 instead of the expected stores. The failed reports are
+retained in [the v4 result directory](results/resident_generation_v4_cuda/).
+This candidate is not qualified.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
