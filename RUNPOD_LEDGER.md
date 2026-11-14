@@ -550,3 +550,18 @@ remains conditional on the earlier reconciliation's project-pod list;
 it is neither account credit nor a final invoice. The exact
 [teardown receipt](results/resident_generation_v4_cuda/corrected-package/teardown-receipt.json)
 records the posted and reserved figures.
+
+## November 14 late billing check
+
+At 21:07 UTC, RunPod posted $68.278312655 for the 67 pod IDs now
+referenced in this ledger, plus $0.112777775 for the two project network
+volumes. The project total posted was $68.391090430. No pods were
+active. The long v4 pod `gmgmirb2mz2hyy` still had zero posted CPU
+amount despite its later CPU phase. Retaining the earlier $3.95
+conservative reserve for that phase leaves $1.658910 of conditional
+headroom under the $74 project cap, before any other late adjustments.
+The available secure 96 GB RTX PRO 6000 Blackwell Server Edition was
+quoted at $2.69/hour for GPU time alone. A further full corrected-package
+restore and GPU replay was not started with this narrow margin. The
+[reconciliation receipt](results/public-readiness/runpod-billing-reconciliation-latest-2026-11-14.json)
+records the billing window, volume IDs, attribution, and qualification.

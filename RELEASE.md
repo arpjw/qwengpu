@@ -203,7 +203,7 @@ before upload. This package revision changes documentation, so its CUDA
 execution evidence is inherited by byte identity from the frozen
 checkpoint; it is not a new GPU replay.
 
-The [latest live asset audit](results/public-readiness/corrected-v4-live-asset-audit-2026-11-14.json)
+The [latest live asset audit](results/public-readiness/corrected-v4-live-asset-audit-latest-2026-11-14.json)
 checked all 90 GitHub asset names, sizes, and SHA-256 metadata against
 the pinned backup manifest. Reproduce this lightweight metadata check
 without downloading weights:
@@ -225,6 +225,25 @@ record the exact result. No new CUDA execution run was performed.
 The 35 weight shards are among the 47 unchanged content files, which
 are byte-identical to the qualified and independently replayed frozen
 package.
+A separate pinned-checksum comparison confirms that `README.md` is the
+only changed content file. All 35 weight shards and 12 other content
+files retain their qualified digests. The
+[equivalence receipt](results/public-readiness/v4-package-equivalence-2026-11-14.json)
+can be reproduced without downloading weights:
+
+```bash
+python3 scripts/check_v4_package_equivalence.py \
+  results/resident_generation_v4_cuda/package-SHA256SUMS \
+  results/resident_generation_v4_cuda/corrected-package/SHA256SUMS \
+  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913
+```
+
+This proves package equivalence at the pinned digest level. It does not
+claim a separate CUDA execution run of the corrected package. The
+[latest RunPod billing reconciliation](results/public-readiness/runpod-billing-reconciliation-latest-2026-11-14.json)
+records why another 96 GB GPU replay was not provisioned under the
+existing $74 project cap.
 The temporary CPU pod and network volume were deleted after the
 transcripts were copied and matched locally. The [teardown receipt](results/resident_generation_v4_cuda/corrected-package/teardown-receipt.json)
 records their 204 deletion responses and empty follow-up lists.

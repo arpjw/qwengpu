@@ -1,0 +1,31 @@
+{
+  "queried_at_utc": "2026-11-14T21:07:33Z",
+  "billing_window_start_utc": "2026-11-04T00:00:00Z",
+  "billing_window_end_utc": "2026-11-15T00:00:00Z",
+  "project_cap_usd": 74,
+  "method": "Match the 67 unique pod IDs now referenced in RUNPOD_LEDGER.md to the RunPod pod billing records, then add the two project network-volume billing records. Do not attribute the other 65 billed account pods to QwenGPU.",
+  "documented_project_pods_with_posted_records": 67,
+  "documented_project_pod_posted_usd": 68.27831265514396,
+  "project_network_volume_posted_usd": {
+    "cvfkmzhj4t": 0.027222221717238426,
+    "aco0bscpgh": 0.0855555534362793
+  },
+  "documented_project_total_posted_usd": 68.39109043029748,
+  "conditional_headroom_before_reserves_usd": 5.60890956970252,
+  "unposted_long_pod_cpu_phase": {
+    "pod_id": "gmgmirb2mz2hyy",
+    "posted_cpu_usd": 0,
+    "conservative_reserve_usd": 3.95,
+    "basis": "RUNPOD_LEDGER.md records the CPU phase, its $1.345/hour quote, and a $3.95 reserve including disk. The latest pod billing still shows zero CPU amount."
+  },
+  "conditional_headroom_after_long_pod_reserve_usd": 1.65890956970252,
+  "active_pods": 0,
+  "quoted_96gb_gpu": {
+    "gpu_type": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "cloud": "SECURE",
+    "availability": "MEDIUM",
+    "hourly_gpu_usd": 2.69
+  },
+  "decision": "Do not provision another GPU for a redundant corrected-package replay with less than $1.66 conditional headroom after the known CPU-phase reserve. The corrected package changes only its README.md and has a clean checksum restore.",
+  "qualification": "Project attribution depends on the repository ledger being complete. Posted billing can lag; this is not an account balance or final invoice."
+}
