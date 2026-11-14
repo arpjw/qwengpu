@@ -10,7 +10,7 @@ def read(path):
 
 
 def check(baseline, result):
-    assert result["transport_mode"] == "cache-register-edge"
+    assert result["transport_mode"] in ("cache-register-edge", "fused-cache-edge")
     assert result["reference"] and all(result["reference"].values())
     for key in baseline.keys() - {"checkpoint", "device", "transport", "transport_mode"}:
         assert baseline[key] == result[key], key

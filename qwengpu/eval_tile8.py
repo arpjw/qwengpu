@@ -186,6 +186,9 @@ RESIDENT_TRANSPORTS = {
     "state_store_plan": {"resident_io": True},
     "fused_dispatch": {"resident_io": True, "fused_dispatch": True},
     "cache_register_edge": {"resident_io": True, "cache_register_edge": True},
+    "fused_cache_edge": {
+        "resident_io": True, "fused_dispatch": True, "cache_register_edge": True,
+    },
 }
 PROGRAM = (
     ("LOAD_TILE", 0),
