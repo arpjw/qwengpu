@@ -316,6 +316,11 @@ with one generation call per fixture and zero host-supplied execution
 tokens. The final memory, instruction count, outcomes, and fixture hashes
 match the prior model-owned-store checkpoint. The suite includes
 deadlock and the 256-instruction bounded loop.
+The same v3 merge runs all four sequential and all four interleaved
+workgroup fixtures. The sequential suite matches 4,138 tokens over
+314 instructions. The interleaved suite matches 1,229 tokens over 145
+instructions, including independent barriers and publication of both
+limbs of a 32-bit word across workgroups.
 See `results/resident_generation_v3_cuda/`.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
