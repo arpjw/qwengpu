@@ -70,3 +70,23 @@ python scripts/check_checkpoint_package.py "$restored" \
    digests, build and verification revisions, and report paths. If a
    restore check fails, keep the source artifact available and record
    the failure before choosing another destination.
+
+From the QwenGPU checkout, run the restore checks using the same pinned
+base and compiler as the original qualification. Set `restored` to the
+clean download, `base` to the pinned Qwen3.5-9B directory, and
+`reports` to an empty report directory.
+
+```bash
+mkdir -p "$reports"
+python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
+  --model "$restored" --device cuda --check-reference --trace \
+  --out "$reports/restored-tile.json"
+python -m qwengpu.textcheck_9b "$base" "$restored" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out "$reports/restored-text.json"
+```
+
+Require a halted tile with exact tokens, ROM, registers, control and
+mirrored memory. Compare its tokens and output with the saved v3
+`dense_seeded.json` case. Require 24 of 24 first tokens, at least 21 of
+24 full continuations, and zero chip IDs in the restored text report.
