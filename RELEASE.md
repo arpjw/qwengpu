@@ -124,8 +124,10 @@ python scripts/check_checkpoint_package.py "$restored" \
    account credential scoped to the destination. The upload helper checks
    that the repository is private, reads the token from standard input,
    uploads the flat package, and verifies the resulting revision and
-   visibility. Keep credentials, caches, and unrelated artifacts outside
-   the package. Record the commit SHA once the whole package is uploaded.
+   visibility. It removes stale files from the prior private revision
+   and checks the final file list, while retaining Hub `.gitattributes`.
+   Keep credentials, caches, and unrelated artifacts outside the package.
+   Record the commit SHA once the whole package is uploaded.
    [Hugging Face upload guide](https://huggingface.co/docs/huggingface_hub/main/guides/upload)
 
    ```bash

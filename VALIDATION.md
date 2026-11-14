@@ -451,9 +451,10 @@ merged-model generation call with 928 instructions, 20,167 exact tokens,
 seven model-selected panel transitions, and 256 correct output cells.
 Generation took 1,424.663 seconds on the RTX PRO 6000 Blackwell Server.
 All seven raw 512-byte memory fixtures and the three full-width indexed
-integer, signed-edge, and upper-ROM-loop fixtures are exact. The full
-compute replay, manifest verifier, package and restore gates are in
-progress. See the
+integer, signed-edge, and upper-ROM-loop fixtures are exact. The complete
+31-case compute sweep is exact, including 64-element vectors and
+128-element reductions. The inherited standalone replay, manifest
+verifier, package, and restore gates are in progress. See the
 [v4 validation graphic](docs/media/validation-v4.png).
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes

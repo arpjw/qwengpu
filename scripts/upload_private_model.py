@@ -24,17 +24,25 @@ def main() -> None:
     before = api.model_info(args.repo_id)
     if before.private is not True:
         parser.error("destination model repository must be private")
+    package_files = {path.name for path in args.package.iterdir() if path.is_file()}
+    remote_files = set(api.list_repo_files(args.repo_id))
+    stale_files = sorted(remote_files - package_files - {".gitattributes"})
     commit = api.upload_folder(
         folder_path=str(args.package),
         repo_id=args.repo_id,
         repo_type="model",
         commit_message=args.message,
+        delete_patterns=stale_files or None,
     )
     after = api.model_info(args.repo_id, revision=commit.oid)
     if after.private is not True or after.sha != commit.oid:
         raise RuntimeError("uploaded revision or private visibility did not verify")
+    after_files = set(api.list_repo_files(args.repo_id, revision=commit.oid))
+    if after_files - {".gitattributes"} != package_files:
+        raise RuntimeError("uploaded revision does not match the flat package file list")
     print(json.dumps({"repo_id": args.repo_id, "revision": after.sha,
-                      "private": after.private}, sort_keys=True))
+                      "private": after.private, "files": len(package_files),
+                      "removed_stale_files": stale_files}, sort_keys=True))
 
 
 if __name__ == "__main__":
