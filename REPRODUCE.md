@@ -2009,6 +2009,16 @@ python -m qwengpu.textcheck_9b "$base" "$v4_model" --device cuda \
 python scripts/check_single_launch_matmul16.py "$reports"
 ```
 
+To check stock generation on CUDA using the exported standalone v4
+weights, run the same fixture without passing a merged checkpoint.
+
+```bash
+QWENGPU_STANDALONE_WEIGHTS="$v4_standalone" \
+  python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --resident-generate --device cuda --out "$reports/matmul16-single-launch.json"
+python scripts/check_single_launch_matmul16.py --standalone-cuda "$reports"
+```
+
 To run the complete CUDA regression suite on an existing v4 candidate,
 pass the source commit used to build its weights.
 

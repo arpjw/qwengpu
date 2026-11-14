@@ -1,4 +1,4 @@
-"""Check the v4 CUDA matrix launch and native text against frozen evidence."""
+"""Check the v4 matrix launch and, for merged CUDA, native text."""
 
 import argparse
 import hashlib
@@ -11,10 +11,9 @@ LAYOUT = "qwengpu-resident-generation-9b-v4"
 TOKEN_SHA256 = "a4e76b2f495757e7a35dc0f880d3265e15d1c1aeabfba2fc67c182072d169ac2"
 
 
-def check(reports, *, mps=False):
+def check(reports, *, mps=False, standalone_cuda=False):
     matrix = json.loads((reports / "matmul16-single-launch.json").read_text())
     prior_matrix = json.loads((EVIDENCE / "model_stores_merged_cuda/matmul16.json").read_text())
-    prior_text = json.loads((EVIDENCE / "resident_generation_v3_cuda/text.json").read_text())
     fixture = ROOT / "eval/frozen/matmul16_gate_v1/dense_seeded.json"
     assert matrix["input_sha256"] == prior_matrix["input_sha256"] == hashlib.sha256(
         fixture.read_bytes()
@@ -33,9 +32,10 @@ def check(reports, *, mps=False):
     assert matrix["panel_transitions"] == list(range(1, 8))
     assert sum(2708 <= token < 2712 for token in tokens) == matrix["instructions"] == 928
     print("Single launch: 928 instructions, 20,167 tokens, 7 panel transitions, 256 exact outputs")
-    if mps:
+    if mps or standalone_cuda:
         assert matrix["merge"] is None
         return
+    prior_text = json.loads((EVIDENCE / "resident_generation_v3_cuda/text.json").read_text())
     text = json.loads((reports / "text.json").read_text())
     assert text["device"] == "cuda"
     assert text["merge"] == matrix["merge"] and matrix["merge"]["layout"] == LAYOUT
@@ -49,9 +49,12 @@ def check(reports, *, mps=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path)
-    parser.add_argument("--mps", action="store_true", help="check standalone Apple MPS evidence")
+    backend = parser.add_mutually_exclusive_group()
+    backend.add_argument("--mps", action="store_true", help="check standalone Apple MPS evidence")
+    backend.add_argument("--standalone-cuda", action="store_true",
+                         help="check standalone CUDA evidence")
     args = parser.parse_args()
-    check(args.reports, mps=args.mps)
+    check(args.reports, mps=args.mps, standalone_cuda=args.standalone_cuda)
 
 
 if __name__ == "__main__":
