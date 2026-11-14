@@ -408,3 +408,10 @@ on two vCPUs with 8 GB RAM at $0.08/hour before disk. It ran from
 03:30:33 to verified deletion by 03:44:58 UTC on November 14.
 Deletion returned HTTP 204 followed by HTTP 404. Estimated compute
 was $0.019 and no charge had posted. Reserve $0.03 including disk.
+
+The independent restore pod `5gh679irx1bumb` used an RTX PRO 6000
+Blackwell Server at $2.69/hour from 04:48:39 to verified deletion by
+04:57:53 UTC on November 14. It downloaded the private v3 revision,
+matched all package digests and passed GPU and native-text checks.
+Deletion returned HTTP 204 followed by HTTP 404. Estimated compute
+was $0.414 and no charge had posted. Reserve $0.50 including disk.
