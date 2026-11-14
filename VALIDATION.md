@@ -454,8 +454,9 @@ integer, signed-edge, and upper-ROM-loop fixtures are exact. The complete
 31-case compute sweep is exact, including 64-element vectors and
 128-element reductions. All 27 inherited fixtures also pass on the
 exported standalone circuit. The complete CUDA verifier exited zero
-and checked the manifest's 35 shard digests. The private package and
-clean restore gates are in progress. See the
+and checked the manifest's 35 shard digests. The 48-file package checksum
+pass is complete. Its private upload and clean restore are blocked by
+the Hugging Face account's private storage limit. See the
 [v4 validation graphic](docs/media/validation-v4.png).
 The model weights were built from QwenGPU `702a6f9`; the complete
 [qualified manifest](results/resident_generation_v4_cuda/manifest.json),

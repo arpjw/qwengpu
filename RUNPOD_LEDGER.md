@@ -429,3 +429,19 @@ lists running persistent disk at $0.10/GB/month. The additional
 105 GB is approximately $0.014/hour while the pod runs. The pod
 reset on update, and the merged v4 build resumed from the preserved
 `/workspace` files.
+
+The fixed v4 CUDA qualifier subsequently passed and the 48-file package
+was hashed, but Hugging Face rejected the authorized private upload
+because the account's private storage limit was reached. The pod was
+stopped on November 14 after copying and pushing all CUDA reports and
+the checksum manifest. A follow-up `get-pod` returned `EXITED`, with
+the 250 GB persistent volume retained. The latest billing read at
+11:20:54 UTC had posted $18.266225 for this pod: $18.044176 GPU and
+$0.222049 disk. Billing lags elapsed time. From its 03:37:57 UTC start
+through the stop confirmed before 11:20:54 UTC, compute alone projects
+at most about $20.76 at $2.69/hour. Reserve $21.50 for this pod's
+compute and running-disk charges until the final invoice reconciles.
+This leaves approximately $6.38 of the $74 project cap after the
+previous conservative reserves. The stopped 250 GB volume still bills
+at $0.20/GB/month, about $50/month or $1.67/day, until the pod is
+terminated; that ongoing charge must also remain within the cap.

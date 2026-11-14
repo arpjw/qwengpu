@@ -52,6 +52,41 @@ The verified v3 package is stored in the Hugging Face model repository
 listed all 50 package files at revision
 [`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
 
+## Qualified v4 package awaiting private storage
+
+The fixed v4 merge passed the complete CUDA qualifier at source commit
+`702a6f9`. The 35 weight shards and every other packaged file matched
+the [qualified manifest](results/resident_generation_v4_cuda/manifest.json).
+The 48 packaged content files are listed in
+[SHA256SUMS](results/resident_generation_v4_cuda/package-SHA256SUMS),
+whose SHA-256 is
+`f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213`.
+The [CUDA verifier output](results/resident_generation_v4_cuda/verification.txt)
+exited zero. This is a qualified package, not a restored release.
+
+The authorized private upload to `arpjw/Qwen-GPU` failed on November
+14 with Hugging Face's response: `Private storage limit reached for
+user arpjw`. A read after the failure confirmed the repository remained
+private and at revision `7182ddec3349cace59850f706af11dbe0e7232dc`,
+with its 53 existing files unchanged. All 35 v4 shard checksums differ
+from v3. Hugging Face documents 100 GB of private storage for a free
+account and 1 TB for PRO; storage limits apply across repositories.
+[Storage limits](https://huggingface.co/docs/hub/storage-limits)
+
+The packaged v4 model remains at `/workspace/model-v4-merged` on stopped
+RunPod pod `gmgmirb2mz2hyy`, with a 250 GB persistent volume. Its GPU
+compute charge has stopped, but the retained volume continues billing
+at RunPod's stopped rate of $0.20/GB/month, or about $50/month for this
+allocation. The pod must not be terminated until the v4 package has an
+independently verified private copy. The local Mac has only 28 GiB free,
+so it cannot hold the 81 GiB model as an emergency backup.
+[RunPod storage pricing](https://docs.runpod.io/pods/pricing)
+
+The next handoff is to provide private storage capacity, upload the
+checksum-pinned package, download its exact revision into an empty
+directory, and rerun the GPU, native-text, and one-launch matrix restore
+checks. The existing v3 revision remains the verified download below.
+
 ## Restore receipt
 
 | Item | Verified value |
