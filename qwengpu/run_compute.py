@@ -341,7 +341,9 @@ def main() -> None:
     parser.add_argument("--device", default="mps", choices=("mps", "cuda", "cpu"))
     parser.add_argument("--trace", action="store_true")
     parser.add_argument(
-        "--transport", choices=("fixed", "state-store-plan"), default="state-store-plan"
+        "--transport",
+        choices=("fixed", "state-store-plan", "cache-register-edge"),
+        default="state-store-plan",
     )
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
