@@ -10,7 +10,7 @@ from check_tiled_compute import check as check_tiles
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "results"
 TRANSPORT_FIELDS = {"transport", "audit", "transport_mode"}
-METADATA_FIELDS = {"device", "merge", "checkpoint", "torch", "transformers"}
+METADATA_FIELDS = {"device", "merge", "checkpoint", "torch", "transformers", "circuit"}
 
 
 def read(root, name):
@@ -53,6 +53,7 @@ def commit_totals(value):
         if "scoped_initial_tokens" in transport:
             assert sum(call["scoped"] for call in audit) == transport["scoped_initial_tokens"]
     return count
+
 
 def check(root, baseline):
     commits = 0

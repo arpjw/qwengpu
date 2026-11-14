@@ -57,11 +57,16 @@ transport optimization.
 
 ### Reproduce the model-owned store checks
 
+Build from the pinned base and compiler recorded in the merged manifest.
+Run the MPS command only when an Apple machine is available for validation.
+
 ```bash
 python scripts/eval_model_stores.py --device mps --out stores-mps.json
 python -m qwengpu.merge9b "$base" --internal-stores --out "$model"
 python scripts/eval_model_stores.py --model "$model" --device cuda --out stores-cuda.json
 python scripts/check_model_stores.py stores-mps.json stores-cuda.json
+bash scripts/qualify_model_stores_cuda.sh "$base" "$new_model" "$reports" "$(git rev-parse HEAD)"
+python scripts/check_model_store_suite.py --reports "$reports"
 ```
 
 The global and scoped launch inputs are uploaded as before. Normal stores
