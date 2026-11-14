@@ -66,6 +66,13 @@ The merged suite audited 2,086 writes without store address/value
 readback or feedback tokens. See [the store protocol](MODEL_WRITEBACK_DESIGN.md)
 and [the merged results](results/model_stores_merged_cuda/qualification.txt).
 
+The stock-generation layout accepts a program and initial memory as a
+prompt, then uses Qwen's greedy decoding to schedule warps and commit
+register and memory updates. One checkpoint runs the four-warp
+publication, barrier and deadlock traces, a two-pass reduction, and two
+tiled matrix multiplies. See [the protocol and run commands](MODEL_WRITEBACK_DESIGN.md#reusing-the-integrated-register-banks-through-generation)
+and [the CUDA reports](results/resident_generation_cuda/).
+
 
 ## Original SIMT variant
 

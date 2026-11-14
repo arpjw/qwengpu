@@ -254,6 +254,15 @@ and eight launches. Each second panel uploads 48 operand words. The
 reduction and the two matrix cases together match 600 instructions
 and the final physical state on all 12 launches.
 
+Native text between two reduction launches matches four fresh-cache
+controls on the same merged checkpoint. All next-token logits and
+greedy continuations match. The handoff preserves 8,192 mirrored global
+nibbles, 384 register nibbles, 64 ROM rows, and four control rows.
+The retained consumer matches the cold consumer and returns
+`1521272620` without a global memory re-upload. The independent pod
+rebuild reproduced the saved manifest and all 33 shard hashes exactly.
+See `results/resident_generation_cuda/handoff.json`.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
