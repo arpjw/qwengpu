@@ -1794,3 +1794,13 @@ and 5,608 input tokens, down from 4,868, 4,050, and 6,952 respectively.
 The savings come from replacing each four-nibble store read and
 four-nibble feedback with a single fixed lane command. These are token
 and call counts, not an acceleration claim.
+
+
+The complete merged suite also matches all 27 inherited traces, 31
+common kernels, seven raw probes, both passes of the 16×16 multiply,
+both general tiled shapes, the dependent launches, and the three fused
+scheduler traces. It records 2,086 model-owned word stores with zero
+address/value feedback or readback. The same weights preserve all
+8,192 indexed RAM nibbles across native text. The full CUDA evidence is
+in `results/model_stores_merged_cuda/qualification.txt`. The model-store
+layout has not been run on MPS because local model workloads are paused.

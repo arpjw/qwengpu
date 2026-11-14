@@ -60,6 +60,13 @@ Apple MPS; the rest of that MPS replay is paused to keep the Mac free.
 See [the integrated checkpoint commands](REPRODUCE.md#run-the-integrated-integer-checkpoint)
 and [the saved verification output](results/final_candidate_cuda/qualification.txt).
 
+The model-owned store variant runs the same integrated workloads and
+commits programmable global, shared, and private stores inside Qwen.
+The merged suite audited 2,086 writes without store address/value
+readback or feedback tokens. See [the store protocol](MODEL_WRITEBACK_DESIGN.md)
+and [the merged results](results/model_stores_merged_cuda/qualification.txt).
+
+
 ## Original SIMT variant
 
 The repository contains an independent eight-lane reference machine.
