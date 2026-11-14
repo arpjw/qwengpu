@@ -184,6 +184,18 @@ each active register bank with a separate token, and resumes scheduling.
 The group cursor supplies the IDs and scoped addresses for later groups.
 The two uploaded ROMs and global RAM remain resident across transitions.
 
+The v3 protocol also accepts the legacy tile launch descriptor. Its
+resident row cursor starts at the requested first row pair. After both
+warps halt, a generated row token advances that cursor and clears the
+two PCs while preserving the register banks. Tile-nibble and indexed
+memory ports see the same model-owned store, including stores to
+operand memory. Each launch still enters stock generation once.
+
+The legacy looping stress fixture uses a host instruction budget.
+The stopping rule counts only issued instruction tickets and stops
+before executing the next ticket. The model still decides when to
+emit a ticket, halt, or report deadlock.
+
 ```bash
 bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports" \
   "$(git rev-parse HEAD)"

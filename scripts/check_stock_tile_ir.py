@@ -14,6 +14,9 @@ from qwengpu.eval_resident_generation import (
 )
 from qwengpu.eval_tile8 import oracle, parse_launch
 
+BASE_HIDDEN = 4096
+MERGE_TARGET = Target(16, 32, 12288)
+
 
 def memory_words(circuit, state, tiled):
     locations = {node.name: i for i, node in enumerate(circuit.nodes)
@@ -39,10 +42,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("fixtures", type=Path, nargs="+")
     args = parser.parse_args()
-    circuit = build(Target(16, 32, 12288), generate=True)
+    circuit = build(MERGE_TARGET, generate=True)
     code = [next(iter(value.terms)) for value in circuit.code]
-    allocation = allocate(circuit, None, set(code), 12288)
-    print(circuit.stats(), allocation.n_slots, pick_hidden(4096, max(3269, 1 + allocation.n_slots)), flush=True)
+    allocation = allocate(circuit, None, set(code), MERGE_TARGET.intermediate)
+    hidden, ballast = pick_hidden(BASE_HIDDEN, max(3269, 1 + allocation.n_slots))
+    print(circuit.stats(), allocation.n_slots, (hidden, ballast), flush=True)
     for path in args.fixtures:
         payload = path.read_bytes()
         raw = json.loads(payload)
