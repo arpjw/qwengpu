@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
 from pathlib import Path
 
 import torch
@@ -422,13 +423,15 @@ def run_generated_matmul(model, circuit, device, offset, a, b, c):
 def run_generated_tilegrid(model, circuit, device, offset, a, b, c):
     prompt, expected, final = matrix_protocol(a, b, c)
     inputs = torch.tensor([[offset + token for token in prompt]], device=device)
+    instructions = sum(gen.TICKET <= token < gen.TICKET + 4 for token in expected)
+    started = time.monotonic()
     output = model.generate(
         input_ids=inputs, attention_mask=torch.ones_like(inputs),
         do_sample=False, eos_token_id=[offset + DONE, offset + DEADLOCK],
         max_new_tokens=32768, use_cache=True, return_dict_in_generate=True, pad_token_id=0,
-        stopping_criteria=[InstructionLimit(sum(gen.TICKET <= token < gen.TICKET + 4
-                                               for token in expected), offset, device)],
+        stopping_criteria=[InstructionLimit(instructions, offset, device)],
     )
+    generation_seconds = time.monotonic() - started
     tokens = [token - offset for token in output.sequences[0, inputs.size(1):].tolist()]
     if tokens != expected:
         mismatch = next((i for i, pair in enumerate(zip(tokens, expected)) if pair[0] != pair[1]),
@@ -458,7 +461,7 @@ def run_generated_tilegrid(model, circuit, device, offset, a, b, c):
     return {
         "matrix": matrix, "exact": True, "fresh_caches": 1, "generation_calls": 1,
         "host_execution_tokens": 0, "prompt_tokens": len(prompt),
-        "instructions": sum(gen.TICKET <= token < gen.TICKET + 4 for token in tokens),
+        "instructions": instructions, "generation_seconds": round(generation_seconds, 3),
         "panel_transitions": [token - gen.PANEL for token in tokens if gen.PANEL <= token < gen.PANEL + 8],
         "generated_tokens": tokens, "expected_tokens": expected,
     }
