@@ -14,7 +14,7 @@ is a separate decision.
 | Corrected model-card package | Passed clean file restore and pinned checksum check; CUDA execution evidence is inherited from byte-identical weights | [Clean restore receipt](results/resident_generation_v4_cuda/corrected-package/clean-restore-receipt.json) and [live asset audit](results/public-readiness/corrected-v4-live-asset-audit-2026-11-14.json) |
 | Durable private backup | Available as a private GitHub draft; 90 assets match the manifest | [Backup receipt](results/resident_generation_v4_cuda/corrected-package/github-backup-receipt.json) |
 | Hugging Face v4 | Not uploaded because the account reached its private storage limit; the private Hub repo still holds v3 | [Quota and revision record](#qualified-v4-private-draft-backup) |
-| Public visibility | Awaiting an explicit publication decision and a final source scan | [Public release review](#public-release-review) |
+| Public visibility | Kept private for review by explicit user choice; a final source scan is required before any later publication | [Private review](PUBLICATION_REVIEW.md) |
 
 Apple MPS qualification and 32-bit atomics are separate follow-on work.
 Neither is a gate for the fixed v4 CUDA handoff.
@@ -34,6 +34,10 @@ checkpoint build uses the MIT-licensed Qwenputer compiler.
 [Pinned Qwenputer license](https://github.com/divagr18/qwenputer/blob/ca13310e2f9f788d1dd3feeea8213c1b0c23913c/LICENSE)
 
 ## Public release review
+
+The current decision is to keep both repositories private for review.
+The [short review note](PUBLICATION_REVIEW.md) summarizes the verified
+checkpoint, exposure inventory, and remaining publication checks.
 
 Keep both repositories private through qualification and teardown. The
 GitHub history currently includes the author's commit email and RunPod

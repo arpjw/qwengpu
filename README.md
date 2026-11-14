@@ -108,6 +108,7 @@ includes the pinned environment, build path, and v4 qualification command.
 
 - [Scope and remaining gates](SCOPE.md)
 - [Checkpoint release and restore](RELEASE.md)
+- [Private publication review](PUBLICATION_REVIEW.md)
 - [Stock-generation protocol](MODEL_WRITEBACK_DESIGN.md)
 - [Development history and earlier launchers](docs/DEVELOPMENT_HISTORY.md)
 
