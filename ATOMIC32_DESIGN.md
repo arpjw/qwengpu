@@ -45,6 +45,9 @@ The [commit protocol log](results/atomic32/commit-protocol-tests.txt)
 covers both commit widths and the existing resident-generation tests.
 The [value-token log](results/atomic32/value-token-tests.txt) covers the
 four-nibble stream and commit selector in isolated graphs.
+The [feedback replay](results/atomic32/feedback-replay-tests.txt) uses the
+real launch and generation token IDs. It checks a RAM read, staged add,
+eight generated nibble writes, and a second read in one exact graph.
 
 ## Circuit and qualification work
 
@@ -73,7 +76,11 @@ four-nibble stream and commit selector in isolated graphs.
    the exact 512-byte RAM token encoding. `atomic_nibble_step` also passes an
    exact staged four-token stream test. The caller must gate this stream so
    ordinary launch uploads cannot trigger it. The selector, staged values,
-   and nibble stream are not yet connected in one checkpoint.
+   and nibble stream are not yet connected in one checkpoint. An isolated
+   feedback graph now uses `RESIDENT_ENABLE` and the launch's final
+   `SCHEDULE` token to gate generated memory writes. It reads `0xFFFFFFFE`,
+   emits the low and high limb tags for the result `1`, then reads back `1`
+   on the next tick. A second launch marker resets the gate before uploads.
 4. Freeze boundary, carry, overflow, same-pair collision, masked lane,
    cross-warp, interleaved-workgroup, barrier, and native-text handoff cases.
    Compare the complete generated trace and final recurrent memory against

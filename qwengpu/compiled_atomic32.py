@@ -139,3 +139,22 @@ def atomic_nibble_step(
         atomic_nibble_token_bits(c, address, word, next_nibble),
         c.and_([memory_token, hot[3]], "atomic.stream.done"),
     )
+
+
+def generated_memory_gate(
+    c: Circ, raw_memory_token: Expr, launch_start: Expr, schedule: Expr
+) -> Expr:
+    """Distinguish generated RAM tags from the same tags in a launch upload.
+
+    A launch starts with a reset marker, uploads memory, then supplies a
+    schedule token. The one-row head is zero before that schedule and one
+    afterward. A new launch marker resets it again in the retained cache.
+    """
+    phase = c.slot_head(
+        "atomic.generation_phase",
+        {0: launch_start + schedule},
+        {0: raw_memory_token},
+        {2: schedule},
+        launch_start + schedule,
+    )
+    return c.and_([raw_memory_token, phase[0]], "atomic.generated_memory")
