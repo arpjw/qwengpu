@@ -35,6 +35,9 @@ matched 24 of 24 first tokens and 21 of 24 short greedy continuations
 against the pinned base. The same merged checkpoint completed the full
 16×16 matrix in one generation call: 928 instructions, 20,167 exact
 generated tokens, seven panel transitions, and 256 correct output cells.
+An independent clean restore reproduced the seeded tile, native text,
+and all matrix tokens, panel transitions, and output cells on a second
+96 GB CUDA GPU.
 
 [Validation reports](https://github.com/arpjw/qwengpu/tree/main/results/resident_generation_v4_cuda)
 and [reproduction commands](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md#run-the-stock-generation-checkpoint)
@@ -42,23 +45,38 @@ are in the source repository.
 
 ## Download and run
 
-The merged weights occupy about 86 GB. CUDA qualification uses a 96 GB
-GPU and the pinned runtime recorded in `environment.txt`. The model
-repository is private until the release review is complete. Sign in
-with `hf auth login` if access is required.
+The merged weights occupy about 86 GB. CUDA qualification and an
+independent clean restore used a 96 GB GPU with the pinned runtime
+recorded in `environment.txt`. The v4 package is currently stored in
+a private GitHub draft release. The Hugging Face repository still
+contains the older v3 checkpoint because the v4 upload hit the
+account's private storage limit. Set up the pinned environment in the
+[reproduction guide](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md#run-the-stock-generation-checkpoint).
+From an authenticated QwenGPU source checkout, restore into a
+destination outside the checkout that does not already exist:
 
 ```bash
-checkpoint=./Qwen-GPU-v4
-hf download arpjw/Qwen-GPU --exclude .gitattributes --local-dir "$checkpoint"
-python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
+checkpoint=../Qwen-GPU-v4
+export QWENPUTER_DIR=/path/to/qwenputer/experimental/riscv
+export PYTHONPATH="$QWENPUTER_DIR:$PWD"
+gh auth token | python3 scripts/restore_private_release.py \
+  arpjw/qwengpu v4-private-backup-2026-11-14 445244518 \
+  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
+  "$checkpoint"
+python3 scripts/check_checkpoint_package.py "$checkpoint" \
+  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
+  --expected-checksum-digest f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  eval/frozen/tile8_gate_v1/dense_seeded.json \
   --model "$checkpoint" --device cuda --check-reference --out tile.json
 ```
 
 `build-manifest.json` pins the QwenGPU source, Qwenputer compiler, and
 Qwen3.5-9B base revisions and hashes every weight shard. `SHA256SUMS`
-checks every packaged file. Use the immutable revision in the
-[restore receipt](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md)
-for reproducible downloads.
+checks every packaged file. The
+[restore receipt](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#qualified-v4-private-draft-backup)
+records the verified backup and CUDA replay. A future Hugging Face
+revision must be pinned separately after upload and restore validation.
 
 ## Limits
 

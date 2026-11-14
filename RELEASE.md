@@ -122,6 +122,14 @@ copied and verified locally. A full v4 Hugging Face upload still needs
 private storage capacity. The existing v3 revision remains the verified
 Hugging Face download below.
 
+The frozen v4 backup's packaged `README.md` predates the Hugging Face
+quota failure and still shows a direct v4 Hub download that is not
+available. The corrected [v4 model card](release/model-card-v4.md) gives
+the working private restore path. Before publishing a v4 package, put
+the corrected card in that package, create a new checksum manifest,
+and verify a clean restore of the revised package. Preserve the
+qualified backup and its original checksum as the execution baseline.
+
 Reproduce this private file restore with GitHub access and the release
 ID above. The helper reads a token from standard input and requires a
 new destination directory:

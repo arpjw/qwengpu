@@ -458,8 +458,9 @@ and checked the manifest's 35 shard digests. The 48-file package checksum
 pass is complete. The Hugging Face upload was rejected by the account's
 private storage limit. A private GitHub draft backup and clean file
 restore passed all part, full-file, and package checks. GPU execution
-on the restored copy remains unverified because RunPod had no matching
-GPU instance for the retained volume. See the
+on the restored copy later passed on a new RunPod GPU and network volume,
+as recorded in the [independent restored-copy replay](#independent-v4-restored-copy-replay).
+See the
 [v4 validation graphic](docs/media/validation-v4.png).
 The model weights were built from QwenGPU `702a6f9`; the complete
 [qualified manifest](results/resident_generation_v4_cuda/manifest.json),

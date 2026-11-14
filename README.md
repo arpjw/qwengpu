@@ -40,12 +40,39 @@ record the comparison. The previously verified v3 checkpoint remains
 available at its pinned revision. The v4 Hugging Face upload is blocked by
 the account's private storage limit.
 
-## Run the verified v3 checkpoint
+## Run the verified v4 checkpoint
 
-The merged weights occupy about 86 GB. The verified v3 release was
-restored on a 96 GB CUDA GPU. From a QwenGPU checkout, download its
-immutable revision. Sign in with `hf auth login` if the private model
-repository requires access.
+The merged weights occupy about 86 GB and were restored and run on a
+96 GB CUDA GPU. The v4 package is currently in a private GitHub draft
+release. Set up the [pinned environment](REPRODUCE.md#run-the-stock-generation-checkpoint),
+then run these commands from a QwenGPU checkout with `gh` authenticated
+for this repository. Choose a destination outside the checkout that
+does not already exist:
+
+```bash
+checkpoint=../Qwen-GPU-v4
+export QWENPUTER_DIR=/path/to/qwenputer/experimental/riscv
+export PYTHONPATH="$QWENPUTER_DIR:$PWD"
+gh auth token | python3 scripts/restore_private_release.py \
+  arpjw/qwengpu v4-private-backup-2026-11-14 445244518 \
+  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
+  "$checkpoint"
+python3 scripts/check_checkpoint_package.py "$checkpoint" \
+  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
+  --expected-checksum-digest f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
+"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
+  eval/frozen/tile8_gate_v1/dense_seeded.json \
+  --model "$checkpoint" --device cuda --check-reference --out tile.json
+```
+
+The [release guide](RELEASE.md#qualified-v4-private-draft-backup)
+records the full matrix and native-text replay.
+
+## Older v3 Hugging Face checkpoint
+
+The verified v3 release remains at its immutable Hugging Face revision.
+Sign in with `hf auth login` if the private model repository requires
+access.
 
 ```bash
 checkpoint=./Qwen-GPU-v3
