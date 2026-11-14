@@ -1,0 +1,9 @@
+test_barrier_status_is_local_to_each_pair (test_full_integer.FullIntegerTests.test_barrier_status_is_local_to_each_pair) ... ok
+test_indexed_ops_have_distinct_wires_at_every_rom_address (test_full_integer.FullIntegerTests.test_indexed_ops_have_distinct_wires_at_every_rom_address) ... ok
+test_indexed_word_opcodes_require_the_full_integer_layout (test_full_integer.FullIntegerTests.test_indexed_word_opcodes_require_the_full_integer_layout) ... ok
+test_same_program_runs_with_different_extent_descriptors (test_full_integer.FullIntegerTests.test_same_program_runs_with_different_extent_descriptors) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.010s
+
+OK

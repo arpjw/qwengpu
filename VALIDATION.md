@@ -1761,3 +1761,14 @@ scalar outputs, all 256 RAM words, and every trace field. The merged
 four-warp publication, independent barrier, deadlock, and runtime
 extent cases also matched their reference. The full regression command
 and rebuild procedure are in REPRODUCE.md.
+
+
+The combined 9B checkpoint passed the complete CUDA qualification,
+including 31 common kernels, seven raw memory probes, all 27 inherited
+traces, the specialized 16×16 matrix, the 3×5 by 5×2 and 9×7 by 7×5
+general tiled cases, and the dependent cache handoffs. All 8,192 indexed
+RAM nibbles survived native text. Fused dispatch reduced forward calls
+from 125 to 89 for publication, 104 to 79 for barriers, and 39 to 29 for
+deadlock. The $0.08/hour Linux CPU pod audited those reports. Apple MPS
+matched the complete 44-step publication trace; the remaining integrated
+MPS tests were stopped to keep the Mac available.
