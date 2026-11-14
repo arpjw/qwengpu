@@ -313,3 +313,16 @@ No charge had posted for this pod at teardown. The $1.85 reserve includes
 storage and rounding. RunPod returned HTTP 204 on deletion and HTTP 404
 on the subsequent lookup. The project retains $42.47 of authorized
 headroom with all reserves applied. See `results/rom32_runpod_cost.json`.
+
+## November 13 CPU offload
+
+The Mac's QwenGPU model runs were stopped at Arya's request. CPU3 General
+Purpose pod `fszn8193hx2otq` had two vCPUs and 8 GB RAM, quoted and
+confirmed at $0.08/hour before disk. It ran unit and compiler checks and
+audited the merged GPU results. It was deleted after copying the reports;
+the API returned HTTP 204 and the next lookup returned HTTP 404. About
+nine minutes of compute cost an estimated $0.012; the invoice had not
+posted at teardown. An initial pod `ezu9itqyym6bw0` at the same rate
+never provided a working shell and was deleted after about a minute.
+Reserve $0.05 for both CPU attempts pending billing. MPS-only validation
+remains paused; CPU checks are not MPS qualification.
