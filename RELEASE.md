@@ -13,6 +13,10 @@ reports it as private and lists all 50 package files at revision
 [`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
 The clean restore reports are pending.
 
+The model card and charts are also available on the repository's
+default branch. The revision above is the checksum-pinned package
+used for restore verification.
+
 ## Prepare the artifact
 
 Use the qualified merged directory on RunPod. Preserve all SafeTensors
