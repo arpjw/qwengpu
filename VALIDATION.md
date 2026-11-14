@@ -327,7 +327,10 @@ instructions, including independent barriers and publication of both
 limbs of a 32-bit word across workgroups.
 The v3 bounded compute replay matches all three maximum-size requests
 and final RAM, including the 128-input reduction with zero re-upload
-for its second launch. The same merge also passed the four-prompt
+for its second launch. All seven raw 512-byte probes pass on the same
+merge, matching 940 generated tokens across 82 instructions and the
+full final global RAM. The probes cover collisions, masked stores,
+bank edges, and barriers. The same merge also passed the four-prompt
 native-text handoff. All audited rows stayed exact and the retained
 reduction returned `1521272620` with zero global-memory upload.
 The public launchers also passed on v3. `run_resident` reported the
