@@ -1,0 +1,9 @@
+NVIDIA RTX PRO 6000 Blackwell Server Edition, 97887 MiB, 595.91.07
+124999999488
+torch==2.14.1+cu130
+transformers==5.19.0
+numpy==2.5.4
+safetensors==0.8.0
+flash-linear-attention==0.6.0
+causal-conv1d absent
+ca13310e2f9f788d1dd3feeea8213c1b0c23913c
