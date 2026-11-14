@@ -47,29 +47,14 @@ are in the source repository.
 
 The merged weights occupy about 86 GB. CUDA qualification and an
 independent clean restore used a 96 GB GPU with the pinned runtime
-recorded in `environment.txt`. The v4 package is currently stored in
-a private GitHub draft release. The Hugging Face repository still
-contains the older v3 checkpoint because the v4 upload hit the
-account's private storage limit. Set up the pinned environment in the
-[reproduction guide](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md#run-the-stock-generation-checkpoint).
-From an authenticated QwenGPU source checkout, restore into a
-destination outside the checkout that does not already exist:
-
-```bash
-checkpoint=../Qwen-GPU-v4
-export QWENPUTER_DIR=/path/to/qwenputer/experimental/riscv
-export PYTHONPATH="$QWENPUTER_DIR:$PWD"
-gh auth token | python3 scripts/restore_private_release.py \
-  arpjw/qwengpu v4-private-backup-2026-11-14 445244518 \
-  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
-  "$checkpoint"
-python3 scripts/check_checkpoint_package.py "$checkpoint" \
-  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
-  --expected-checksum-digest f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
-"$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
-  eval/frozen/tile8_gate_v1/dense_seeded.json \
-  --model "$checkpoint" --device cuda --check-reference --out tile.json
-```
+recorded in `environment.txt`. The v4 package is stored in a private
+GitHub draft release. The Hugging Face repository still contains the
+older v3 checkpoint because the v4 upload hit the account's private
+storage limit. The [release guide](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#qualified-v4-private-draft-backup)
+pins the current draft release, release ID, and checksum digest, with
+commands for an authenticated download into a fresh directory. The
+[reproduction guide](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md#run-the-stock-generation-checkpoint)
+pins the runtime and shows the CUDA qualification commands.
 
 `build-manifest.json` pins the QwenGPU source, Qwenputer compiler, and
 Qwen3.5-9B base revisions and hashes every weight shard. `SHA256SUMS`
