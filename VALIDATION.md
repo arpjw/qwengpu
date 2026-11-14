@@ -360,6 +360,11 @@ Their later K panels upload 48 operand words while retaining C.
 The original v3 release also passed the GPU and native-text tests
 after a clean download from the private model repository.
 See [the restore receipt](RELEASE.md#restore-receipt).
+The public 16×16 launcher also completed on the pinned v3 merge.
+One retained cache ran eight generated panels across two K passes.
+All 256 output words matched the scalar matrix and the prior merged
+checkpoint's panel traces.
+See [the exact report](results/resident_generation_v3_cuda/matmul16.json).
 On the 27 inherited fixtures, the prior driver made 5,411 explicit
 forward calls and submitted 109,276 tokens, including 18,657 state
 read requests and 4,772 store read requests. V3 makes 27 host generation
