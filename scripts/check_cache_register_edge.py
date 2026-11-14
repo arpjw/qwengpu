@@ -19,6 +19,10 @@ def check(baseline, result):
     assert new["state_read_tokens"] == new["warp_update_tokens"] == 0
     assert new["cache_register_trace_tags"] == old["warp_update_tokens"]
     assert new["cache_register_copies"] > 0
+    if "internal_store_commands" in new:
+        assert new["internal_store_commands"] == old["internal_store_commands"]
+        assert new["matrix_patch_tokens"] == new["internal_store_read_tags"] == 0
+        assert new.get("scoped_patch_tokens", 0) == 0
     assert new["input_tokens"] < old["input_tokens"]
     assert new["forward_calls"] <= old["forward_calls"]
     print(
