@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import shutil
+from copy import copy
 from pathlib import Path
 
 import torch
@@ -30,6 +31,31 @@ TAU_GAIN = 2.0**60
 def output_head_is_tied(cfg: dict) -> bool:
     return bool(cfg.get("tie_word_embeddings",
                         cfg["text_config"].get("tie_word_embeddings", True)))
+
+
+def emit_chip_bf16(circuit, layout, config, allocation, keep):
+    """Lower one circuit layer at a time to bound temporary FP32 weights."""
+    # The emitter identifies nodes by sublayer and uses global allocation
+    # indices for clears. Rebase only the two sublayers being emitted and
+    # retain the original layout, slot owners, and output tensor names.
+    exit_level = max(node.level for node in circuit.nodes if node.name.startswith("exit."))
+    assert all(node.level < exit_level for node in circuit.nodes
+               if not node.name.startswith("exit."))
+    layers = [[] for _ in range(circuit.n_layers())]
+    for node in circuit.nodes:
+        layers[(node.level - 1) // 2].append(node)
+    for layer, nodes in enumerate(layers):
+        graph = copy(circuit)
+        graph.nodes = [copy(node) for node in nodes]
+        graph.n_layers = lambda: 1
+        for node in graph.nodes:
+            node.level -= 2 * layer
+        alloc = copy(allocation)
+        alloc.clears = {2: allocation.clears.get(2 * layer + 2, [])}
+        clear_at_exit = keep if exit_level == 2 * layer + 2 else None
+        weights = emit_layers(graph, layout, config, layer, DST_TEXT, alloc, clear_at_exit)
+        for name, tensor in weights.items():
+            yield name, tensor.to(torch.bfloat16)
 
 
 def merged_text_config(tc0: dict, *, hidden: int, n_chip: int,
@@ -172,9 +198,7 @@ def build_merged(src: Path | str, dst: Path | str, *, fit_sinks: bool = True,
     sinks = fit_anti_sink(src, "cuda" if torch.cuda.is_available() else "cpu") if fit_sinks else None
     mute(sd, text_config, tc0["num_hidden_layers"], layout.dim(marker_dim),
          hidden**0.5, prefix=DST_TEXT, sinks=sinks, first=n_chip)
-    chip_layers = emit_layers(circuit, layout, text_config, 0, DST_TEXT, allocation, keep)
-    sd.update({name: value.to(torch.bfloat16) for name, value in chip_layers.items()})
-    del chip_layers
+    sd.update(emit_chip_bf16(circuit, layout, text_config, allocation, keep))
 
     vocab = text_config["vocab_size"]
     embedding = torch.zeros(vocab, hidden, dtype=torch.bfloat16)
