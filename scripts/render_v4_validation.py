@@ -1,6 +1,6 @@
 """Render the v4 release graphic from qualified CUDA reports.
 
-Run with ``uv run --with pillow python scripts/render_v4_validation.py REPORTS OUT``.
+Run with ``uv run --no-project --with pillow python scripts/render_v4_validation.py REPORTS OUT``.
 """
 
 import argparse
