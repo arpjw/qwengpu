@@ -1,0 +1,51 @@
+Verified 25 existing files for resume
+SHA256SUMS: already verified
+LICENSE: already verified
+README.md: already verified
+architecture.png: already verified
+build-manifest.json: already verified
+chat_template.jinja: already verified
+config.json: already verified
+environment.txt: already verified
+generation_config.json: already verified
+model-00001-of-00035.safetensors: already verified
+model-00002-of-00035.safetensors: already verified
+model-00003-of-00035.safetensors: already verified
+model-00004-of-00035.safetensors: already verified
+model-00005-of-00035.safetensors: already verified
+model-00006-of-00035.safetensors: already verified
+model-00007-of-00035.safetensors: already verified
+model-00008-of-00035.safetensors: already verified
+model-00009-of-00035.safetensors: already verified
+model-00010-of-00035.safetensors: already verified
+model-00011-of-00035.safetensors: already verified
+model-00012-of-00035.safetensors: already verified
+model-00013-of-00035.safetensors: already verified
+model-00014-of-00035.safetensors: already verified
+model-00015-of-00035.safetensors: already verified
+model-00016-of-00035.safetensors: already verified
+model-00017-of-00035.safetensors: restored and verified (2277640488 bytes)
+model-00018-of-00035.safetensors: restored and verified (2148731528 bytes)
+model-00019-of-00035.safetensors: restored and verified (2213742800 bytes)
+model-00020-of-00035.safetensors: restored and verified (2212629248 bytes)
+model-00021-of-00035.safetensors: restored and verified (2148731880 bytes)
+model-00022-of-00035.safetensors: restored and verified (2277641072 bytes)
+model-00023-of-00035.safetensors: restored and verified (2310180480 bytes)
+model-00024-of-00035.safetensors: restored and verified (2277672744 bytes)
+model-00025-of-00035.safetensors: restored and verified (2246250888 bytes)
+model-00026-of-00035.safetensors: restored and verified (2179042896 bytes)
+model-00027-of-00035.safetensors: restored and verified (2277673048 bytes)
+model-00028-of-00035.safetensors: restored and verified (2246250584 bytes)
+model-00029-of-00035.safetensors: restored and verified (2162805088 bytes)
+model-00030-of-00035.safetensors: restored and verified (2164970256 bytes)
+model-00031-of-00035.safetensors: restored and verified (2244053872 bytes)
+model-00032-of-00035.safetensors: restored and verified (2148732112 bytes)
+model-00033-of-00035.safetensors: restored and verified (2180156232 bytes)
+model-00034-of-00035.safetensors: restored and verified (2162805088 bytes)
+model-00035-of-00035.safetensors: restored and verified (1057572352 bytes)
+model.safetensors.index.json: restored and verified (97947 bytes)
+qwengpu9b.json: restored and verified (598 bytes)
+tokenizer.json: restored and verified (12807982 bytes)
+tokenizer_config.json: restored and verified (16710 bytes)
+validation-v4.png: restored and verified (41353 bytes)
+Verified 49 restored files at /workspace/restored-corrected-v4

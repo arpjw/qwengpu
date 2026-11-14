@@ -167,6 +167,19 @@ before upload. This package revision changes documentation, so its CUDA
 execution evidence is inherited by byte identity from the frozen
 checkpoint; it is not a new GPU replay.
 
+A separate clean download reconstructed all 49 files from this corrected
+draft. The first transfer stopped after shard 16 when the temporary
+volume reached a write quota. With redundant package trees removed,
+`--resume` verified 25 existing files and restored the remaining 24.
+The independent pinned package checker then exited zero and returned
+the corrected checksum digest. The [clean restore receipt](results/resident_generation_v4_cuda/corrected-package/clean-restore-receipt.json),
+[full transcript](results/resident_generation_v4_cuda/corrected-package/restore-resume.txt),
+and [package check](results/resident_generation_v4_cuda/corrected-package/restore-package-check.txt)
+record the exact result. No new CUDA execution run was performed.
+The 35 weight shards are among the 47 unchanged content files, which
+are byte-identical to the qualified and independently replayed frozen
+package.
+
 Restore the corrected package into a nonexistent directory with GitHub
 access:
 

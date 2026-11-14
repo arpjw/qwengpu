@@ -39,7 +39,9 @@ and full 16×16 matrix on a separate 96 GB CUDA GPU. The
 [release receipt](RELEASE.md) and [restored-run reports](results/resident_generation_v4_cuda/restored-reports)
 record the comparison. The previously verified v3 checkpoint remains
 available at its pinned revision. The v4 Hugging Face upload is blocked by
-the account's private storage limit.
+the account's private storage limit. A separate clean restore of the
+corrected model-card package passed all 49 file checks and the pinned
+build-manifest check.
 
 ## Run the verified v4 checkpoint
 

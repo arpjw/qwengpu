@@ -11,6 +11,10 @@ The backup manifest is `corrected-github-backup-manifest.json` and has
 SHA-256 `3c6c39c345967b0bdc2352edd248384f92dcfdf8ab0e885a1df76cf961b9ea5c`.
 The private draft has 90 assets totaling 86,321,154,200 bytes, all
 checked against that manifest.
+A separate clean download reconstructed all 49 files. After an
+interrupted transfer, resume verified 25 existing files and downloaded
+the other 24; the independent pinned package checker exited zero.
+The receipt and full transcript are linked from `RELEASE.md`.
 
 Restore with the pinned release ID and verification commands in
 [`RELEASE.md`](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#corrected-v4-private-draft-package).

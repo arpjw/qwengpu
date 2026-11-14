@@ -1,0 +1,29 @@
+{
+  "checked_at_utc": "2026-11-14T19:51:17.362318+00:00",
+  "repo": "arpjw/qwengpu",
+  "release_id": 445423220,
+  "tag": "v4-corrected-package-2026-11-14",
+  "repo_private": true,
+  "draft": true,
+  "restore_destination": "/workspace/restored-corrected-v4",
+  "restored_files": 49,
+  "resume_existing_files_verified": 25,
+  "resume_files_restored_and_verified": 24,
+  "package_checksum_digest": "67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913",
+  "model_card_sha256": "c214c59bdfd9bb7cbeb4ab854fc0c5eecea8ad3c61ec5c14862afc07c7d5616f",
+  "unchanged_content_files_from_qualified_package": 47,
+  "package_content_files": 48,
+  "pinned_build_manifest": "results/resident_generation_v4_cuda/manifest.json",
+  "package_checker_exited_zero": true,
+  "reproduction": [
+    "gh auth token | python3 scripts/restore_private_release.py arpjw/qwengpu v4-corrected-package-2026-11-14 445423220 67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 /workspace/restored-corrected-v4 --backup-manifest corrected-github-backup-manifest.json --resume",
+    "python3 scripts/check_checkpoint_package.py /workspace/restored-corrected-v4 --pinned-manifest results/resident_generation_v4_cuda/manifest.json --expected-checksum-digest 67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913"
+  ],
+  "evidence": [
+    "restore-interruption.txt",
+    "restore-resume.txt",
+    "restore-package-check.txt",
+    "github-backup-receipt.json",
+    "repackage-receipt.json"
+  ]
+}
