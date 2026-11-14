@@ -153,13 +153,15 @@ def main():
     inherited = root / f"inherited-{backend}.json"
     assert read(root, inherited.name)["device"] == ("mps" if args.mps else "cuda")
     check_inherited(inherited, BASELINE / "inherited.json")
-    if not args.mps:
-        standalone = root / "inherited-standalone.json"
-        check_inherited(standalone, BASELINE / "inherited.json")
-        for left, right in zip(read(root, inherited.name)["cases"],
-                               read(root, standalone.name)["cases"], strict=True):
-            assert left["fixture"] == right["fixture"]
-            assert left["generated_tokens"] == right["generated_tokens"]
+    if args.mps:
+        comparison = PINNED_V3.with_name("inherited-merged.json")
+    else:
+        comparison = root / "inherited-standalone.json"
+        check_inherited(comparison, BASELINE / "inherited.json")
+    by_fixture = {case["fixture"]: case for case in read(comparison.parent, comparison.name)["cases"]}
+    for case in read(root, inherited.name)["cases"]:
+        assert case["generated_tokens"] == by_fixture.pop(case["fixture"])["generated_tokens"]
+    assert not by_fixture
     check(RESULTS / "cache_register_edge_cuda", [root / f"interleaved-{backend}.json"])
     check(RESULTS / "cache_register_edge_cuda", [root / f"sequential-{backend}.json"],
           sequential_baseline=BASELINE,
