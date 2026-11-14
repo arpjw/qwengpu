@@ -399,3 +399,9 @@ layer-at-a-time build and the subsequent merged checks completed.
 The API returned HTTP 204 and then HTTP 404. Approximate elapsed
 compute was $2.28, with $2.65 reserved including disk. No charge had
 posted at the immediate recheck. The account's pod list was empty.
+
+CPU3 General Purpose pod `uzzlpp3ajrvfso` ran the v3 compiler replay
+on two vCPUs with 8 GB RAM at $0.08/hour before disk. It ran from
+03:30:33 to verified deletion by 03:44:58 UTC on November 14.
+Deletion returned HTTP 204 followed by HTTP 404. Estimated compute
+was $0.019 and no charge had posted. Reserve $0.03 including disk.

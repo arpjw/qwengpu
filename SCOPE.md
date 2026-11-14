@@ -408,7 +408,9 @@ now has a legacy tile launch path in v3. Of its 27 fixtures, 22 use
 `LOAD_TILE`, `MAC_K`, or `STORE_TILE`, four use legacy shared
 memory with seeded registers and row windows, and one is a
 barrier deadlock without a workgroup descriptor. The merged v3 replay
-and native-text check remain qualification gates. The token-level
+and native-text check remain qualification gates. Linux compiler replay
+matches the schedule, instruction and store tokens, and final mirrored RAM
+for all 27 fixtures. The token-level
 writeback edge remains visible in the generated stream.
 See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
 Atomics, floating-point execution, graphics,

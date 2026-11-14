@@ -1,0 +1,39 @@
+test_cross_group_high_limb (test_resident_generation.ResidentGenerationTests.test_cross_group_high_limb) ... ok
+test_four_sequential_groups_reset_both_active_warps (test_resident_generation.ResidentGenerationTests.test_four_sequential_groups_reset_both_active_warps) ... ok
+test_single_workgroup_leaves_two_warps_halted (test_resident_generation.ResidentGenerationTests.test_single_workgroup_leaves_two_warps_halted) ... ok
+test_tile_row_transition_preserves_seeded_registers (test_resident_generation.ResidentGenerationTests.test_tile_row_transition_preserves_seeded_registers) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.036s
+
+OK
+{'layers': 52, 'dims': 12857, 'heads': 372, 'ffn_units': 57312, 'max_units': 4993, 'max_heads': 16} 3611 (7936, 31)
+eval/frozen/tile8_gate_v1/deadlock.json 2 7 a422e8a688f085d760e01d21866eba92398c237d445aa5bb0f51eab6cc645680
+eval/frozen/tile8_gate_v1/dense_seeded.json 116 2519 432be93f0bf456f0206c9ade7d1a7a98cee61379bc7dad153f263ceb60c89dd6
+eval/frozen/resident_gate_v1/store_reload.json 48 738 adc71b329f573a2e6e311896c146c4cf8b8eaab3faeb1daa02ceee6d2b87f5de
+eval/frozen/indexed_gate_v1/address_sweep.json 128 2006 eb4c8171b639d4990c0ec7633e2951d3656a035622be433e324cbb0efc8f869b
+eval/frozen/indexed_gate_v1/scatter_gather.json 56 699 f0fcf34355952e735cce176b56c0de67f5e28ea0c76fdf8cd09ea5ebeebcfb67
+eval/frozen/masked_gate_v1/masked_scatter.json 128 1031 187306c58d22d1ac21c1867d7104063c50dc2e354756a8d532c38a94d2a996bd
+eval/frozen/divergent_gate_v1/empty_then.json 112 841 31fcf3b49eb91bc50fddcf1167096637c53f0e560d6e4f2ee123601cefc29da6
+eval/frozen/divergent_gate_v1/nested.json 128 911 924319536669983b7d2dd97d35cad949b2d071c1e97266a12fec4bbff1f5bec0
+eval/frozen/loop_gate_v1/cooperative_matmul.json 132 1995 cfd7ee743ddeafdff129b8d51cb80bbeae88c535f54eb407d90f89cc950c47aa
+eval/frozen/loop_gate_v1/nested_loops.json 47 292 15cf979f2e1ab6a8e755febdddb1d9dcbdf4c367d69ea4863539751156fb6397
+eval/frozen/loop_gate_v1/scatter_trip_counts.json 76 414 3df85af278dd9c558e6a6b3c358d56b055d9701c04494750c40767a203ab5d32
+eval/frozen/loop_gate_v1/step_limit.json 256 1615 5f6bddc027efc8d4381c382d2e4dac880b1171096e71d3d84720c55102ecc3a1
+eval/frozen/grid_gate_v1/partial_1_pair.json 29 645 874995b3b137e28624db3ff16208dadd9d71a9f66b212ef700b3c2c6ea27a89c
+eval/frozen/grid_gate_v1/partial_2_pairs.json 58 1257 61ecf9300bfd32ece3f2d0a723ad839f95bd5711ad263d17983a7a90810d0569
+eval/frozen/grid_gate_v1/partial_3_pairs.json 87 1894 9f6d5f1c9a39be242d14b424551d14b0dee573ce85760b9cfc71e99fccffcef4
+eval/frozen/wide_gate_v1/seeded_cooperative.json 132 2004 444228cb1eb925819848eb44c9ce8fd585ad85736fc89ef414422f11112503c7
+eval/frozen/wide_gate_v1/seeded_warps.json 26 240 468da72d3d113b3685ab6c4eb0924e41a8bbf563384c3914f2af47a7e0b8a93b
+eval/frozen/resident_add32_gate_v1/cooperative_add32.json 140 2183 53432d395e4328c81419459389eca34469fd833f177a445d74163fc60034c652
+eval/frozen/resident_add32_gate_v1/masked_carry.json 17 178 33f5f9833718b3c8fb77d6e569d73e0891dd77937cc81983207d09ec9bda659a
+eval/frozen/window_gate_v1/back_two.json 58 1258 0221e1004a87866fcd1a256f886e50d05495f1923d7041d3e7ae6ffcba9b96db
+eval/frozen/window_gate_v1/front_two.json 58 1262 e7c9eb66735ea68965d5cf4fee1eb5abd3c05f151c0c8fd215d7a432dc3ea04b
+eval/frozen/window_gate_v1/last_one.json 29 634 c4d15e87a19bc9a5bdac2f793db3b3eeb10091a4acb7197a8ecfb325c67b1e27
+eval/frozen/window_gate_v1/middle_one.json 29 632 9473d4f0367e60beda6115d620a354d109169c358e6d69d4eb28c9bdb90573b0
+eval/frozen/resident_shared32_gate_v1/cooperative_shared32.json 20 237 4a93ba2a95eae03ed20805e17d5b1898cacec635899e732e2ea8d3779ac445a2
+eval/frozen/resident_addmem32_gate_v1/cooperative_addmem32.json 15 205 350565141d1a9f8b738be20925500f16b955c38fb87a029f7faee4ef6ba48b40
+eval/frozen/resident_branch32_gate_v1/cooperative_branch32.json 21 273 e1968cf0aca1b1e141ebeea08a602f8b0102a3cd08e42d8b5792860f3409ae8c
+eval/frozen/resident_loop32_gate_v1/cooperative_loop32.json 24 255 265b090049d9f2ce76f3b23f7a021e8aa83a124dfb1ecdde61dcdc638c89112b
+eval/frozen/scoped_memory_v1/isolation.json 96 1305 4bdedf061ede36810b4c4244f04ea9457d0920785bac5d5e5637835ccc670a8a
+eval/frozen/resident_interleaved_v1/cross_group_high_limb.json 48 327 278d346700bc8586a9ec13f0c08135a2ad17d1e1ab401e3d074d1bb63cc0ee89
