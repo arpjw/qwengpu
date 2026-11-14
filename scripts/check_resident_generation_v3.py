@@ -9,10 +9,23 @@ from check_resident_generation import check, check_inherited
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 V2 = RESULTS / "resident_generation_v2_cuda"
 BASELINE = RESULTS / "model_stores_merged_cuda"
+PINNED_V3 = RESULTS / "resident_generation_v3_cuda" / "manifest.json"
 
 
 def read(directory, filename):
     return json.loads((directory / filename).read_text())
+
+
+def check_manifest(manifest):
+    index = manifest["files"]["model.safetensors.index.json"]
+    shards = set(index["weight_map"].values())
+    assert shards and set(manifest["sha256"]) == shards | set(manifest["files"])
+    assert sum(manifest["dtype_bytes"].values()) == index["metadata"]["total_size"]
+    pinned = json.loads(PINNED_V3.read_text())
+    for key in ("checkpoint_source_commit", "compiler_commit", "base_revision",
+                "files", "sha256", "dtype_bytes", "non_bf16"):
+        assert manifest[key] == pinned[key], f"v3 checkpoint differs from pinned manifest in {key}"
+    print(f"Verified the pinned v3 manifest and {len(shards)} weight shard hashes")
 
 
 def check_launch(run):
@@ -141,10 +154,7 @@ def main():
     text = read(root, "text.json")
     handoff = read(root, "handoff.json")
     assert text["merge"] == manifest["files"]["qwengpu9b.json"] == handoff["checkpoint"]
-    index = manifest["files"]["model.safetensors.index.json"]
-    shards = set(index["weight_map"].values())
-    assert shards and set(manifest["sha256"]) == shards | set(manifest["files"])
-    assert sum(manifest["dtype_bytes"].values()) == index["metadata"]["total_size"]
+    check_manifest(manifest)
     assert text["next_top1_same"] == 24 and text["greedy_identical"] >= 21
     assert text["merged_chip_tokens"] == 0
     assert handoff["exact"] and handoff["consumer"]["global_upload_words"] == 0
