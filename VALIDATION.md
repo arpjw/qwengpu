@@ -304,6 +304,16 @@ preserves 8,192 mirrored RAM nibbles, 384 register nibbles, four control
 rows, and 64 ROM rows. The resumed reduction returns `1521272620`
 and matches the cold consumer with zero global-memory upload.
 
+The v3 tile-capable merge adds 53 circuit layers at width 7,936.
+Its 35 shards contain 86,307,806,080 weight bytes. Fresh native
+text matches 24 of 24 first tokens and 21 of 24 continuations up
+to 16 tokens, with zero chip IDs. The compiler replay matches all
+27 inherited fixtures, covering 1,972 instructions, 26,225 tokens,
+and every final word across all eight mirrored memory lanes. This
+replay evaluates the IR on the expected token history. Model-level
+qualification uses autonomous generation on the merged checkpoint.
+See `results/resident_generation_v3_cuda/`.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,

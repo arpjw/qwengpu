@@ -407,8 +407,9 @@ isolation, and runtime matrix extents. The inherited suite also
 now has a legacy tile launch path in v3. Of its 27 fixtures, 22 use
 `LOAD_TILE`, `MAC_K`, or `STORE_TILE`, four use legacy shared
 memory with seeded registers and row windows, and one is a
-barrier deadlock without a workgroup descriptor. The merged v3 replay
-and native-text check remain qualification gates. Linux compiler replay
+barrier deadlock without a workgroup descriptor. The v3 merge passes
+the native-text gate. The merged tile replay remains a qualification gate.
+Linux compiler replay
 matches the schedule, instruction and store tokens, and final mirrored RAM
 for all 27 fixtures. The token-level
 writeback edge remains visible in the generated stream.
