@@ -14,6 +14,15 @@ compiled SIMT processor. The GPU executes uploaded instructions in
 Qwen’s recurrent state. Use the QwenGPU launchers to encode kernel
 inputs and validate generated control tokens and memory.
 
+## Current versions
+
+This Hugging Face repository contains the verified **v3** weights. The
+newer, CUDA-qualified **v4** checkpoint is available in the
+[checksum-verified GitHub release](https://github.com/arpjw/qwengpu/releases/tag/v4-corrected-package-2026-11-14).
+The [v4 restore instructions](https://github.com/arpjw/qwengpu#run-the-verified-v4-checkpoint)
+reconstruct its split assets and verify the package checksum. The v4
+weights have not yet been uploaded to this Hugging Face repository.
+
 ![Execution flow from a host launch through Qwen generation to recurrent registers and memory](docs/media/architecture.png)
 
 ## Verified on merged Qwen3.5-9B
