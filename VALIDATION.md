@@ -263,6 +263,12 @@ The retained consumer matches the cold consumer and returns
 rebuild reproduced the saved manifest and all 33 shard hashes exactly.
 See `results/resident_generation_cuda/handoff.json`.
 
+The same merge runs a single workgroup with the two unused warp banks
+held halted. The indexed integer fixture and all seven raw RAM probes
+match under stock generation. The probes cover barriers, collision
+priority, masked collisions, and boundary rows in both RAM banks.
+See `results/resident_generation_cuda/single.json`.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
