@@ -47,21 +47,19 @@ are in the source repository.
 
 The merged weights occupy about 86 GB. CUDA qualification and an
 independent clean restore used a 96 GB GPU with the pinned runtime
-recorded in `environment.txt`. The v4 package is stored in a private
-GitHub draft release. The Hugging Face repository still contains the
-older v3 checkpoint because the v4 upload hit the account's private
-storage limit. The [release guide](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#qualified-v4-private-draft-backup)
-pins the current draft release, release ID, and checksum digest, with
-commands for an authenticated download into a fresh directory. The
+recorded in `environment.txt`. The [release guide](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md)
+lists the current distribution location, access requirements, release
+ID, and checksum digest. Follow its checked restore commands to download
+into a fresh directory. The
 [reproduction guide](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md#run-the-stock-generation-checkpoint)
 pins the runtime and shows the CUDA qualification commands.
 
 `build-manifest.json` pins the QwenGPU source, Qwenputer compiler, and
 Qwen3.5-9B base revisions and hashes every weight shard. `SHA256SUMS`
 checks every packaged file. The
-[restore receipt](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#qualified-v4-private-draft-backup)
-records the verified backup and CUDA replay. A future Hugging Face
-revision must be pinned separately after upload and restore validation.
+[restore receipt](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md)
+records the verified backup and CUDA replay. Any Hugging Face revision
+must be pinned separately after upload and restore validation.
 
 ## Limits
 
