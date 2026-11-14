@@ -5,6 +5,9 @@ provisioning and reserve enough for any still pending estimates. Quotes and
 elapsed-time estimates are separate from posted billing. The last refresh
 was November 7, 2026 at 05:16 UTC.
 
+For the final checkpoint pod, complete the durable private handoff in
+[RELEASE.md](RELEASE.md) before teardown.
+
 | Pod | Work | Posted | Estimate when pending |
 | --- | --- | ---: | ---: |
 | `fwn759qm8qlepr` | Initial build | $2.202258 | |

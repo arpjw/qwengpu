@@ -1,0 +1,60 @@
+# Private checkpoint handoff
+
+The final RunPod teardown requires a verified, recoverable private copy
+of the qualified merged checkpoint. Keep the build pod until the
+restore checks and receipt below are complete. A public release is a
+separate decision.
+
+## Prepare the artifact
+
+Use the qualified merged directory on RunPod. Preserve all SafeTensors
+shards and their index, the model and generation configs, all tokenizer
+files, and `qwengpu9b.json`. Include the qualified build manifest,
+which pins the QwenGPU build commit, Qwenputer compiler commit, and
+Qwen3.5-9B base revision. Record the validation-tools commit and runtime
+versions in the package as well.
+
+Copy the pinned Qwen Apache 2.0 `LICENSE` and any upstream notices
+that apply. Preserve QwenGPU and Qwenputer notices for any material
+copied into the package. Write a model card that credits the base and
+describes the added circuit layers, widened text tower, reserved SIMT
+token range, text-only merge, and tested GPU limits. Include tested run
+commands and link to the source and validation evidence. Preserve the
+upstream attribution and mark the derived checkpoint as modified.
+[Pinned Qwen license](https://huggingface.co/Qwen/Qwen3.5-9B/blob/c202236235762e1c871ad0ccb60c8ee5ba337b9a/LICENSE)
+
+Generate `SHA256SUMS` over every shipped file except the checksum file
+itself. Confirm the shard and configuration digests against the
+qualification manifest before uploading. Keep the checksum file's
+digest in the GitHub receipt so the restored copy can be verified
+independently.
+
+## Store and restore
+
+1. Use a user-controlled private Hugging Face model repository and verify
+   its visibility before uploading. Upload directly from RunPod with an
+   account credential scoped to the destination. Use the Hub's resumable
+   folder upload with an explicit file list or a clean staging
+   directory. Keep credentials, caches, and unrelated artifacts outside
+   the upload. Record the commit SHA once the whole package is uploaded.
+   [Hugging Face upload guide](https://huggingface.co/docs/huggingface_hub/main/guides/upload)
+2. If Hub access or quota prevents the copy, use a user-controlled
+   private object-storage bucket. Use a versioned or immutable prefix
+   and record the provider, bucket, prefix, and object versions. Keep
+   storage access independent of the build pod's lifetime.
+3. Fetch the pinned revision or exact object versions into an empty
+   directory with a fresh download cache. Use a separate GPU workspace
+   if the build pod lacks disk for two copies. Verify every packaged
+   file against `SHA256SUMS`, verify its digest against the original,
+   and confirm the weight index references all and only the packaged
+   shards.
+4. Load the restored directory with the pinned inference environment.
+   Run one frozen GPU kernel with exact token and final-state checks,
+   and run the native text gate against the pinned base. Save both
+   reports alongside the manifest and GitHub receipt.
+5. Push the receipt to the private QwenGPU source repository before
+   terminating the final task pod. Include the durable locator and
+   exact revision or object versions, checkpoint and checksum-manifest
+   digests, build and verification revisions, and report paths. If a
+   restore check fails, keep the source artifact available and record
+   the failure before choosing another destination.

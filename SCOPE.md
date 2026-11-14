@@ -428,6 +428,11 @@ commit, kernel path, device, dimensions, latency, and approximate provider
 cost. Test separate caches for separate uploaded programs. A failure should
 be reported as a failure, with the failing case retained.
 
+The final checkpoint handoff also requires a private durable copy, a
+clean restore with full-file integrity checks and GPU and native-text
+runs, and a GitHub receipt before the final RunPod ends. The package,
+license, and teardown requirements are in [RELEASE.md](RELEASE.md).
+
 There is no acceleration claim. A 9B model forward pass per token makes the
 current trace slow, and one vector operation currently needs extra reads and
 feedback. The objective is to determine whether a reusable GPU-like machine can live
