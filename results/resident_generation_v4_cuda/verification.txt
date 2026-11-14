@@ -1,0 +1,76 @@
+deadlock.json: 2 instructions, 7 exact generated tokens and RAM
+dense_seeded.json: 116 instructions, 2519 exact generated tokens and RAM
+store_reload.json: 48 instructions, 738 exact generated tokens and RAM
+address_sweep.json: 128 instructions, 2006 exact generated tokens and RAM
+scatter_gather.json: 56 instructions, 699 exact generated tokens and RAM
+masked_scatter.json: 128 instructions, 1031 exact generated tokens and RAM
+empty_then.json: 112 instructions, 841 exact generated tokens and RAM
+nested.json: 128 instructions, 911 exact generated tokens and RAM
+cooperative_matmul.json: 132 instructions, 1995 exact generated tokens and RAM
+nested_loops.json: 47 instructions, 292 exact generated tokens and RAM
+scatter_trip_counts.json: 76 instructions, 414 exact generated tokens and RAM
+step_limit.json: 256 instructions, 1615 exact generated tokens and RAM
+partial_1_pair.json: 29 instructions, 645 exact generated tokens and RAM
+partial_2_pairs.json: 58 instructions, 1257 exact generated tokens and RAM
+partial_3_pairs.json: 87 instructions, 1894 exact generated tokens and RAM
+seeded_cooperative.json: 132 instructions, 2004 exact generated tokens and RAM
+seeded_warps.json: 26 instructions, 240 exact generated tokens and RAM
+cooperative_add32.json: 140 instructions, 2183 exact generated tokens and RAM
+masked_carry.json: 17 instructions, 178 exact generated tokens and RAM
+back_two.json: 58 instructions, 1258 exact generated tokens and RAM
+front_two.json: 58 instructions, 1262 exact generated tokens and RAM
+last_one.json: 29 instructions, 634 exact generated tokens and RAM
+middle_one.json: 29 instructions, 632 exact generated tokens and RAM
+cooperative_shared32.json: 20 instructions, 237 exact generated tokens and RAM
+cooperative_addmem32.json: 15 instructions, 205 exact generated tokens and RAM
+cooperative_branch32.json: 21 instructions, 273 exact generated tokens and RAM
+cooperative_loop32.json: 24 instructions, 255 exact generated tokens and RAM
+deadlock.json: 2 instructions, 7 exact generated tokens and RAM
+dense_seeded.json: 116 instructions, 2519 exact generated tokens and RAM
+store_reload.json: 48 instructions, 738 exact generated tokens and RAM
+address_sweep.json: 128 instructions, 2006 exact generated tokens and RAM
+scatter_gather.json: 56 instructions, 699 exact generated tokens and RAM
+masked_scatter.json: 128 instructions, 1031 exact generated tokens and RAM
+empty_then.json: 112 instructions, 841 exact generated tokens and RAM
+nested.json: 128 instructions, 911 exact generated tokens and RAM
+cooperative_matmul.json: 132 instructions, 1995 exact generated tokens and RAM
+nested_loops.json: 47 instructions, 292 exact generated tokens and RAM
+scatter_trip_counts.json: 76 instructions, 414 exact generated tokens and RAM
+step_limit.json: 256 instructions, 1615 exact generated tokens and RAM
+partial_1_pair.json: 29 instructions, 645 exact generated tokens and RAM
+partial_2_pairs.json: 58 instructions, 1257 exact generated tokens and RAM
+partial_3_pairs.json: 87 instructions, 1894 exact generated tokens and RAM
+seeded_cooperative.json: 132 instructions, 2004 exact generated tokens and RAM
+seeded_warps.json: 26 instructions, 240 exact generated tokens and RAM
+cooperative_add32.json: 140 instructions, 2183 exact generated tokens and RAM
+masked_carry.json: 17 instructions, 178 exact generated tokens and RAM
+back_two.json: 58 instructions, 1258 exact generated tokens and RAM
+front_two.json: 58 instructions, 1262 exact generated tokens and RAM
+last_one.json: 29 instructions, 634 exact generated tokens and RAM
+middle_one.json: 29 instructions, 632 exact generated tokens and RAM
+cooperative_shared32.json: 20 instructions, 237 exact generated tokens and RAM
+cooperative_addmem32.json: 15 instructions, 205 exact generated tokens and RAM
+cooperative_branch32.json: 21 instructions, 273 exact generated tokens and RAM
+cooperative_loop32.json: 24 instructions, 255 exact generated tokens and RAM
+interleaved-merged.json interleaved_publish: 44 instructions, 425 exact generated tokens
+interleaved-merged.json barrier_groups: 39 instructions, 332 exact generated tokens
+interleaved-merged.json deadlock: 14 instructions, 145 exact generated tokens
+interleaved-merged.json cross_group_high_limb: 48 instructions, 327 exact generated tokens
+sequential-merged.json workgroup_reset: 128 instructions, 1479 exact generated tokens
+sequential-merged.json address_walk: 66 instructions, 1142 exact generated tokens
+sequential-merged.json isolation: 96 instructions, 1305 exact generated tokens
+sequential-merged.json matrix_extent: 24 instructions, 212 exact generated tokens
+3x5x2: scalar result, final memory and upload counts exact
+9x7x5: scalar result, final memory and upload counts exact
+vector_64: scalar result, final memory and upload counts exact
+reduce_128: scalar result, final memory and upload counts exact
+matmul_8x4x4: scalar result, final memory and upload counts exact
+31 common compute requests and 7 raw RAM cases exact
+Full-width indexed arithmetic, signed edges and upper-half ROM loop exact
+scoped_reset: state and retained global memory exact
+interleaved_handoff: state and retained global memory exact
+Both shared banks and all 16 reconstructed uint32 results exact
+Single launch: 928 instructions, 20,167 tokens, 7 panel transitions, 256 exact outputs
+Native text: 24 first tokens, 21 full continuations, 0 chip IDs
+Verified the v4 candidate manifest with 35 shard digests
+Native text, retained handoff and public CLI exact

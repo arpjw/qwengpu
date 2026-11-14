@@ -1,0 +1,300 @@
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+interleaved_publish.json: 44 instructions, 425 generated tokens, exact
+barrier_groups.json: 39 instructions, 332 generated tokens, exact
+deadlock.json: 14 instructions, 145 generated tokens, exact
+cross_group_high_limb.json: 48 instructions, 327 generated tokens, exact
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+workgroup_reset.json: 128 instructions, 1479 generated tokens, exact
+address_walk.json: 66 instructions, 1142 generated tokens, exact
+isolation.json: 96 instructions, 1305 generated tokens, exact
+matrix_extent.json: 24 instructions, 212 generated tokens, exact
+[transformers] The tokenizer you are loading from '/workspace/model-v4-merged' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+Loading weights:   0%|          | 0/760 [00:00<?, ?it/s]Loading weights:  12%|█▏        | 90/760 [00:00<00:00, 899.68it/s]Loading weights:  24%|██▎       | 180/760 [00:00<00:00, 856.28it/s]Loading weights:  35%|███▌      | 266/760 [00:00<00:00, 837.21it/s]Loading weights:  47%|████▋     | 357/760 [00:00<00:00, 855.21it/s]Loading weights:  59%|█████▉    | 450/760 [00:00<00:00, 868.29it/s]Loading weights:  77%|███████▋  | 584/760 [00:00<00:00, 1013.93it/s]Loading weights:  94%|█████████▎| 711/760 [00:00<00:00, 1088.97it/s]Loading weights: 100%|██████████| 760/760 [00:00<00:00, 1005.33it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:   7%|▋         | 80/1169 [00:00<00:01, 792.65it/s]Loading weights:  14%|█▍        | 169/1169 [00:00<00:01, 813.23it/s]Loading weights:  22%|██▏       | 255/1169 [00:00<00:01, 830.73it/s]Loading weights:  30%|██▉       | 349/1169 [00:00<00:00, 872.97it/s]Loading weights:  37%|███▋      | 437/1169 [00:00<00:00, 853.22it/s]Loading weights:  45%|████▌     | 527/1169 [00:00<00:00, 868.59it/s]Loading weights:  53%|█████▎    | 620/1169 [00:00<00:00, 874.07it/s]Loading weights:  61%|██████    | 708/1169 [00:00<00:00, 855.07it/s]Loading weights:  68%|██████▊   | 794/1169 [00:00<00:00, 827.47it/s]Loading weights:  76%|███████▌  | 884/1169 [00:01<00:00, 829.97it/s]Loading weights:  83%|████████▎ | 975/1169 [00:01<00:00, 847.75it/s]Loading weights:  91%|█████████ | 1060/1169 [00:01<00:00, 831.91it/s]Loading weights:  98%|█████████▊| 1150/1169 [00:01<00:00, 842.00it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 850.29it/s]
+{"prompt_count": 24, "next_top1_same": 24, "greedy_identical": 21, "merged_chip_tokens": 0}
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  39%|███▉      | 455/1169 [00:00<00:00, 4538.56it/s]Loading weights:  91%|█████████ | 1064/1169 [00:00<00:00, 5449.23it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 5292.03it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+interleaved_publish.json: 44 instructions, 425 generated tokens, exact
+barrier_groups.json: 39 instructions, 332 generated tokens, exact
+deadlock.json: 14 instructions, 145 generated tokens, exact
+cross_group_high_limb.json: 48 instructions, 327 generated tokens, exact
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  42%|████▏     | 491/1169 [00:00<00:00, 4898.56it/s]Loading weights:  90%|█████████ | 1057/1169 [00:00<00:00, 5331.25it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 5207.55it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+workgroup_reset.json: 128 instructions, 1479 generated tokens, exact
+address_walk.json: 66 instructions, 1142 generated tokens, exact
+isolation.json: 96 instructions, 1305 generated tokens, exact
+matrix_extent.json: 24 instructions, 212 generated tokens, exact
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:   8%|▊         | 98/1169 [00:00<00:01, 861.94it/s]Loading weights:  17%|█▋        | 202/1169 [00:00<00:01, 948.49it/s]Loading weights:  26%|██▌       | 305/1169 [00:00<00:00, 913.94it/s]Loading weights:  36%|███▋      | 424/1169 [00:00<00:00, 1004.45it/s]Loading weights:  46%|████▋     | 541/1169 [00:00<00:00, 1059.42it/s]Loading weights:  57%|█████▋    | 665/1169 [00:00<00:00, 1107.60it/s]Loading weights:  68%|██████▊   | 792/1169 [00:00<00:00, 1147.70it/s]Loading weights:  78%|███████▊  | 916/1169 [00:00<00:00, 1159.84it/s]Loading weights:  88%|████████▊ | 1033/1169 [00:00<00:00, 1079.10it/s]Loading weights:  98%|█████████▊| 1143/1169 [00:01<00:00, 1033.21it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 1061.03it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+deadlock.json: 2 instructions, 7 generated tokens, exact
+dense_seeded.json: 116 instructions, 2519 generated tokens, exact
+store_reload.json: 48 instructions, 738 generated tokens, exact
+address_sweep.json: 128 instructions, 2006 generated tokens, exact
+scatter_gather.json: 56 instructions, 699 generated tokens, exact
+masked_scatter.json: 128 instructions, 1031 generated tokens, exact
+empty_then.json: 112 instructions, 841 generated tokens, exact
+nested.json: 128 instructions, 911 generated tokens, exact
+cooperative_matmul.json: 132 instructions, 1995 generated tokens, exact
+nested_loops.json: 47 instructions, 292 generated tokens, exact
+scatter_trip_counts.json: 76 instructions, 414 generated tokens, exact
+step_limit.json: 256 instructions, 1615 generated tokens, exact
+partial_1_pair.json: 29 instructions, 645 generated tokens, exact
+partial_2_pairs.json: 58 instructions, 1257 generated tokens, exact
+partial_3_pairs.json: 87 instructions, 1894 generated tokens, exact
+seeded_cooperative.json: 132 instructions, 2004 generated tokens, exact
+seeded_warps.json: 26 instructions, 240 generated tokens, exact
+cooperative_add32.json: 140 instructions, 2183 generated tokens, exact
+masked_carry.json: 17 instructions, 178 generated tokens, exact
+back_two.json: 58 instructions, 1258 generated tokens, exact
+front_two.json: 58 instructions, 1262 generated tokens, exact
+last_one.json: 29 instructions, 634 generated tokens, exact
+middle_one.json: 29 instructions, 632 generated tokens, exact
+cooperative_shared32.json: 20 instructions, 237 generated tokens, exact
+cooperative_addmem32.json: 15 instructions, 205 generated tokens, exact
+cooperative_branch32.json: 21 instructions, 273 generated tokens, exact
+cooperative_loop32.json: 24 instructions, 255 generated tokens, exact
+deadlock.json: 2 instructions, 7 exact generated tokens and RAM
+dense_seeded.json: 116 instructions, 2519 exact generated tokens and RAM
+store_reload.json: 48 instructions, 738 exact generated tokens and RAM
+address_sweep.json: 128 instructions, 2006 exact generated tokens and RAM
+scatter_gather.json: 56 instructions, 699 exact generated tokens and RAM
+masked_scatter.json: 128 instructions, 1031 exact generated tokens and RAM
+empty_then.json: 112 instructions, 841 exact generated tokens and RAM
+nested.json: 128 instructions, 911 exact generated tokens and RAM
+cooperative_matmul.json: 132 instructions, 1995 exact generated tokens and RAM
+nested_loops.json: 47 instructions, 292 exact generated tokens and RAM
+scatter_trip_counts.json: 76 instructions, 414 exact generated tokens and RAM
+step_limit.json: 256 instructions, 1615 exact generated tokens and RAM
+partial_1_pair.json: 29 instructions, 645 exact generated tokens and RAM
+partial_2_pairs.json: 58 instructions, 1257 exact generated tokens and RAM
+partial_3_pairs.json: 87 instructions, 1894 exact generated tokens and RAM
+seeded_cooperative.json: 132 instructions, 2004 exact generated tokens and RAM
+seeded_warps.json: 26 instructions, 240 exact generated tokens and RAM
+cooperative_add32.json: 140 instructions, 2183 exact generated tokens and RAM
+masked_carry.json: 17 instructions, 178 exact generated tokens and RAM
+back_two.json: 58 instructions, 1258 exact generated tokens and RAM
+front_two.json: 58 instructions, 1262 exact generated tokens and RAM
+last_one.json: 29 instructions, 634 exact generated tokens and RAM
+middle_one.json: 29 instructions, 632 exact generated tokens and RAM
+cooperative_shared32.json: 20 instructions, 237 exact generated tokens and RAM
+cooperative_addmem32.json: 15 instructions, 205 exact generated tokens and RAM
+cooperative_branch32.json: 21 instructions, 273 exact generated tokens and RAM
+cooperative_loop32.json: 24 instructions, 255 exact generated tokens and RAM
+standalone.json interleaved_publish: 44 instructions, 425 exact generated tokens
+standalone.json barrier_groups: 39 instructions, 332 exact generated tokens
+standalone.json deadlock: 14 instructions, 145 exact generated tokens
+standalone.json cross_group_high_limb: 48 instructions, 327 exact generated tokens
+interleaved-merged.json interleaved_publish: 44 instructions, 425 exact generated tokens
+interleaved-merged.json barrier_groups: 39 instructions, 332 exact generated tokens
+interleaved-merged.json deadlock: 14 instructions, 145 exact generated tokens
+interleaved-merged.json cross_group_high_limb: 48 instructions, 327 exact generated tokens
+sequential-standalone.json workgroup_reset: 128 instructions, 1479 exact generated tokens
+sequential-standalone.json address_walk: 66 instructions, 1142 exact generated tokens
+sequential-standalone.json isolation: 96 instructions, 1305 exact generated tokens
+sequential-standalone.json matrix_extent: 24 instructions, 212 exact generated tokens
+sequential-merged.json workgroup_reset: 128 instructions, 1479 exact generated tokens
+sequential-merged.json address_walk: 66 instructions, 1142 exact generated tokens
+sequential-merged.json isolation: 96 instructions, 1305 exact generated tokens
+sequential-merged.json matrix_extent: 24 instructions, 212 exact generated tokens
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:   8%|▊         | 98/1169 [00:00<00:01, 958.62it/s]Loading weights:  17%|█▋        | 194/1169 [00:00<00:01, 836.52it/s]Loading weights:  25%|██▍       | 289/1169 [00:00<00:00, 883.95it/s]Loading weights:  33%|███▎      | 386/1169 [00:00<00:00, 906.77it/s]Loading weights:  41%|████      | 478/1169 [00:00<00:00, 902.65it/s]Loading weights:  49%|████▊     | 569/1169 [00:00<00:00, 876.65it/s]Loading weights:  57%|█████▋    | 664/1169 [00:00<00:00, 898.39it/s]Loading weights:  65%|██████▌   | 760/1169 [00:00<00:00, 892.43it/s]Loading weights:  73%|███████▎  | 850/1169 [00:00<00:00, 884.57it/s]Loading weights:  80%|████████  | 939/1169 [00:01<00:00, 866.93it/s]Loading weights:  88%|████████▊ | 1028/1169 [00:01<00:00, 868.52it/s]Loading weights:  95%|█████████▌| 1115/1169 [00:01<00:00, 862.52it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 881.63it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+vector_64: exact
+reduce_128: exact
+matmul_8x4x4: exact
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  64%|██████▍   | 746/1169 [00:00<00:00, 7240.48it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 6677.13it/s]
+[transformers] The tokenizer you are loading from '/workspace/model-v4-merged' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Text prompt 0: state preserved=True, greedy exact=True
+Text prompt 1: state preserved=True, greedy exact=True
+Text prompt 21: state preserved=True, greedy exact=True
+Text prompt 23: state preserved=True, greedy exact=True
+Native text across 4 prompts and retained reduction: exact=True
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  48%|████▊     | 556/1169 [00:00<00:00, 5540.65it/s]Loading weights:  95%|█████████▌| 1111/1169 [00:00<00:00, 4601.52it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 4813.43it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:   9%|▊         | 101/1169 [00:00<00:01, 1007.28it/s]Loading weights:  17%|█▋        | 202/1169 [00:00<00:00, 982.34it/s] Loading weights:  26%|██▌       | 301/1169 [00:00<00:00, 963.87it/s]Loading weights:  34%|███▍      | 398/1169 [00:00<00:00, 953.52it/s]Loading weights:  42%|████▏     | 495/1169 [00:00<00:00, 936.85it/s]Loading weights:  51%|█████     | 597/1169 [00:00<00:00, 948.41it/s]Loading weights:  59%|█████▉    | 692/1169 [00:00<00:00, 933.07it/s]Loading weights:  67%|██████▋   | 786/1169 [00:00<00:00, 914.81it/s]Loading weights:  77%|███████▋  | 897/1169 [00:00<00:00, 967.61it/s]Loading weights:  85%|████████▌ | 994/1169 [00:01<00:00, 946.99it/s]Loading weights:  93%|█████████▎| 1089/1169 [00:01<00:00, 937.50it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 946.44it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+All 32 published values consumed by four resident warps without global RAM upload
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  10%|▉         | 114/1169 [00:00<00:01, 1031.28it/s]Loading weights:  19%|█▊        | 218/1169 [00:00<00:00, 984.52it/s] Loading weights:  27%|██▋       | 317/1169 [00:00<00:00, 934.44it/s]Loading weights:  35%|███▌      | 411/1169 [00:00<00:00, 931.21it/s]Loading weights:  43%|████▎     | 505/1169 [00:00<00:00, 905.16it/s]Loading weights:  51%|█████     | 598/1169 [00:00<00:00, 904.54it/s]Loading weights:  60%|██████    | 702/1169 [00:00<00:00, 941.96it/s]Loading weights:  68%|██████▊   | 798/1169 [00:00<00:00, 932.71it/s]Loading weights:  76%|███████▋  | 892/1169 [00:00<00:00, 919.39it/s]Loading weights:  84%|████████▍ | 985/1169 [00:01<00:00, 915.48it/s]Loading weights:  93%|█████████▎| 1087/1169 [00:01<00:00, 935.59it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 941.19it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:   9%|▊         | 100/1169 [00:00<00:01, 994.66it/s]Loading weights:  17%|█▋        | 200/1169 [00:00<00:01, 940.74it/s]Loading weights:  25%|██▌       | 295/1169 [00:00<00:00, 939.97it/s]Loading weights:  33%|███▎      | 390/1169 [00:00<00:00, 929.46it/s]Loading weights:  42%|████▏     | 493/1169 [00:00<00:00, 945.75it/s]Loading weights:  51%|█████     | 596/1169 [00:00<00:00, 966.89it/s]Loading weights:  59%|█████▉    | 694/1169 [00:00<00:00, 968.17it/s]Loading weights:  68%|██████▊   | 791/1169 [00:00<00:00, 958.38it/s]Loading weights:  76%|███████▌  | 887/1169 [00:00<00:00, 939.94it/s]Loading weights:  84%|████████▍ | 986/1169 [00:01<00:00, 939.49it/s]Loading weights:  92%|█████████▏| 1080/1169 [00:01<00:00, 937.26it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 955.60it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  37%|███▋      | 438/1169 [00:00<00:00, 4364.35it/s]Loading weights:  86%|████████▌ | 1001/1169 [00:00<00:00, 5102.18it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 4933.41it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  48%|████▊     | 565/1169 [00:00<00:00, 5617.59it/s]Loading weights:  96%|█████████▋| 1127/1169 [00:00<00:00, 4995.67it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 5077.31it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+3x5x2: exact
+9x7x5: exact
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  46%|████▋     | 541/1169 [00:00<00:00, 5405.13it/s]Loading weights:  93%|█████████▎| 1082/1169 [00:00<00:00, 4812.85it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 4894.39it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:   5%|▍         | 54/1169 [00:00<00:02, 530.99it/s]Loading weights:  10%|█         | 117/1169 [00:00<00:01, 586.37it/s]Loading weights:  16%|█▋        | 190/1169 [00:00<00:01, 646.21it/s]Loading weights:  23%|██▎       | 268/1169 [00:00<00:01, 690.94it/s]Loading weights:  30%|███       | 354/1169 [00:00<00:01, 745.87it/s]Loading weights:  49%|████▉     | 578/1169 [00:00<00:00, 1246.86it/s]Loading weights:  60%|██████    | 704/1169 [00:00<00:00, 1125.47it/s]Loading weights:  70%|███████   | 819/1169 [00:00<00:00, 1027.86it/s]Loading weights:  79%|███████▉  | 925/1169 [00:00<00:00, 979.57it/s] Loading weights:  88%|████████▊ | 1025/1169 [00:01<00:00, 954.44it/s]Loading weights:  96%|█████████▌| 1122/1169 [00:01<00:00, 902.66it/s]Loading weights: 100%|██████████| 1169/1169 [00:01<00:00, 917.89it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+barrier_pair.json: 19 instructions, 258 generated tokens, exact
+collision.json: 7 instructions, 69 generated tokens, exact
+collision_masked.json: 8 instructions, 73 generated tokens, exact
+edge_0_128.json: 12 instructions, 87 generated tokens, exact
+edge_127_255.json: 12 instructions, 183 generated tokens, exact
+edge_63_191.json: 12 instructions, 167 generated tokens, exact
+edge_64_192.json: 12 instructions, 103 generated tokens, exact
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  40%|████      | 471/1169 [00:00<00:00, 4688.98it/s]Loading weights:  83%|████████▎ | 965/1169 [00:00<00:00, 4830.21it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 4734.64it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+indexed_words.json: 54 instructions, 899 generated tokens, exact
+integer_edges.json: 20 instructions, 336 generated tokens, exact
+loops_and_barrier.json: 128 instructions, 1560 generated tokens, exact
+Loading weights:   0%|          | 0/1169 [00:00<?, ?it/s]Loading weights:  43%|████▎     | 500/1169 [00:00<00:00, 4991.20it/s]Loading weights:  97%|█████████▋| 1135/1169 [00:00<00:00, 5773.02it/s]Loading weights: 100%|██████████| 1169/1169 [00:00<00:00, 5650.69it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+vector_0: exact
+reduce_0: exact
+vector_1: exact
+reduce_1: exact
+vector_7: exact
+reduce_7: exact
+vector_13: exact
+reduce_13: exact
+vector_17: exact
+reduce_17: exact
+vector_31: exact
+reduce_31: exact
+vector_32: exact
+reduce_32: exact
+matmul_1x1x1: exact
+matmul_3x3x3: exact
+matmul_5x4x3: exact
+matmul_8x4x4: exact
+matmul_5x2x2_max_wrap: exact
+reduce_33: exact
+reduce_63: exact
+reduce_64: exact
+vector_33: exact
+vector_47: exact
+vector_63: exact
+vector_64: exact
+reduce_65: exact
+reduce_79: exact
+reduce_95: exact
+reduce_127: exact
+reduce_128: exact
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+deadlock.json: 2 instructions, 7 generated tokens, exact
+dense_seeded.json: 116 instructions, 2519 generated tokens, exact
+store_reload.json: 48 instructions, 738 generated tokens, exact
+address_sweep.json: 128 instructions, 2006 generated tokens, exact
+scatter_gather.json: 56 instructions, 699 generated tokens, exact
+masked_scatter.json: 128 instructions, 1031 generated tokens, exact
+empty_then.json: 112 instructions, 841 generated tokens, exact
+nested.json: 128 instructions, 911 generated tokens, exact
+cooperative_matmul.json: 132 instructions, 1995 generated tokens, exact
+nested_loops.json: 47 instructions, 292 generated tokens, exact
+scatter_trip_counts.json: 76 instructions, 414 generated tokens, exact
+step_limit.json: 256 instructions, 1615 generated tokens, exact
+partial_1_pair.json: 29 instructions, 645 generated tokens, exact
+partial_2_pairs.json: 58 instructions, 1257 generated tokens, exact
+partial_3_pairs.json: 87 instructions, 1894 generated tokens, exact
+seeded_cooperative.json: 132 instructions, 2004 generated tokens, exact
+seeded_warps.json: 26 instructions, 240 generated tokens, exact
+cooperative_add32.json: 140 instructions, 2183 generated tokens, exact
+masked_carry.json: 17 instructions, 178 generated tokens, exact
+back_two.json: 58 instructions, 1258 generated tokens, exact
+front_two.json: 58 instructions, 1262 generated tokens, exact
+last_one.json: 29 instructions, 634 generated tokens, exact
+middle_one.json: 29 instructions, 632 generated tokens, exact
+cooperative_shared32.json: 20 instructions, 237 generated tokens, exact
+cooperative_addmem32.json: 15 instructions, 205 generated tokens, exact
+cooperative_branch32.json: 21 instructions, 273 generated tokens, exact
+cooperative_loop32.json: 24 instructions, 255 generated tokens, exact
+Saved metadata and hashes for 35 weight shards
+deadlock.json: 2 instructions, 7 exact generated tokens and RAM
+dense_seeded.json: 116 instructions, 2519 exact generated tokens and RAM
+store_reload.json: 48 instructions, 738 exact generated tokens and RAM
+address_sweep.json: 128 instructions, 2006 exact generated tokens and RAM
+scatter_gather.json: 56 instructions, 699 exact generated tokens and RAM
+masked_scatter.json: 128 instructions, 1031 exact generated tokens and RAM
+empty_then.json: 112 instructions, 841 exact generated tokens and RAM
+nested.json: 128 instructions, 911 exact generated tokens and RAM
+cooperative_matmul.json: 132 instructions, 1995 exact generated tokens and RAM
+nested_loops.json: 47 instructions, 292 exact generated tokens and RAM
+scatter_trip_counts.json: 76 instructions, 414 exact generated tokens and RAM
+step_limit.json: 256 instructions, 1615 exact generated tokens and RAM
+partial_1_pair.json: 29 instructions, 645 exact generated tokens and RAM
+partial_2_pairs.json: 58 instructions, 1257 exact generated tokens and RAM
+partial_3_pairs.json: 87 instructions, 1894 exact generated tokens and RAM
+seeded_cooperative.json: 132 instructions, 2004 exact generated tokens and RAM
+seeded_warps.json: 26 instructions, 240 exact generated tokens and RAM
+cooperative_add32.json: 140 instructions, 2183 exact generated tokens and RAM
+masked_carry.json: 17 instructions, 178 exact generated tokens and RAM
+back_two.json: 58 instructions, 1258 exact generated tokens and RAM
+front_two.json: 58 instructions, 1262 exact generated tokens and RAM
+last_one.json: 29 instructions, 634 exact generated tokens and RAM
+middle_one.json: 29 instructions, 632 exact generated tokens and RAM
+cooperative_shared32.json: 20 instructions, 237 exact generated tokens and RAM
+cooperative_addmem32.json: 15 instructions, 205 exact generated tokens and RAM
+cooperative_branch32.json: 21 instructions, 273 exact generated tokens and RAM
+cooperative_loop32.json: 24 instructions, 255 exact generated tokens and RAM
+deadlock.json: 2 instructions, 7 exact generated tokens and RAM
+dense_seeded.json: 116 instructions, 2519 exact generated tokens and RAM
+store_reload.json: 48 instructions, 738 exact generated tokens and RAM
+address_sweep.json: 128 instructions, 2006 exact generated tokens and RAM
+scatter_gather.json: 56 instructions, 699 exact generated tokens and RAM
+masked_scatter.json: 128 instructions, 1031 exact generated tokens and RAM
+empty_then.json: 112 instructions, 841 exact generated tokens and RAM
+nested.json: 128 instructions, 911 exact generated tokens and RAM
+cooperative_matmul.json: 132 instructions, 1995 exact generated tokens and RAM
+nested_loops.json: 47 instructions, 292 exact generated tokens and RAM
+scatter_trip_counts.json: 76 instructions, 414 exact generated tokens and RAM
+step_limit.json: 256 instructions, 1615 exact generated tokens and RAM
+partial_1_pair.json: 29 instructions, 645 exact generated tokens and RAM
+partial_2_pairs.json: 58 instructions, 1257 exact generated tokens and RAM
+partial_3_pairs.json: 87 instructions, 1894 exact generated tokens and RAM
+seeded_cooperative.json: 132 instructions, 2004 exact generated tokens and RAM
+seeded_warps.json: 26 instructions, 240 exact generated tokens and RAM
+cooperative_add32.json: 140 instructions, 2183 exact generated tokens and RAM
+masked_carry.json: 17 instructions, 178 exact generated tokens and RAM
+back_two.json: 58 instructions, 1258 exact generated tokens and RAM
+front_two.json: 58 instructions, 1262 exact generated tokens and RAM
+last_one.json: 29 instructions, 634 exact generated tokens and RAM
+middle_one.json: 29 instructions, 632 exact generated tokens and RAM
+cooperative_shared32.json: 20 instructions, 237 exact generated tokens and RAM
+cooperative_addmem32.json: 15 instructions, 205 exact generated tokens and RAM
+cooperative_branch32.json: 21 instructions, 273 exact generated tokens and RAM
+cooperative_loop32.json: 24 instructions, 255 exact generated tokens and RAM
+interleaved-merged.json interleaved_publish: 44 instructions, 425 exact generated tokens
+interleaved-merged.json barrier_groups: 39 instructions, 332 exact generated tokens
+interleaved-merged.json deadlock: 14 instructions, 145 exact generated tokens
+interleaved-merged.json cross_group_high_limb: 48 instructions, 327 exact generated tokens
+sequential-merged.json workgroup_reset: 128 instructions, 1479 exact generated tokens
+sequential-merged.json address_walk: 66 instructions, 1142 exact generated tokens
+sequential-merged.json isolation: 96 instructions, 1305 exact generated tokens
+sequential-merged.json matrix_extent: 24 instructions, 212 exact generated tokens
+3x5x2: scalar result, final memory and upload counts exact
+9x7x5: scalar result, final memory and upload counts exact
+vector_64: scalar result, final memory and upload counts exact
+reduce_128: scalar result, final memory and upload counts exact
+matmul_8x4x4: scalar result, final memory and upload counts exact
+31 common compute requests and 7 raw RAM cases exact
+Full-width indexed arithmetic, signed edges and upper-half ROM loop exact
+scoped_reset: state and retained global memory exact
+interleaved_handoff: state and retained global memory exact
+Both shared banks and all 16 reconstructed uint32 results exact
+Single launch: 928 instructions, 20,167 tokens, 7 panel transitions, 256 exact outputs
+Native text: 24 first tokens, 21 full continuations, 0 chip IDs
+Verified the v4 candidate manifest with 35 shard digests
+Native text, retained handoff and public CLI exact
