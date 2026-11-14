@@ -1,8 +1,32 @@
 # QwenGPU scope and next gates
 
-## Current validated checkpoint
+## Current checkpoint
 
-The qualified layout is `qwengpu-resident-memory512-9b-v1`. One fixed
+The private [resident generation v3 release](RELEASE.md#restore-receipt)
+merges the GPU circuit into Qwen3.5-9B. A launch uploads the program
+and initial data. Within that launch, stock generation schedules warps,
+executes instructions, and commits state. The model has two eight-lane
+warps per workgroup, supports four sequential or two interleaved
+workgroups, and has 32 ROM slots per warp and 512 bytes of programmable
+global RAM alongside shared and private banks.
+
+Merged CUDA evidence covers all 27 inherited tile fixtures, four
+sequential and four interleaved workgroup fixtures, full-capacity vector
+addition and two-pass reduction, two non-square tiled multiplies, and
+the native-text handoff. A clean download passed all package checksums
+and reproduced the seeded tile and native-text results. The complete
+v3 CUDA replay and the standalone Apple MPS replay are tracked separately
+in [VALIDATION.md](VALIDATION.md). The 86 GB merged checkpoint was
+validated on CUDA.
+
+The v3 16×16 launcher keeps one cache across its eight generation calls.
+Earlier tilegrid evidence covers scheduling all eight panels inside one
+launch. See the [reproduction commands](REPRODUCE.md#run-the-stock-generation-checkpoint).
+
+## Earlier cross-backend baseline
+
+The earlier `qwengpu-resident-memory512-9b-v1` layout runs on both
+Apple MPS and merged CUDA. One fixed
 constructed merged checkpoint runs uint32 vector addition up to 64 values,
 reduction up to 128 values, and byte-input matrix multiply with uint32
 accumulation for M <= 8, K <= 4, N <= 4. All 31 frozen common requests,

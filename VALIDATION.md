@@ -1,12 +1,12 @@
 # Validation status
 
-All counts here are from bounded fixtures, not a general reliability claim.
-The independent reference machine supports eight lanes, one shared program
-counter, nested structured divergence, lane-indexed scratch memory, addition,
-XOR, and reduction. The compiled circuit currently supports addition, XOR,
-data-dependent masks, one-level divergence, result writeback, and four scratch
-bytes per lane. A separate integrated ROM variant adds straight-line instruction fetch and a
-model-held PC; its branch support remains open.
+All counts here are from bounded fixtures. See the
+[resident generation v3 evidence](#resident-generation-v3) for the
+current checkpoint. The first-generation circuit below supports eight
+lanes, one shared program counter, addition, XOR, data-dependent masks,
+one-level divergence, result writeback, and four scratch bytes per lane.
+Its integrated ROM variant adds straight-line instruction fetch and a
+model-held PC.
 
 | Evidence | Model | Cases | Result |
 | --- | --- | ---: | --- |
@@ -304,6 +304,8 @@ preserves 8,192 mirrored RAM nibbles, 384 register nibbles, four control
 rows, and 64 ROM rows. The resumed reduction returns `1521272620`
 and matches the cold consumer with zero global-memory upload.
 
+### Resident generation v3
+
 The v3 tile-capable merge adds 53 circuit layers at width 7,936.
 Its 35 shards contain 86,307,806,080 weight bytes. Fresh native
 text matches 24 of 24 first tokens and 21 of 24 continuations up
@@ -342,7 +344,9 @@ read requests and 4,772 store read requests. V3 makes 27 host generation
 calls, uploads 26,217 prompt tokens, and emits 26,225 tokens. Generation
 still performs a model forward pass for each emitted token. The host
 call counts describe interface traffic and do not measure a speedup.
-See `results/resident_generation_v3_cuda/`.
+See [CUDA reports](results/resident_generation_v3_cuda/). The final
+CUDA report set and standalone MPS replay are checked by the
+[qualification verifier](scripts/check_resident_generation_v3.py).
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
