@@ -396,6 +396,13 @@ Both report sets passed the existing reference and baseline checks.
 These standalone results precede the merged v4 qualification.
 See [the standalone reports](results/resident_generation_v4_cuda/).
 
+The candidate v4 merge preserves the native-text gate: all 24 first
+tokens and 21 of 24 greedy continuations match the pinned base, with
+zero GPU token IDs. Its four interleaved workgroup programs match the
+standalone circuit and reference over 145 instructions and 1,229
+generated tokens. The complete merged regression remains in progress.
+See [the candidate text and interleaved reports](results/resident_generation_v4_cuda/).
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
