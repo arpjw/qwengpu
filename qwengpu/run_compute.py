@@ -23,7 +23,7 @@ from qwengpu.memory_geometry import (
     ROM32_LAYOUTS,
     WIDE_MEMORY,
 )
-from qwengpu.resident_generation import LAYOUT as GENERATION_LAYOUT
+from qwengpu import resident_generation as gen
 
 MASK32 = 0xFFFFFFFF
 GUARD = 0xD00D0000
@@ -359,7 +359,7 @@ def main() -> None:
     if args.model is not None and not isinstance(meta, dict):
         parser.error("expected checkpoint metadata")
     generated = args.resident_generate or (
-        meta is not None and meta.get("layout") == GENERATION_LAYOUT
+        meta is not None and meta.get("layout") in gen.LAYOUTS
     )
     if args.transport and (args.transport == "stock-generation") != generated:
         parser.error("selected transport is incompatible with the checkpoint layout")
@@ -396,7 +396,7 @@ def main() -> None:
         parser.error("expected a merged compute checkpoint")
     if generated:
         if meta is not None and (
-            meta.get("layout") != GENERATION_LAYOUT
+            meta.get("layout") not in gen.LAYOUTS
             or meta.get("chip_vocab") != ALU_VOCAB
             or type(meta.get("chip_token_offset")) is not int
             or meta["chip_token_offset"] < 0

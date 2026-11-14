@@ -226,7 +226,7 @@ def load_generation_model(checkpoint, device):
         offset = 0
     else:
         meta = json.loads((checkpoint / "qwengpu9b.json").read_text())
-        if meta.get("layout") != gen.LAYOUT:
+        if meta.get("layout") not in gen.LAYOUTS:
             raise ValueError(f"expected a {gen.LAYOUT} checkpoint")
         offset = meta["chip_token_offset"]
     if standalone:
@@ -245,7 +245,8 @@ def load_generation_model(checkpoint, device):
         model = AutoModelForCausalLM.from_pretrained(checkpoint, dtype=torch.bfloat16)
         config = model.config
         circuit = build(Target(config.linear_num_key_heads, config.linear_num_value_heads,
-                               config.intermediate_size), generate=True)
+                               config.intermediate_size), generate=True,
+                        generated_tilegrid=meta["layout"] == gen.TILEGRID_LAYOUT)
     return model.to(device).eval(), circuit, offset
 
 

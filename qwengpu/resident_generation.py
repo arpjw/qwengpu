@@ -4,6 +4,8 @@ from chipformer.dsl.graph import Expr
 from chipformer.q35.prims import from_bits, onehot_bits
 
 LAYOUT = "qwengpu-resident-generation-9b-v3"
+TILEGRID_LAYOUT = "qwengpu-resident-generation-9b-v4"
+LAYOUTS = (LAYOUT, TILEGRID_LAYOUT)
 SCHEDULE = 2704
 TICKET = 2708
 COMMIT = 2712

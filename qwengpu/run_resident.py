@@ -49,7 +49,7 @@ from qwengpu.memory_geometry import (
     ROM32_LAYOUTS,
     WIDE_MEMORY,
 )
-from qwengpu.resident_generation import LAYOUT as GENERATION_LAYOUT
+from qwengpu import resident_generation as gen
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
@@ -74,7 +74,7 @@ def default_device():
 
 def run_generated(args, payload, meta):
     if meta is not None and (
-        meta.get("layout") != GENERATION_LAYOUT
+        meta.get("layout") not in gen.LAYOUTS
         or meta.get("chip_vocab") != ALU_VOCAB
         or type(meta.get("chip_token_offset")) is not int
         or meta["chip_token_offset"] < 0
@@ -94,7 +94,7 @@ def run_generated(args, payload, meta):
     expected = observed.pop("expected_tokens")
     result = {
         "format": RESULT_FORMAT,
-        "checkpoint": GENERATION_LAYOUT if meta else "standalone-resident-generate",
+        "checkpoint": meta["layout"] if meta else "standalone-resident-generate",
         "device": device,
         "kernel_sha256": hashlib.sha256(payload).hexdigest(),
         "max_steps": args.max_steps,
@@ -302,7 +302,7 @@ def main() -> int:
         ) if args.model is not None else None
         if args.model is not None and not isinstance(meta, dict):
             raise ValueError("expected checkpoint metadata")
-        if args.resident_generate or (meta is not None and meta.get("layout") == GENERATION_LAYOUT):
+        if args.resident_generate or (meta is not None and meta.get("layout") in gen.LAYOUTS):
             return run_generated(args, payload, meta)
         if meta is not None:
             if (

@@ -18,7 +18,7 @@ from qwengpu.eval_memory512_handoff import ram_rows
 from qwengpu.eval_resident_generation import evaluate
 from qwengpu.eval_text_handoff import CORPUS, PROMPT_INDICES, clear_text_history, compare, measure_text
 from qwengpu.eval_tile8 import parse_launch
-from qwengpu.resident_generation import LAYOUT
+from qwengpu.resident_generation import LAYOUTS, TILEGRID_LAYOUT
 from qwengpu.run_compute import MASK32, compile_request, parse_request, words32
 from qwengpu.textcheck_9b import _ids, load_prompts
 
@@ -61,13 +61,14 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     meta = json.loads((args.model / "qwengpu9b.json").read_text())
-    if meta["layout"] != LAYOUT:
+    if meta["layout"] not in LAYOUTS:
         parser.error("expected a stock resident generation checkpoint")
     model = transformers.AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.bfloat16)
     model.to(args.device).eval()
     config = model.config
     circuit = build(Target(config.linear_num_key_heads, config.linear_num_value_heads,
-                           config.intermediate_size), generate=True)
+                           config.intermediate_size), generate=True,
+                    generated_tilegrid=meta["layout"] == TILEGRID_LAYOUT)
     offset = meta["chip_token_offset"]
     tokenizer = transformers.AutoTokenizer.from_pretrained(args.model)
     eos = model.generation_config.eos_token_id

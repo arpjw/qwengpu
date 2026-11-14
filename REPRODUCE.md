@@ -1997,6 +1997,14 @@ before it can be exercised through stock Qwen inference.
 python scripts/check_stock_matmul16_ir.py eval/frozen/matmul16_gate_v1/dense_seeded.json
 ```
 
+To build and test the experimental v4 merge on CUDA:
+
+```bash
+python -m qwengpu.merge9b "$base" --generated-tilegrid --out "$v4_model"
+python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --model "$v4_model" --device cuda --out "$reports/matmul16-single-launch.json"
+```
+
 The following assembled program communicates 32-bit values between two warps
 through each workgroup's scoped shared bank. Each value uses two adjacent
 16-bit shared words. A barrier orders the producer before the consumer,

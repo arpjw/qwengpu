@@ -1,0 +1,14 @@
+Experimental v4 compiler replay on the existing RunPod Linux host.
+Qwenputer compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c.
+The circuit source is GitHub commit df9e1e3.
+
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/check_stock_matmul16_ir.py eval/frozen/matmul16_gate_v1/dense_seeded.json
+
+{'layers': 52, 'dims': 12919, 'heads': 375, 'ffn_units': 57419, 'max_units': 4993, 'max_heads': 16} 3766 (7936, 31)
+20167 exact generated tokens and four exact output banks
+
+The expected stream includes 928 instruction tickets and seven generated
+panel transitions. The replay supplies the preceding reference tokens to
+the compiler evaluator. CUDA inference from the merged candidate is a
+separate check.

@@ -10,54 +10,9 @@ from chipformer.q35.ir import A_BIT, A_REF, Head, Target, evaluate
 from chipformer.q35.merge import pick_hidden
 
 from qwengpu import resident_generation as gen
-from qwengpu.compiled_tile8 import ALT_OPERAND, BOTTOM_OPERANDS, GRID, OUTPUT_BANKS, RIGHT_OPERANDS, build
-from qwengpu.eval_resident_generation import expected_tokens, launch_prompt, resident_reference
-from qwengpu.eval_tile8 import _digits, _words, nibbles, oracle, parse_launch
-from qwengpu.run_matmul16 import TILE, _tile, parse_inputs
-
-
-def panel_memory_plan(a, b, c):
-    """Return preloaded tiles in the circuit's physical slot order."""
-    yield ALT_OPERAND, _tile(a, 0, TILE) + _tile(b, TILE, 0), 8
-    for base, k in zip(BOTTOM_OPERANDS, (0, TILE), strict=True):
-        yield base, _tile(a, TILE, k), 8
-    for base, k in zip(RIGHT_OPERANDS, (0, TILE), strict=True):
-        yield base, _tile(b, k, TILE), 8
-    for base, (row, col) in zip(
-        OUTPUT_BANKS[1:], ((0, TILE), (TILE, 0), (TILE, TILE)), strict=True,
-    ):
-        yield base, _tile(c, row, col), 16
-
-
-def matrix_protocol(a, b, c):
-    first = parse_launch(
-        {"a": _tile(a, 0, 0), "b": _tile(b, 0, 0), "c": _tile(c, 0, 0)},
-        full_integer=True,
-    )
-    prompt = launch_prompt(first)
-    prompt[prompt.index(GRID + 3)] |= 16 | 32 | 64
-    for base, values, width in panel_memory_plan(a, b, c):
-        prompt[-1:-1] = nibbles(base, _digits(values, width))
-
-    expected, final = [], []
-    for group in range(4):
-        row, col = TILE * (group // 2), TILE * (group % 2)
-        output = _tile(c, row, col)
-        for k in (0, TILE):
-            case = parse_launch(
-                {"a": _tile(a, row, k), "b": _tile(b, k, col), "c": output},
-                full_integer=True,
-            )
-            result = oracle(case, 256, looping=True)
-            assert result["outcome"] == "halted"
-            tokens, _, _ = expected_tokens(resident_reference(result, tiled=True), 2)
-            panel = 2 * group + k // TILE
-            if panel:
-                expected.extend((gen.PANEL + panel, *gen.RESET, gen.SCHEDULE))
-            expected.extend(tokens if panel == 7 else tokens[:-1])
-            output = result["shared_words"][64:]
-        final.append(output)
-    return prompt, expected, final
+from qwengpu.compiled_tile8 import build
+from qwengpu.eval_tile8 import _words
+from qwengpu.run_matmul16 import TILE, matrix_protocol, parse_inputs
 
 
 def main():
