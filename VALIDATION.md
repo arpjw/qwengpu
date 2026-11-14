@@ -344,6 +344,12 @@ along with the ROM, registers, control and final memory.
 The scoped-memory relaunch matched 1,390 tokens across 120 instructions.
 The second launch cleared all 128 scoped words and preserved global RAM
 without uploading it again.
+The two-workgroup publication and its dependent launch matched 744
+generated tokens across 72 instructions. Four resident warps consumed
+all 32 published values from the same cache, without a second global RAM
+upload. Both launches matched the reference registers, ROM, control, and
+global memory. The exact trace is in
+[`interleaved_handoff.json`](results/resident_generation_v3_cuda/interleaved_handoff.json).
 The public launchers also passed on v3. `run_resident` reported the
 expected deadlock with exit status 3 and exact state. `run_compute`
 returned `4294967168` for the 128-element reduction, with 256 global
