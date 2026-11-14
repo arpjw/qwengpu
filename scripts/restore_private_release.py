@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -41,6 +42,25 @@ def download(repo: str, tag: str, name: str, directory: Path, token: str) -> Pat
     return path
 
 
+def resume_files(directory: Path, wanted: dict[str, str]) -> set[str]:
+    """Verify completed files and remove only incomplete expected files."""
+    if not directory.is_dir() or directory.is_symlink():
+        raise ValueError("resume destination must be a real directory")
+    entries = list(directory.iterdir())
+    if any(entry.name not in wanted for entry in entries):
+        raise ValueError("resume destination contains an unexpected file")
+    for entry in entries:
+        if not stat.S_ISREG(entry.lstat().st_mode):
+            raise ValueError(f"resume destination contains a non-file: {entry.name}")
+    completed: set[str] = set()
+    for entry in entries:
+        if digest(entry) == wanted[entry.name]:
+            completed.add(entry.name)
+        else:
+            entry.unlink()
+    return completed
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repo")
@@ -49,12 +69,16 @@ def main() -> None:
     parser.add_argument("expected_checksum_digest")
     parser.add_argument("out", type=Path)
     parser.add_argument("--backup-manifest", default="github-backup-manifest.json")
+    parser.add_argument("--resume", action="store_true",
+                        help="verify existing expected files and resume an interrupted restore")
     args = parser.parse_args()
     token = sys.stdin.readline().strip()
     if not token:
         parser.error("provide a GitHub token on standard input")
-    if args.out.exists():
+    if args.out.exists() and not args.resume:
         parser.error("restore destination must not exist")
+    if args.resume and not args.out.exists():
+        parser.error("resume destination must exist")
 
     info = json.loads(
         run_gh(["api", f"repos/{args.repo}/releases/{args.release_id}"], token)
@@ -96,9 +120,18 @@ def main() -> None:
         if set(grouped) != set(expected) | {"SHA256SUMS"}:
             raise ValueError("backup and checkpoint file lists differ")
 
-        args.out.mkdir(parents=True)
+        wanted = {**expected, "SHA256SUMS": args.expected_checksum_digest}
+        if args.resume:
+            completed = resume_files(args.out, wanted)
+            print(f"Verified {len(completed)} existing files for resume", flush=True)
+        else:
+            args.out.mkdir(parents=True)
+            completed = set()
         for name, parts in grouped.items():
             target = args.out / name
+            if name in completed:
+                print(f"{name}: already verified", flush=True)
+                continue
             file_hash = hashlib.sha256()
             offset = 0
             with target.open("xb") as output:
@@ -114,9 +147,7 @@ def main() -> None:
                             file_hash.update(block)
                     asset.unlink()
                     offset += part["size"]
-            wanted = (args.expected_checksum_digest if name == "SHA256SUMS"
-                      else expected[name])
-            if file_hash.hexdigest() != wanted:
+            if file_hash.hexdigest() != wanted[name]:
                 raise ValueError(f"restored file differs: {name}")
             print(f"{name}: restored and verified ({offset} bytes)", flush=True)
     print(f"Verified {len(grouped)} restored files at {args.out}")
