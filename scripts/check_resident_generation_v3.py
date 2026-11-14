@@ -137,18 +137,25 @@ def check_matmul16(root):
     assert got["input_sha256"] == old["input_sha256"]
     assert got["matrix"] == old["matrix"] and got["retain_c"]
     assert got["fresh_caches"] == 1
+    assert got["transport_mode"] == "stock_generation"
     assert [panel["k"] for panel in got["passes"]] == [0, 8]
     for panel in got["passes"]:
         bank = panel["k"] // 8
         assert len(panel["launches"]) == 4
+        assembled = [[None] * 16 for _ in range(16)]
         for group, run in enumerate(panel["launches"]):
             check_launch(run)
             earlier = old["passes"][2 * group + bank]
             assert (earlier["workgroup"], earlier["bank"]) == (group, bank)
+            row, col = 8 * (group // 2), 8 * (group % 2)
+            assert (run["row"], run["col"]) == (row, col)
             assert run["steps"] == earlier["instructions"]
             assert run["tile_words"][64:] == [v for row in earlier["matrix"] for v in row]
             assert run["tile_output_upload_words"] == (0 if bank else 64)
-            assert run["cache_retained_exact"]
+            for index, values in enumerate(earlier["matrix"], row):
+                assembled[index][col:col + 8] = values
+        assert panel["matrix"] == assembled
+    assert got["matrix"] == got["passes"][-1]["matrix"]
     print("16x16 modular multiply: eight panels and retained output tiles exact")
 
 
