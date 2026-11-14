@@ -47,10 +47,11 @@ one Transformers import. None of these matches is a credential. The
 [redacted scan summary](results/public-readiness/source-scan-2026-11-14.json)
 records the command, refs, classifications, and finding locations without
 secret values. Rerun the scan if refs change before publication.
-The [current all-ref rescan](results/public-readiness/source-scan-current-2026-11-14.json)
-at the corrected-package teardown commit found the same 27 reviewed
-locations and no new scanner matches. Publication still requires a
-fresh scan against its final refs.
+The [latest saved all-ref rescan](results/public-readiness/source-scan-current-2026-11-14.json)
+at source commit `d892ecb` covered 574 reachable commits. Gitleaks
+reported 557 scanned commits and the same 27 reviewed locations, with
+no new scanner matches. Publication still requires a fresh scan against
+its final refs.
 
 ## Pinned checkpoint
 
@@ -171,6 +172,16 @@ before upload. This package revision changes documentation, so its CUDA
 execution evidence is inherited by byte identity from the frozen
 checkpoint; it is not a new GPU replay.
 
+The [latest live asset audit](results/public-readiness/corrected-v4-live-asset-audit-2026-11-14.json)
+checked all 90 GitHub asset names, sizes, and SHA-256 metadata against
+the pinned backup manifest. Reproduce this lightweight metadata check
+without downloading weights:
+
+```bash
+python3 scripts/check_release_assets.py \
+  results/resident_generation_v4_cuda/corrected-package/github-backup-manifest.json
+```
+
 A separate clean download reconstructed all 49 files from this corrected
 draft. The first transfer stopped after shard 16 when the temporary
 volume reached a write quota. With redundant package trees removed,
@@ -205,6 +216,14 @@ If the transfer stops, repeat the restore command with `--resume`. It
 rehashes existing expected files, skips complete files, and replaces
 only incomplete ones. It rejects unexpected entries and symlinks in
 the destination.
+
+If this repository and the corrected release are later made public,
+run the same restore command without the `gh auth token |` prefix and
+with `--public`. The helper then requires a published release in a
+public repository while preserving the release ID and checksum checks.
+Run `scripts/check_release_assets.py` with `--public` too. Publication
+still requires an explicit visibility decision, a fresh source scan,
+and a pinned v4 Hugging Face revision if that destination is used.
 
 ## Standalone v4 Apple MPS candidate
 

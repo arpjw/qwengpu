@@ -5,7 +5,27 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.restore_private_release import resume_files
+from scripts.restore_private_release import check_source, resume_files
+
+
+class SourceModeTests(unittest.TestCase):
+    def test_private_draft_and_public_release_are_distinct(self):
+        release = {"tag_name": "v4", "draft": True}
+        repo = {"private": True}
+        check_source(release, repo, "v4", False)
+        with self.assertRaisesRegex(RuntimeError, "public mode"):
+            check_source(release, repo, "v4", True)
+        release["draft"] = False
+        repo["private"] = False
+        check_source(release, repo, "v4", True)
+        with self.assertRaisesRegex(RuntimeError, "private mode"):
+            check_source(release, repo, "v4", False)
+
+    def test_tag_mismatch_is_rejected_in_both_modes(self):
+        for public in (False, True):
+            with self.subTest(public=public), self.assertRaisesRegex(RuntimeError, "tag differs"):
+                check_source({"tag_name": "wrong", "draft": not public},
+                             {"private": not public}, "v4", public)
 
 
 class ResumeFilesTests(unittest.TestCase):

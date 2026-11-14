@@ -18,8 +18,8 @@ Full standalone Apple MPS qualification also remains pending and is not
 a condition for the fixed v4 CUDA release. A 32-bit global atomic-add
 instruction is a separate follow-on gate, not part of the v4 checkpoint.
 For optional MPS validation, a 12.05 GB standalone v4 circuit was
-exported and passed
-two exact CPU smoke traces. It is an MPS candidate, not an MPS result.
+exported and passed two exact CPU smoke traces. It is an MPS candidate,
+not an MPS result.
 See [VALIDATION.md](VALIDATION.md)
 and [RELEASE.md](RELEASE.md).
 

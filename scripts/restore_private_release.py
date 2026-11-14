@@ -1,7 +1,8 @@
-"""Restore a checksum-pinned checkpoint from a private GitHub draft release.
+"""Restore a checksum-pinned checkpoint from a GitHub release.
 
-Read a GitHub token from standard input. Download one asset at a time so the
-restore needs space only for the checkpoint and one chunk.
+Private draft mode reads a GitHub token from standard input. Public mode
+uses the local gh login. Download one asset at a time so the restore needs
+space only for the checkpoint and one chunk.
 """
 
 from __future__ import annotations
@@ -24,9 +25,12 @@ def digest(path: Path) -> str:
 
 
 def run_gh(args: list[str], token: str) -> str:
+    env = dict(os.environ)
+    if token:
+        env["GH_TOKEN"] = token
     result = subprocess.run(
         ["gh", *args], check=True, text=True, capture_output=True,
-        env=dict(os.environ, GH_TOKEN=token),
+        env=env,
     )
     return result.stdout
 
@@ -61,6 +65,16 @@ def resume_files(directory: Path, wanted: dict[str, str]) -> set[str]:
     return completed
 
 
+def check_source(info: dict, repo_info: dict, tag: str, public: bool) -> None:
+    if info["tag_name"] != tag:
+        raise RuntimeError("source release tag differs")
+    if public:
+        if info["draft"] or repo_info["private"]:
+            raise RuntimeError("public mode requires a published release in a public repository")
+    elif not info["draft"] or not repo_info["private"]:
+        raise RuntimeError("private mode requires a draft release in a private repository")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repo")
@@ -69,11 +83,13 @@ def main() -> None:
     parser.add_argument("expected_checksum_digest")
     parser.add_argument("out", type=Path)
     parser.add_argument("--backup-manifest", default="github-backup-manifest.json")
+    parser.add_argument("--public", action="store_true",
+                        help="require a published release in a public repository")
     parser.add_argument("--resume", action="store_true",
                         help="verify existing expected files and resume an interrupted restore")
     args = parser.parse_args()
-    token = sys.stdin.readline().strip()
-    if not token:
+    token = "" if args.public else sys.stdin.readline().strip()
+    if not args.public and not token:
         parser.error("provide a GitHub token on standard input")
     if args.out.exists() and not args.resume:
         parser.error("restore destination must not exist")
@@ -83,11 +99,8 @@ def main() -> None:
     info = json.loads(
         run_gh(["api", f"repos/{args.repo}/releases/{args.release_id}"], token)
     )
-    if not info["draft"] or info["tag_name"] != args.tag:
-        raise RuntimeError("source must be the expected draft release")
     repo_info = json.loads(run_gh(["api", f"repos/{args.repo}"], token))
-    if not repo_info["private"]:
-        raise RuntimeError("source repository must be private")
+    check_source(info, repo_info, args.tag, args.public)
 
     with tempfile.TemporaryDirectory(prefix="qwengpu-restore-") as scratch:
         temporary = Path(scratch)

@@ -72,7 +72,8 @@ python3 scripts/check_checkpoint_package.py "$checkpoint" \
 ```
 
 The [release guide](RELEASE.md#corrected-v4-private-draft-package)
-records the package checks and the frozen CUDA matrix and native-text replay.
+records the package checks, the frozen CUDA matrix and native-text replay,
+and the restore switch for a future published release.
 
 ## Apple MPS candidate
 
