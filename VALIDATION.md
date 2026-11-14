@@ -341,6 +341,9 @@ The merged v3 also matched all three frozen integer edge programs,
 covering full-width indexed arithmetic, signed comparisons, and loops
 above ROM slot 15. All 2,795 tokens across 202 instructions matched,
 along with the ROM, registers, control and final memory.
+The scoped-memory relaunch matched 1,390 tokens across 120 instructions.
+The second launch cleared all 128 scoped words and preserved global RAM
+without uploading it again.
 The public launchers also passed on v3. `run_resident` reported the
 expected deadlock with exit status 3 and exact state. `run_compute`
 returned `4294967168` for the 128-element reduction, with 256 global
