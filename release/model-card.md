@@ -7,12 +7,23 @@ tags:
 - qwengpu
 ---
 
-# QwenGPU resident generation v3
+# Qwen-GPU
 
 This research checkpoint combines the Qwen3.5-9B text tower with a
 compiled SIMT processor. The GPU executes uploaded instructions in
 Qwen’s recurrent state. Use the QwenGPU launchers to encode kernel
 inputs and validate generated control tokens and memory.
+
+![Execution flow from a host launch through Qwen generation to recurrent registers and memory](docs/media/architecture.png)
+
+## Verified on merged Qwen3.5-9B
+
+![Merged v3 CUDA results: 27 of 27 inherited tile fixtures, 8 of 8 workgroup fixtures, 24 of 24 first tokens, and 21 of 24 full native text continuations](docs/media/validation.png)
+
+The CUDA replay matched 26,225 generated tokens over 1,972 instructions
+in the tile suite. The same checkpoint passes 64-element vector add,
+128-element two-pass reduction, and 8×4 by 4×4 matrix multiply. The
+second reduction launch reuses global RAM with zero re-upload.
 
 ## Changes from Qwen3.5-9B
 
@@ -35,20 +46,21 @@ model forward pass.
 
 `build-manifest.json` pins the QwenGPU build, Qwenputer compiler, and
 Qwen3.5-9B source revisions and records the shard digests.
-`environment.txt` records the validation runtime. Use the QwenGPU
-source and commands named in the private project’s release receipt.
+`environment.txt` records the validation runtime. Set up the compiler
+environment from the [Qwen-GPU source repository](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md)
+and set `checkpoint` to the downloaded snapshot. The merged weights
+occupy about 86 GB and were qualified on a 96 GB CUDA GPU.
+For a checksum-verified download, use the [pinned checkpoint revision](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
 
 ```bash
 python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
   --model "$checkpoint" --device cuda --check-reference --out result.json
 ```
 
-The merged v3 checkpoint matched all 27 inherited tile fixtures and all
-eight sequential and interleaved workgroup fixtures on CUDA. The
-frozen native-text corpus matched 24 of 24 first tokens and 21 of 24
-full greedy continuations of up to 16 tokens, with zero GPU IDs emitted.
-Consult the project’s release receipt for validation of the restored
-snapshot at its exact revision.
+The model emitted zero GPU IDs on the frozen native-text corpus.
+The v3 Apple MPS replay is pending. The
+[release receipt](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md)
+identifies the pinned weights and the restore checks.
 
 ## Attribution
 
