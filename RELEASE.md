@@ -239,6 +239,26 @@ Run `scripts/check_release_assets.py` with `--public` too. Publication
 still requires an explicit visibility decision, a fresh source scan,
 and a pinned v4 Hugging Face revision if that destination is used.
 
+The Hugging Face upload helper now verifies the pinned build manifest,
+all package file hashes, and the `SHA256SUMS` digest before sending any
+files. It cannot change repository visibility. After an explicit public
+release decision, make the model repository public through its settings,
+then upload the verified corrected package from a machine with enough
+disk space:
+
+```bash
+printf '%s\n' "$HF_TOKEN" | python scripts/upload_private_model.py \
+  "$restored" arpjw/Qwen-GPU --public \
+  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
+  --expected-checksum-digest \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
+  --message "Upload qualified Qwen-GPU v4"
+```
+
+Record the returned Hub revision. Clean-download that revision and run
+the package checker, a frozen GPU kernel, and the native-text gate
+before updating the public model card or claiming a Hub restore.
+
 ## Standalone v4 Apple MPS candidate
 
 The standalone v4 circuit was exported separately from the 86 GB merged
@@ -363,18 +383,22 @@ python scripts/check_checkpoint_package.py "$restored" \
 
 1. Use a user-controlled private Hugging Face model repository and verify
    its visibility before uploading. Upload directly from RunPod with an
-   account credential scoped to the destination. The upload helper checks
-   that the repository is private, reads the token from standard input,
-   uploads the flat package, and verifies the resulting revision and
-   visibility. It removes stale files from the prior private revision
-   and checks the final file list, while retaining Hub `.gitattributes`.
+   account credential scoped to the destination. The upload helper reads
+   the token from standard input, confirms the repository is already
+   private, checks the pinned package, uploads the flat package, and
+   verifies the resulting revision and visibility. It removes stale files
+   from the prior private revision and checks the final file list while
+   retaining Hub `.gitattributes`.
    Keep credentials, caches, and unrelated artifacts outside the package.
    Record the commit SHA once the whole package is uploaded.
    [Hugging Face upload guide](https://huggingface.co/docs/huggingface_hub/main/guides/upload)
 
    ```bash
    printf '%s\n' "$HF_TOKEN" | python scripts/upload_private_model.py \
-     "$package" arpjw/Qwen-GPU --message "Upload qualified Qwen-GPU v4"
+     "$package" arpjw/Qwen-GPU \
+     --pinned-manifest "$original_manifest" \
+     --expected-checksum-digest "$digest" \
+     --message "Upload qualified Qwen-GPU checkpoint"
    ```
 2. If Hub access or quota prevents the copy, use a user-controlled
    private object-storage bucket. Use a versioned or immutable prefix
