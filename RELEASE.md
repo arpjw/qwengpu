@@ -8,8 +8,10 @@ separate decision.
 The v3 package is staged on the build pod. Its 49 file digests are
 recorded in `results/resident_generation_v3_cuda/package-SHA256SUMS`.
 The upload destination is the private Hugging Face model repository
-[`arpjw/Qwen-GPU`](https://huggingface.co/arpjw/Qwen-GPU). The immutable
-revision and clean restore reports are pending.
+[`arpjw/Qwen-GPU`](https://huggingface.co/arpjw/Qwen-GPU). Hugging Face
+reports it as private and lists all 50 package files at revision
+[`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
+The clean restore reports are pending.
 
 ## Prepare the artifact
 
