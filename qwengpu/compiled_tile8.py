@@ -2087,8 +2087,11 @@ def build(
             )
             scoped_write_address[2:8] = write_address[:6]
             if generated_tilegrid:
-                # C bank addresses differ only in these two high bits.
-                scoped_write_address[11:13] = output_bank_bits
+                # The first output-bank bit is also part of the shared
+                # operand-port address. Preserve it for scoped stores;
+                # output-bank bits are set only for STORE_TILE.
+                scoped_write_address[11] += output_bank_bits[0]
+                scoped_write_address[12] = output_bank_bits[1]
             for lane, gather_address in enumerate(gather_addresses):
                 build_gather(lane, gather_address)
 
