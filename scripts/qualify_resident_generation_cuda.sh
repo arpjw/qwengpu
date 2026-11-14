@@ -5,10 +5,21 @@ set -euo pipefail
 base="${1:?expected Qwen3.5-9B source path}"
 model="${2:?expected merged checkpoint destination}"
 reports="${3:?expected report directory}"
-source_commit="${4:?expected source commit}"
+source_commit="${4:-b5f4898cb2e54ac559cd0fa81d93c2901ccb9222}"
 python="${QWENGPU_PYTHON:-python}"
 export PYTORCH_ALLOC_CONF=expandable_segments:True
+source_commit="$(git rev-parse --verify "${source_commit}^{commit}")"
+case "$base" in /*) ;; *) base="$PWD/$base";; esac
+case "$model" in /*) ;; *) model="$PWD/$model";; esac
+# Resolve an explicitly selected interpreter before entering the source archive.
+case "$python" in /*) ;; */*) python="$PWD/$python";; esac
 mkdir -p "$reports"
+
+build_source="$(mktemp -d)"
+trap 'rm -rf -- "$build_source"' EXIT
+git archive "$source_commit" qwengpu | tar -xf - -C "$build_source"
+PYTHONPATH="$build_source${PYTHONPATH:+:$PYTHONPATH}" \
+  "$python" -P -m qwengpu.merge9b "$base" --resident-generate --out "$model"
 
 fixtures=(
   eval/frozen/resident_interleaved_v1/interleaved_publish.json
@@ -29,7 +40,6 @@ for gate in tile8 resident indexed masked divergent loop grid wide resident_add3
 done
 "$python" -m qwengpu.eval_resident_generation --out "$reports/standalone.json" "${fixtures[@]}"
 "$python" -m qwengpu.eval_resident_generation --out "$reports/sequential-standalone.json" "${sequential[@]}"
-"$python" -m qwengpu.merge9b "$base" --resident-generate --out "$model"
 "$python" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
   --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 --out "$reports/text.json"
 "$python" - "$reports/text.json" <<'PY'

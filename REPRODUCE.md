@@ -1924,28 +1924,25 @@ available in both programmable global and legacy tiled launches.
 
 ### Run the stock-generation checkpoint
 
-Build the sequential v2 weights from source revision
-`d61581004f98aba79fdd524e38466a1dcca75423`. Use the pinned compiler and
+Build the v3 weights from source revision
+`b5f4898cb2e54ac559cd0fa81d93c2901ccb9222`. Use the pinned compiler and
 base revision above and the CUDA environment recorded in
-`results/resident_generation_v2_cuda/environment.txt`. The merged
-weights occupy about 81 GB, with additional disk needed for the base.
+`results/resident_generation_v3_cuda/environment.txt`. The merged
+weights occupy about 86 GB, with additional disk needed for the base.
 The verified run used a 96 GB Blackwell GPU and a host with a 125 GB
 RAM limit.
 
 ```bash
-python -m qwengpu.merge9b "$base" --resident-generate --out "$model"
-python -m qwengpu.eval_resident_generation --model "$model" --device cuda \
-  --out sequential.json eval/frozen/scoped_memory_v1/isolation.json
+bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports"
 ```
 
-The evaluator compares the generated stream and final recurrent memory
-to the interpreter.
+The qualification script builds from an archive of the pinned source
+and runs the evaluators from the current checkout. For the historical
+v2 checkpoint, use source revision `d61581004f98aba79fdd524e38466a1dcca75423`
+for both building and running the evaluator.
 
-To replay the legacy tiles, build v3 from source revision
-`b5f4898cb2e54ac559cd0fa81d93c2901ccb9222` with the same merge command,
-using a separate destination for v3. Run the inherited suite from the
-current checkout with the same pinned compiler. The 256-instruction
-budget matches the original looping stress fixture.
+To replay only the legacy tiles on a built v3 checkpoint, use the
+256-instruction budget from the original looping stress fixture.
 
 ```bash
 gates=(tile8 resident indexed masked divergent loop grid wide resident_add32 window

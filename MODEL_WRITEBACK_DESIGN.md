@@ -197,8 +197,7 @@ before executing the next ticket. The model still decides when to
 emit a ticket, halt, or report deadlock.
 
 ```bash
-bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports" \
-  "$(git rev-parse HEAD)"
+bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports"
 ```
 
 The retained-cache workload checker uses the existing kernel compiler
