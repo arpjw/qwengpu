@@ -1,0 +1,16 @@
+RunPod Linux CPU replay using Qwenputer compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c.
+Run from the QwenGPU checkout with the pinned compiler environment.
+
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 python scripts/check_stock_tile_ir.py \
+  eval/frozen/full_integer_v1/indexed_words.json \
+  eval/frozen/resident_alu32_v1/integer_edges.json \
+  eval/frozen/resident_rom32_v1/loops_and_barrier.json
+
+The compiler replay matched 202 instructions, 2,795 generated tokens,
+and all mirrors of final global and scoped RAM. The line for each
+fixture gives its instruction count, token count, and SHA-256.
+
+{'layers': 52, 'dims': 12857, 'heads': 372, 'ffn_units': 57312, 'max_units': 4993, 'max_heads': 16} 3611 (7936, 31)
+eval/frozen/full_integer_v1/indexed_words.json 54 899 f0c071f6d4721ce77baa6cef2d8d9f3dc631c24800eb0b5e72f2ef85d451d671
+eval/frozen/resident_alu32_v1/integer_edges.json 20 336 542a65261507d46e3a2a4693636275b1034b2ae8ae6511c21852e60fc0c78e5d
+eval/frozen/resident_rom32_v1/loops_and_barrier.json 128 1560 09affd2186169111b6d98858775aac80b0057b47ed5f3cc885ea35a075aacb06
