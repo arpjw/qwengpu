@@ -185,6 +185,7 @@ RESIDENT_TRANSPORTS = {
     "state_plan": {"resident_plan": True},
     "state_store_plan": {"resident_io": True},
     "fused_dispatch": {"resident_io": True, "fused_dispatch": True},
+    "cache_register_edge": {"resident_io": True, "cache_register_edge": True},
 }
 PROGRAM = (
     ("LOAD_TILE", 0),
@@ -608,6 +609,7 @@ def execute(
     resident_add32: bool = False,
     resident_cache: Cache | None = None,
     fused_dispatch: bool = False,
+    cache_register_edge: bool = False,
     refresh_operands: bool = False,
     refresh_global_prefix: int = 0,
     alternate_operands: list[int] | None = None,
@@ -639,6 +641,13 @@ def execute(
     geometry = circuit.memory_geometry
     global512 = bool(workgroups and memory512)
     internal_stores = circuit.internal_stores and global512
+    edge = None
+    if cache_register_edge:
+        if not (circuit.full_integer and global512 and resident_io):
+            raise ValueError("cache register feedback requires a full integer grid")
+        from qwengpu.cache_register_edge import CacheRegisterEdge
+
+        edge = CacheRegisterEdge(circuit)
     if internal_stores and not resident_io:
         raise ValueError("model-owned stores require the store-plan transport")
     if type(refresh_global_prefix) is not int or not 0 <= refresh_global_prefix <= (
@@ -849,6 +858,9 @@ def execute(
         "matrix_initial_tokens": len(uploads),
         "matrix_patch_tokens": 0,
     }
+
+    if edge is not None:
+        transport.update(cache_register_copies=0, cache_register_trace_tags=0)
 
     if internal_stores:
         transport.update(
@@ -1104,7 +1116,7 @@ def execute(
                 if resident_io
                 else list(range(len(store_reads)))
             ) if not internal_stores else []
-            requested = [state_reads[nib] for nib in selected]
+            requested = [] if edge is not None else [state_reads[nib] for nib in selected]
             requested.extend(store_reads[nib] for nib in store_slots)
             if fused_dispatch and requested:
                 output = feed(
@@ -1116,16 +1128,18 @@ def execute(
             else:
                 output = feed(requested, len(requested)) if requested else []
             state_output = [NO_WRITE] * len(state_reads)
-            for nib, token in zip(selected, output[: len(selected)], strict=True):
-                state_output[nib] = token
+            state_count = len(selected) if edge is None else 0
+            if edge is None:
+                for nib, token in zip(selected, output[:state_count], strict=True):
+                    state_output[nib] = token
             store_output = [NO_WRITE] * len(store_reads)
-            for nib, token in zip(store_slots, output[len(selected) :], strict=True):
+            for nib, token in zip(store_slots, output[state_count:], strict=True):
                 if resident_io and token == NO_WRITE:
                     raise ValueError(f"missing planned shared store at nibble {nib}")
                 store_output[nib] = token
             packet = state_output + store_output
             transport["state_plan_tokens"] += plan_bytes
-            transport["state_read_tokens"] += len(selected)
+            transport["state_read_tokens"] += state_count
             if resident_io:
                 transport["store_plan_tokens"] += 1
                 transport["store_read_tokens"] += len(store_slots)
@@ -1149,6 +1163,14 @@ def execute(
             ]
             if store_bits != expected_stores:
                 raise ValueError("shared store plan does not match the model snapshot")
+        if edge is not None:
+            expected_digits = _state_snapshot_digits(observed_bits, dirty_offset)
+            for nib in selected:
+                packet[nib] = warp_banks[warp] + 16 * nib + expected_digits[nib]
+            if selected:
+                edge.apply(cache, warp)
+                transport["cache_register_copies"] += 1
+            transport["cache_register_trace_tags"] += len(selected)
         if internal_stores:
             local = bool(observed_bits[circuit.store_snapshot_offset])
             store_patch = _internal_store_patch(circuit, observed_bits, store_bits)
@@ -1157,7 +1179,8 @@ def execute(
         tagged_state = []
         if resident_state:
             state_output = packet[:-32]
-            tagged_state = [token for token in state_output if token != NO_WRITE]
+            if edge is None:
+                tagged_state = [token for token in state_output if token != NO_WRITE]
             if resident_add32:
                 transport["high_register_updates"] += sum(
                     token != NO_WRITE for token in state_output[len(WARP_TAGS) :]
