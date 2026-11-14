@@ -206,6 +206,11 @@ python scripts/eval_resident_generation_handoff.py "$model" \
   --out "$reports/handoff.json"
 python -m qwengpu.eval_resident_generation --model "$model" --out "$reports/single.json" \
   eval/frozen/full_integer_v1/indexed_words.json eval/frozen/memory512_v1/*.json
+python scripts/eval_resident_generation_workloads.py "$model" \
+  --suite eval/frozen/memory512_compute_v1/cases.json \
+  --case vector_0 --case vector_17 --case vector_32 \
+  --case reduce_0 --case reduce_17 --case reduce_32 \
+  --case matmul_1x1x1 --case matmul_8x4x4 --out "$reports/compute.json"
 ```
 
 ```bash

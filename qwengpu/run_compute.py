@@ -195,7 +195,7 @@ def compile_request(request: dict, *, memory512: bool = False) -> list[dict]:
     ]
 
 
-def execute_tiled_matmul(model, circuit, request, device, offset, transport_mode):
+def execute_tiled_matmul(model, circuit, request, device, offset, transport_mode, *, launcher=launch):
     """Keep each output tile on one cache and refresh only A/B between panels."""
     a, b, c = (request[name] for name in ("a", "b", "c"))
     m, k, n = len(a), len(b), len(b[0])
@@ -220,7 +220,7 @@ def execute_tiled_matmul(model, circuit, request, device, offset, transport_mode
                 refresh = 0 if words is None else OPERAND_WORDS
                 if refresh:
                     program["global_words"][refresh:] = words[refresh:]
-                cache, observed = launch(
+                cache, observed = launcher(
                     model,
                     circuit,
                     program,
@@ -262,17 +262,20 @@ def execute_request(
     offset: int = 0,
     *,
     transport_mode: str = "state_store_plan",
+    launcher=launch,
 ) -> dict:
     if request["kernel"] == "matmul_tiled":
         if not circuit.resident_memory512:
             raise ValueError("matmul_tiled requires the 512-byte layout")
-        return execute_tiled_matmul(model, circuit, request, device, offset, transport_mode)
+        return execute_tiled_matmul(
+            model, circuit, request, device, offset, transport_mode, launcher=launcher,
+        )
     launches = compile_request(request, memory512=circuit.resident_memory512)
     cache = None
     records = []
     words = launches[0]["global_words"][:]
     for data in launches:
-        cache, observed = launch(
+        cache, observed = launcher(
             model,
             circuit,
             {**data, "global_words": words},
