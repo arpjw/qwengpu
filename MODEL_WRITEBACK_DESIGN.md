@@ -169,6 +169,19 @@ and the interpreter. A generated data token is still a token-level
 writeback edge. This test would establish that stock generation drives
 that edge without a host protocol or a runtime tensor copy.
 
+The `--resident-generate` layout uses disjoint generated token ranges
+for register writes, control updates, barrier releases, and lane commits.
+This lets the initial prompt upload the same state and program with
+no execution until the final schedule token. The schedule snapshot
+preserves the barrier release decision while four control tokens
+commit it in order. Register updates follow ascending nibble order.
+Store commits follow ascending lane order.
+
+```bash
+bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports" \
+  "$(git rev-parse HEAD)"
+```
+
 ```bash
 bash scripts/qualify_cache_register_edge.sh "$model" "$stock_reports" "$edge_reports"
 ```

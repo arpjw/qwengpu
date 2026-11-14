@@ -52,6 +52,7 @@ from qwengpu.scoped_memory import (
 )
 from qwengpu.memory_geometry import LEGACY_MEMORY, PAIR_DECODE, PAIR_WIRES, WIDE_MEMORY
 from qwengpu.model_stores import COMMIT_BASE, COMMIT_COUNT, key_matches
+from qwengpu import resident_generation as gen
 
 OPS = ("LOAD_TILE", "MAC_K", "STORE_TILE", "BARRIER", "HALT", "ADD16I")
 INDEX_OPS = ("SAVE_INDEX", "LOAD_INDEX", "STORE_INDEX")
@@ -428,7 +429,9 @@ def build(
     full_integer: bool = False,
     resident_interleaved: bool = False,
     internal_stores: bool = False,
+    generate: bool = False,
 ) -> Circ:
+    internal_stores = internal_stores or generate
     full_integer = full_integer or internal_stores
     resident_interleaved = resident_interleaved or full_integer
     resident_scoped = resident_scoped or resident_interleaved
@@ -493,13 +496,35 @@ def build(
     def between(name: str, low: int, high: int) -> Expr:
         return c.token_feature(name, lambda t: int(low <= t < high), full=True)
 
-    tick = match("tick", TICK)
+    tick = legacy_tick = match("tick", TICK)
     commit = (
         [match(f"ram.commit.{lane}", COMMIT_BASE + lane) for lane in range(COMMIT_COUNT)]
         if internal_stores
         else []
     )
     schedule = match("schedule", SCHEDULE)
+    if generate:
+        generate_tick = between("generate.tick", gen.TICKET, gen.TICKET + 4)
+        generate_schedule = match("generate.schedule", gen.SCHEDULE)
+        release_inputs = [
+            between(f"generate.release.{w}", gen.RELEASE_CONTROL + 128 * w,
+                    gen.RELEASE_CONTROL + 128 * w + 96)
+            for w in range(4)
+        ]
+        step_inputs = [
+            between(f"generate.control.{w}", gen.STEP_CONTROL + 128 * w,
+                    gen.STEP_CONTROL + 128 * w + 96)
+            for w in range(4)
+        ]
+        register_input = between(
+            "generate.register", gen.REGISTER, gen.REGISTER + 4 * gen.REGISTER_STRIDE,
+        )
+        commit_inputs = [
+            match(f"generate.commit.{lane}", gen.COMMIT + lane)
+            for lane in range(COMMIT_COUNT)
+        ]
+        tick += generate_tick
+        commit = [old + new for old, new in zip(commit, commit_inputs, strict=True)]
     resets = [match("ready.0", READY0), match("ready.1", READY1)]
     reads = [match(f"register.read.{index}", READ_REG + index) for index in range(32)]
     writes = [match(f"store.read.{index}", READ_STORE + index) for index in range(32)]
@@ -599,6 +624,8 @@ def build(
             for w, token in enumerate(RESIDENT_READY)
         ]
         query = tick + schedule + sum(resets + inter_resets, Expr())
+        if generate:
+            query += generate_schedule
         (interleaved,) = c.slot_head(
             "resident.mode",
             {0: enable + disable},
@@ -609,6 +636,8 @@ def build(
         load_inter_ticket = between(
             "resident.ticket", RESIDENT_TICKET, RESIDENT_TICKET + 4
         )
+        if generate:
+            load_inter_ticket += generate_tick
         previous = c.slot_head(
             "resident.cursor",
             {0: load_inter_ticket},
@@ -620,6 +649,8 @@ def build(
         for w in range(4):
             lo = RESIDENT_CONTROL + 128 * w
             load = between(f"resident.control.load.{w}", lo, lo + 96)
+            if generate:
+                load += release_inputs[w] + step_inputs[w]
             inter_controls.append(
                 c.slot_head(
                     f"resident.control.{w}",
@@ -1025,6 +1056,17 @@ def build(
             )
             for i in range(13)
         ]
+
+    if generate:
+        for bank, start in enumerate(warp_banks):
+            for nib in range(len(warp_tags)):
+                lookup_start = start + 16 * nib
+                generated_start = gen.REGISTER + gen.REGISTER_STRIDE * bank + 16 * nib
+                input_keys[lookup_start] = between(
+                    f"generate.register.load.{bank}.{nib}", lookup_start, lookup_start + 16
+                ) + between(
+                    f"generate.register.update.{bank}.{nib}", generated_start, generated_start + 16
+                )
 
     scoped_ports = {}
     write_grant, write_scoped = Expr(), Expr()
@@ -2096,6 +2138,11 @@ def build(
     if resident_interleaved:
         bits.append(bank_bits[1])
     c.snapshot_bits = len(bits)
+    if generate:
+        writeback_request = sum(step_inputs, Expr()) + register_input
+        writeback_read = writeback_request + sum(commit_inputs, Expr())
+    else:
+        writeback_read = Expr()
     saved = []
     for chunk, start in enumerate(range(0, len(bits), CHUNK_BITS)):
         saved.extend(
@@ -2112,7 +2159,7 @@ def build(
                         + loop_reads
                         + high_reads
                         + plan_reads,
-                        Expr(),
+                        writeback_read,
                     )
                 },
                 {
@@ -2147,6 +2194,34 @@ def build(
     pc_sources.append(([increment], stepped))
     next_pc = c.select_bits(pc_sources, len(pc), "pc.next")
     execution = next_pc[:4] + [halted, ops["BARRIER"], warp_bit] + next_pc[4:]
+    generated_outputs = []
+    if generate:
+        cursors = [
+            c.token_feature(f"generate.cursor.{bit}", lambda t, bit=bit: (t >> bit) & 1,
+                            full=True)
+            for bit in range(11)
+        ]
+        values = (
+            saved[:128]
+            + padded_indices(saved[SNAPSHOT_BITS:SNAPSHOT_BITS + 56],
+                             saved[geometry.extra_index_offset:geometry.extra_index_offset + 8])
+            + saved[MASK_OFFSET:WARP_DIRTY_OFFSET]
+            + saved[WARP_DIRTY_OFFSET:WARP_DIRTY_OFFSET + 128]
+        )
+        generated_outputs = [
+            ([generate_tick], [*next_pc, halted, ops["BARRIER"], *bank_bits,
+                               *gen.token_bits(gen.STEP_CONTROL)[9:]]),
+            *gen.generated_schedule(
+                c, generate_schedule, release_inputs, inter_controls, inter_release,
+                issue, inter_halt, inter_deadlock, DONE, DEADLOCK,
+            ),
+            *gen.generated_writeback(
+                c, writeback_request, register_input, commit_inputs, cursors,
+                [saved[129], saved[bank_offset]], values,
+                saved[dirty_offset:dirty_offset + len(warp_tags)],
+                saved[SNAPSHOT_BITS + 56:SNAPSHOT_BITS + 64],
+            ),
+        ]
 
     if resident_delta:
         # State output requests are in packet order. Only changed fields
@@ -2181,7 +2256,7 @@ def build(
         control_terms = []
         value = execution[bit] if bit < len(execution) else (CONTROL >> bit) & 1
         control_terms += c.t_and(
-            [tick, value, *([one - interleaved] if resident_interleaved else [])],
+            [legacy_tick, value, *([one - interleaved] if resident_interleaved else [])],
             2 * KAPPA,
         )
         value = decision[bit] if bit < len(decision) else (TICKET >> bit) & 1
@@ -2210,7 +2285,7 @@ def build(
                 if bit < len(inter_execution)
                 else (RESIDENT_CONTROL >> bit) & 1
             )
-            control_terms += c.t_and([tick, interleaved, value], 2 * KAPPA)
+            control_terms += c.t_and([legacy_tick, interleaved, value], 2 * KAPPA)
             for token, gate in ((DONE, inter_halt), (DEADLOCK, inter_deadlock)):
                 if token >> bit & 1:
                     control_terms += c.t_and([schedule, interleaved, gate], 2 * KAPPA)
@@ -2421,6 +2496,8 @@ def build(
                 terms += c.t_and([state_reads, one - saved[129]], 2 * KAPPA)
             if WARP_BANKS[1] >> bit & 1:
                 terms += c.t_and([state_reads, saved[129]], 2 * KAPPA)
+        for gates, value in generated_outputs:
+            terms += c.t_and([*gates, value[bit]], 2 * KAPPA)
         c.ffn(
             terms,
             f"exit.code.{bit}",
@@ -2464,11 +2541,13 @@ def build_standalone(
     full_integer: bool = False,
     resident_interleaved: bool = False,
     internal_stores: bool = False,
+    generate: bool = False,
 ):
     from chipformer.q35 import tiny
 
     build_qwen = tiny.build
 
+    internal_stores = internal_stores or generate
     circuit = build(
         resident=resident,
         indexed=indexed,
@@ -2499,6 +2578,7 @@ def build_standalone(
         full_integer=full_integer,
         resident_interleaved=resident_interleaved,
         internal_stores=internal_stores,
+        generate=generate,
     )
     if internal_stores:
         # This experimental layout needs extra exit cleanup slots on the

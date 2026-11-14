@@ -5,7 +5,7 @@ from __future__ import annotations
 from qwengpu.eval_compiled_rom import _head_location
 
 
-def _names():
+def register_head_names():
     from qwengpu.compiled_tile8 import BRANCH_NIBBLES, LOOP_NIBBLES
 
     return (
@@ -39,7 +39,7 @@ class CacheRegisterEdge:
 
         ratio = circuit.target.value_heads // circuit.target.key_heads
         moves = []
-        for name, bits in zip(_names(), snapshot_locations(circuit), strict=True):
+        for name, bits in zip(register_head_names(), snapshot_locations(circuit), strict=True):
             dst_layer, dst_head = _head_location(circuit, name)
             columns = []
             for bit in bits:
