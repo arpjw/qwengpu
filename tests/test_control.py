@@ -159,6 +159,44 @@ class CompiledControlTests(unittest.TestCase):
                     ]
                     self.assertEqual(observed, bits)
 
+    def test_generated_tokens_drive_next_instruction(self):
+        from chipformer.q35.ir import evaluate
+        from qwengpu.compiled_control import STOP_STATES, build, program_tokens, state_token
+        from qwengpu.compiled_rom import load_a
+
+        circuit = build(generate=True)
+        code_dims = [next(iter(expr.terms)) for expr in circuit.code]
+        for path in sorted(FIXTURES.glob("*.json")):
+            with self.subTest(fixture=path.name):
+                initial, program = parse_kernel(json.loads(path.read_text()))
+                state = ControlState(WarpState(lanes=initial))
+                inputs = [load_a(lane, value) for lane, value in enumerate(initial)]
+                inputs += program_tokens(program) + [state_token(0, 0)]
+                carry = {}
+                for stage in range(MAX_STEPS):
+                    residual = evaluate(circuit, inputs, check=True, carry=carry)
+                    generated = sum(
+                        int(residual[-1, dim] > 0) << bit
+                        for bit, dim in enumerate(code_dims)
+                    )
+                    state = step(state, program)
+                    halted = state.warp.halted
+                    exhausted = stage == MAX_STEPS - 1 and not halted
+                    expected = state_token(
+                        state.warp.pc, stage if halted or exhausted else stage + 1,
+                        halted, exhausted,
+                    )
+                    self.assertEqual(generated, expected)
+                    self.assertEqual(
+                        [int(residual[-1, next(iter(expr.terms))])
+                         for expr in circuit.snapshots[stage]],
+                        snapshot_bits(state),
+                    )
+                    if generated in STOP_STATES:
+                        break
+                    inputs = [generated]
+                self.assertIn(generated, STOP_STATES)
+
 
 if __name__ == "__main__":
     unittest.main()

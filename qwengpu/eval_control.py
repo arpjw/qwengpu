@@ -16,6 +16,8 @@ from qwengpu.compiled_control import (
     state_token,
     STATE_BASE,
     STATE_COUNT,
+    STOP_STATES,
+    GENERATION_LAYOUT,
     TICK,
     CHUNK_BITS,
     ROM_BASE,
@@ -181,6 +183,78 @@ def evaluate_case(
     }
 
 
+@torch.no_grad()
+def evaluate_generation(model, circuit, initial, program, device, offset=0) -> dict:
+    """Launch once via stock generation and audit the retained state after it stops."""
+    start = time.monotonic()
+    uploads = program_tokens(program)
+    prefix = [load_a(i, v) for i, v in enumerate(initial)] + uploads + [state_token(0, 0)]
+    inputs = torch.tensor([[token + offset for token in prefix]], device=device)
+    result = model.generate(
+        input_ids=inputs,
+        attention_mask=torch.ones_like(inputs),
+        do_sample=False,
+        use_cache=True,
+        eos_token_id=[offset + token for token in STOP_STATES],
+        pad_token_id=0,
+        max_new_tokens=MAX_STEPS,
+        return_dict_in_generate=True,
+    )
+    generated = [token - offset for token in result.sequences[0, len(prefix):].tolist()]
+    cache = result.past_key_values
+    reference = ControlState(WarpState(lanes=initial))
+    records = []
+    expected_outcome = "exhausted"
+    for stage in range(MAX_STEPS):
+        executed_pc = reference.warp.pc
+        reference = step(reference, program)
+        halt = reference.warp.halted
+        exhausted = stage == MAX_STEPS - 1 and not halt
+        token = state_token(reference.warp.pc, stage if halt or exhausted else stage + 1,
+                            halt, exhausted)
+        actual = generated[stage] if stage < len(generated) else None
+        observed = snapshot(cache, circuit, stage)
+        expected = snapshot_bits(reference)
+        records.append({
+            "stage": stage,
+            "executed_pc": executed_pc,
+            "generated": actual,
+            "expected_token": token,
+            "observed_snapshot_hex": hex_bits(observed),
+            "expected_snapshot_hex": hex_bits(expected),
+            "exact": actual == token and observed == expected,
+        })
+        if halt or exhausted:
+            expected_outcome = "halted" if halt else "exhausted"
+            break
+    terminal = generated[-1] if generated else None
+    outcome = (
+        "invalid" if terminal not in STOP_STATES else
+        "halted" if (terminal - STATE_BASE) & 256 else "exhausted"
+    )
+    observed_rom = [head_row(cache, circuit, "rom", slot, 12) for slot in range(16)]
+    expected_rom = [(token - ROM_BASE) % STRIDE for token in uploads[:16]]
+    observed_links = [head_row(cache, circuit, "link", slot, 4) for slot in range(16)]
+    expected_links = [(token - LINK_BASE) % 16 for token in uploads[16:]]
+    return {
+        "trace": records,
+        "outcome": outcome,
+        "exact": (
+            outcome == expected_outcome
+            and len(generated) == len(records)
+            and all(record["exact"] for record in records)
+            and observed_rom == expected_rom
+            and observed_links == expected_links
+        ),
+        "generated_tokens": len(generated),
+        "generation_calls": 1,
+        "host_tick_tokens": 0,
+        "host_control_feedback_tokens": 0,
+        "lane_feedback_tokens": 0,
+        "seconds": round(time.monotonic() - start, 3),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", nargs="?", type=Path)
@@ -188,6 +262,7 @@ def main() -> None:
         "--device", default="mps" if torch.backends.mps.is_available() else "cpu"
     )
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--generate", action="store_true")
     parser.add_argument("--kernel", type=Path)
     parser.add_argument(
         "--cases-dir",
@@ -218,7 +293,8 @@ def main() -> None:
     offset = 0
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text())
-        if meta["layout"] != "qwengpu-control9b-v1":
+        layout = GENERATION_LAYOUT if args.generate else "qwengpu-control9b-v1"
+        if meta["layout"] != layout:
             raise ValueError("not a control checkpoint")
         offset = meta["chip_token_offset"]
         model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -230,10 +306,11 @@ def main() -> None:
                 cfg.linear_num_key_heads,
                 cfg.linear_num_value_heads,
                 cfg.intermediate_size,
-            )
+            ),
+            generate=args.generate,
         )
     else:
-        model, circuit = build_standalone()
+        model, circuit = build_standalone(generate=args.generate)
     model.to(args.device).eval()
     report = {
         "device": args.device,
@@ -244,7 +321,8 @@ def main() -> None:
         "cases": [],
     }
     for path, payload, initial, program, outcome in cases:
-        record = evaluate_case(model, circuit, initial, program, args.device, offset)
+        evaluate = evaluate_generation if args.generate else evaluate_case
+        record = evaluate(model, circuit, initial, program, args.device, offset)
         record.update(
             fixture=path.name,
             fixture_sha256=hashlib.sha256(payload).hexdigest(),

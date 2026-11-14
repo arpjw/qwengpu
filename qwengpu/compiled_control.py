@@ -12,6 +12,9 @@ from qwengpu.reference import Instruction
 VOCAB = 65536
 STATE_BASE = 4096
 STATE_COUNT = 1024
+ACTIVE_STATE_END = STATE_BASE + 256
+STOP_STATES = range(ACTIVE_STATE_END, ACTIVE_STATE_END + 512)
+GENERATION_LAYOUT = "qwengpu-control-generate-9b-v1"
 TICK = 5120
 LINK_BASE = 6144
 ROM_BASE = 8192
@@ -58,10 +61,17 @@ def program_tokens(
 
 
 class ControlSIMT(Circ):
-    def __init__(self, target: Target | None = None, *, extended: bool = False):
+    def __init__(
+        self, target: Target | None = None, *, extended: bool = False,
+        generate: bool = False,
+    ):
         super().__init__(target or Target())
         f = self.token_feature
-        self.is_tick = f("is_tick", lambda t: int(t == TICK), full=True)
+        self.is_tick = f(
+            "is_tick",
+            lambda t: int(STATE_BASE <= t < ACTIVE_STATE_END if generate else t == TICK),
+            full=True,
+        )
         self.is_state = f(
             "is_state",
             lambda t: int(STATE_BASE <= t < STATE_BASE + STATE_COUNT),
@@ -261,11 +271,14 @@ def build(
     resumable: bool = False,
     extended: bool = False,
     workgroup: bool = False,
+    generate: bool = False,
 ) -> ControlSIMT:
+    if generate and (resumable or extended or workgroup):
+        raise ValueError("direct generation requires the bounded control layout")
     extended = extended or workgroup
     resumable = resumable or extended
     steps = 1 if workgroup else MAX_STEPS
-    c = ControlSIMT(target, extended=extended)
+    c = ControlSIMT(target, extended=extended, generate=generate)
     byte_count = (c.snapshot_bits + 7) // 8
     one = c.one
     for code in c.code:
@@ -295,13 +308,16 @@ def build(
                 c.is_a[lane],
             )
         )
-    state = c.slot_head(
-        "control",
-        {0: c.is_state},
-        {0: c.is_tick + resume},
-        {2 + b: v for b, v in enumerate(c.raw_state)},
-        c.is_state,
-    )
+    if generate:
+        state = c.raw_state
+    else:
+        state = c.slot_head(
+            "control",
+            {0: c.is_state},
+            {0: c.is_tick + resume},
+            {2 + b: v for b, v in enumerate(c.raw_state)},
+            c.is_state,
+        )
     pc, stage = state[:4], state[4:8]
     pc_hot = c.onehot_of_bits(pc, "pc", 16)
     stage_hot = c.onehot_of_bits(stage, "stage", 16)
@@ -620,11 +636,12 @@ def build_standalone(
     resumable: bool = False,
     extended: bool = False,
     workgroup: bool = False,
+    generate: bool = False,
 ):
     import torch
     from chipformer.q35.tiny import build as build_qwen
 
-    c = build(resumable=resumable, extended=extended, workgroup=workgroup)
+    c = build(resumable=resumable, extended=extended, workgroup=workgroup, generate=generate)
     model = build_qwen(
         c,
         list(range(VOCAB)),
