@@ -15,6 +15,42 @@ def read(directory, filename):
     return json.loads((directory / filename).read_text())
 
 
+def check_launch(run):
+    checks = [value for key, value in run.items() if key.endswith("_exact")]
+    assert checks and all(checks)
+    assert run["generated_tokens"] == run["expected_tokens"]
+    assert run["generation_calls"] == 1 and run["host_execution_tokens"] == 0
+
+
+def check_memory512(root):
+    baseline = read(BASELINE, "memory512.json")
+    assert baseline["all_exact"]
+    raw = {case["fixture"]: case for case in read(root, "memory512-raw.json")["cases"]}
+    assert len(raw) == len(baseline["raw"])
+    for old in baseline["raw"]:
+        case = raw.pop(old["name"] + ".json")
+        check_launch(case)
+        assert case["sha256"] == old["fixture_sha256"]
+        assert case["steps"] == len(old["trace"])
+        assert case["outcome"] == old["outcome"]
+        assert case["global_words"] == old["global_words"]
+
+    cases = read(root, "memory512-compute.json")["cases"]
+    assert cases.keys() == {case["name"] for case in baseline["cases"]}
+    for old in baseline["cases"]:
+        case = cases[old["name"]]
+        assert case["exact"] and old["exact"]
+        for key in ("kernel", "output", "global_words"):
+            assert case[key] == old[key], (old["name"], key)
+        for index, (run, earlier) in enumerate(zip(case["launches"], old["launches"], strict=True)):
+            check_launch(run)
+            assert run["steps"] == len(earlier["trace"])
+            assert run["outcome"] == earlier["outcome"]
+            assert run["global_words"] == earlier["global_words"]
+            assert run["global_upload_words"] == (0 if index else 256)
+    print(f"{len(cases)} common compute requests and {len(baseline['raw'])} raw RAM cases exact")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
@@ -43,8 +79,7 @@ def main():
                 assert case[key] == old[key], (name, key)
             assert case["exact"]
             for run, earlier in zip(case["launches"], old["launches"], strict=True):
-                assert all(v for k, v in run.items() if k.endswith("_exact"))
-                assert run["generation_calls"] == 1 and run["host_execution_tokens"] == 0
+                check_launch(run)
                 if "tile" in run:
                     assert (run["tile"], run["k_panel"]) == (earlier["tile"], earlier["k_panel"])
                     assert run["global_upload_words"] == (48 if run["k_panel"][0] else 256)
@@ -75,6 +110,7 @@ def main():
     assert deadlock["outcome"] == "deadlock" and all(deadlock["reference"].values())
     assert deadlock["generated_tokens"] == deadlock["expected_tokens"]
     print("Native text, retained handoff and public CLI exact")
+    check_memory512(root)
 
 
 if __name__ == "__main__":

@@ -64,6 +64,10 @@ status=0
 test "$status" -eq 3
 "$python" scripts/eval_resident_generation_workloads.py "$model" \
   --out "$reports/tiled.json" eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json
+"$python" -m qwengpu.eval_resident_generation --model "$model" \
+  --out "$reports/memory512-raw.json" eval/frozen/memory512_v1/*.json
+"$python" scripts/eval_resident_generation_workloads.py "$model" \
+  --suite eval/frozen/memory512_compute_v1/cases.json --out "$reports/memory512-compute.json"
 "$python" -m qwengpu.eval_resident_generation --device cuda \
   --out "$reports/inherited-standalone.json" "${inherited[@]}"
 "$python" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \
