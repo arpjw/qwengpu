@@ -1969,6 +1969,18 @@ python -m qwengpu.run_compute examples/memory512_reduce_128.json \
   --model "$model" --device cuda --out reduction.json
 ```
 
+On Apple Silicon, the same file inputs work with the standalone
+circuit and `--resident-generate --device mps`. The merged run needs
+a host with enough memory for the 86 GB checkpoint and its inference
+state. The standalone Apple MPS qualification is a separate run.
+
+```bash
+python -m qwengpu.eval_resident_generation --device mps \
+  --out inherited-mps.json "${fixtures[@]}"
+python scripts/check_resident_generation.py results/cache_register_edge_cuda \
+  inherited-mps.json --inherited-baseline results/model_stores_merged_cuda/inherited.json
+```
+
 ### Run general tiled uint32 matrix multiply
 
 Use the existing compiler environment. The 9×7 by 7×5 fixture exercises
