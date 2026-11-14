@@ -398,9 +398,12 @@ tags, committing 2,086 words in the merged replay. General cyclic
 register writeback through stock generation now reuses the same four
 physical warp banks on interleaved launches. The model emits its own
 schedule, control, register updates, and memory commit tokens from one
-launch prompt. Sequential workgroups, retained-cache relaunch, and
-tiled kernels still need qualification under this protocol. The
-token-level writeback edge remains visible in the generated stream.
+launch prompt. On merged CUDA, a two-pass 32-element reduction reuses
+one cache with no global upload on the second launch. The 3×5 by 5×2
+and 9×7 by 7×5 multiplies retain C across K panels. Sequential
+workgroups, post-launch native text handoff, and the full inherited suite still need qualification
+under this protocol. The token-level writeback edge remains visible
+in the generated stream.
 See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
 Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.

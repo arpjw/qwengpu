@@ -191,7 +191,7 @@ each launch to the interpreter and each final result to scalar arithmetic.
 
 ```bash
 python scripts/eval_resident_generation_workloads.py "$model" \
-  --out "$reports/workloads.json" eval/frozen/tiled_compute_v1/3x5x2.json
+  --out "$reports/workloads.json" eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json
 ```
 
 ```bash

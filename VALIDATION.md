@@ -243,6 +243,17 @@ The standalone CUDA and compact 9B checkpoints match all 1,229 generated
 tokens over 145 instructions across the four frozen cases. All final
 physical register rows, control rows, and memory mirrors agree.
 
+On the compact merged checkpoint, the 32-element reduction uses two
+stock generation calls on the same cache and produces `4293757072`.
+Its consumer uploads zero global words. The 3×5 by 5×2 multiply
+matches the scalar result at both K panels and uploads only 48
+operand words for its second panel. Both workloads audit exact
+generated tokens and retained recurrent state on every launch.
+The 9×7 by 7×5 case matches all 45 outputs across four output tiles
+and eight launches. Each second panel uploads 48 operand words. The
+reduction and the two matrix cases together match 600 instructions
+and the final physical state on all 12 launches.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,

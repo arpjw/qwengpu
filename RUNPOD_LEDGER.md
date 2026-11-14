@@ -364,3 +364,13 @@ at 01:11:51 UTC, for an estimated $0.402 of compute. Both deletions
 returned HTTP 204 followed by HTTP 404. Neither had posted charges at
 the immediate recheck. Reserve $0.60 for both, including disk. The
 artifact hashes and test reports are in `results/control_generation_cuda/`.
+
+## November 14 resident stock generation
+
+Pod `q1i77hvq53722m` ran the initial and compact resident-generation
+builds on one RTX PRO 6000 Blackwell Server GPU at $2.69/hour.
+RunPod created it at 01:17:43 UTC and verified deletion by 01:57:00 UTC
+(HTTP 204 followed by HTTP 404). Estimated elapsed compute was $1.76.
+No charge had posted on the immediate recheck. Reserve $2.00 for
+compute and disk. The checkpoint manifests and workload traces are in
+`results/resident_generation_cuda/`.
