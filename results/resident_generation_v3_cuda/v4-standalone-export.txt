@@ -1,0 +1,22 @@
+V4 standalone export for CUDA and Apple MPS
+QwenGPU source 707854d. Qwenputer compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c.
+
+From the source checkout with the pinned compiler environment:
+
+python scripts/export_resident_generation_standalone.py /tmp/qwengpu-v4-standalone --generated-tilegrid
+(
+  cd /tmp/qwengpu-v4-standalone
+  sha256sum config.json generation_config.json model.safetensors > SHA256SUMS
+)
+tar -C /tmp -cf - qwengpu-v4-standalone | zstd -T2 -3 -o qwengpu-v4-standalone.tar.zst
+
+The Linux builder saved 52 circuit layers. The archive was copied from
+RunPod and passed the zstd integrity check. The file digests below are
+from the archived build manifest.
+
+eb6ac18c39571983104656c73ad8a5258df07a84e700ffe69c646d440a906b0b  config.json
+57ef3923597f292316b0875ee75fc7ba832862116bddbc18cce16a8b139e642e  generation_config.json
+764892cc0c7bec6ce567f44e44871e5bb7a4cecefde1f42e83cb9455772fc7d0  model.safetensors
+
+Archive SHA-256
+f383223eb1b3fd26d0056669d51e2673fcce0aedbbce95db2fe6d8efbea45ba5
