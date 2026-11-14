@@ -239,8 +239,8 @@ token features for uploads and generated updates. This returns the
 merge to 7,424 hidden dimensions with 3,232 live slots. On the same
 text corpus, the compact merge matches 24/24 first tokens and 22/24
 full continuations with zero chip tokens.
-The compact 9B checkpoint also matches all 1,229 generated tokens
-over 145 instructions across the four frozen cases. All final
+The standalone CUDA and compact 9B checkpoints match all 1,229 generated
+tokens over 145 instructions across the four frozen cases. All final
 physical register rows, control rows, and memory mirrors agree.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes

@@ -92,7 +92,7 @@ def main():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("matrix", type=Path, nargs="*")
-    args = parser.parse_args()
+    args = parser.parse_intermixed_args()
     meta = json.loads((args.model / "qwengpu9b.json").read_text())
     if meta["layout"] != LAYOUT:
         raise ValueError("expected a stock resident generation checkpoint")
