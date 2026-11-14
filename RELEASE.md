@@ -309,10 +309,21 @@ printf '%s\n' "$HF_TOKEN" | python scripts/promote_hf_model.py \
 
 The promotion helper checks the staged checksum digest and exact file
 list, copies all staged package files, and removes stale `main` files
-in one commit. It checks the resulting revision and file list. This
-path is covered by local mock tests but has not been exercised against
-the live Hub. Verify the public `main` file list, a signed-out download,
-card images, and checksum before announcing the release.
+in one commit. It checks the resulting revision and file list. A live
+private Hub probe verified the branch-to-branch copy of a small regular
+file, stale-file deletion, parent-pinned target commit, unchanged `main`,
+and deletion of both temporary branches. Reproduce that isolated check
+without uploading model weights:
+
+```bash
+python scripts/probe_hf_promotion.py arpjw/Qwen-GPU
+```
+
+The [probe receipt](results/public-readiness/hf-promotion-probe-2026-11-14.json)
+records the exact revisions. This probe does not validate the full 49-file
+promotion or an 86 GB Hub upload. Verify the public `main` file list, a
+signed-out download, card images, and checksum before announcing the
+release.
 [Hub commit operations](https://huggingface.co/docs/huggingface_hub/main/package_reference/hf_api)
 
 ## Standalone v4 Apple MPS candidate
