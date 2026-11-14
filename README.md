@@ -23,18 +23,30 @@ and updates registers and memory through its generated tokens.
 
 The 27 tile fixtures matched **26,225 generated tokens over 1,972
 instructions**, with exact final memory and zero host-supplied execution
-tokens. The second launch of the 128-element reduction reused global
-memory with zero re-upload. Each generated token still requires a model
-forward pass. The full v3 Apple MPS replay is pending.
+tokens. Native text matched all 24 first tokens and 21 of 24 full
+continuations. The second launch of the 128-element reduction reused global
+memory with zero re-upload. Each generated token requires a model forward
+pass. The full v3 Apple MPS replay is pending.
+
+A clean download passed all 49 package checksums and reproduced the seeded
+tile and native-text results. [Restore receipt and verifier output](RELEASE.md#restore-receipt)
 
 ## Run a kernel
 
-Use the [private v3 checkpoint](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219)
-or build it from the [pinned source](REPRODUCE.md#run-the-stock-generation-checkpoint).
 The merged weights occupy about 86 GB. Qualification used a 96 GB NVIDIA
-RTX PRO 6000 Blackwell Server Edition GPU.
+RTX PRO 6000 Blackwell Server Edition GPU. From the QwenGPU checkout,
+sign in with a Hugging Face account that has access to the private
+checkpoint and download the verified revision.
 
-With the compiler environment set up as described in [REPRODUCE.md](REPRODUCE.md):
+```bash
+hf auth login
+checkpoint=./Qwen-GPU-v3
+hf download arpjw/Qwen-GPU \
+  --revision fe671778a2409a218dde757871f33f5ca46d9219 --local-dir "$checkpoint"
+```
+
+Set up the pinned environment and run a kernel.
+The same guide includes the build-from-source path. [Reproduction guide](REPRODUCE.md#run-the-stock-generation-checkpoint)
 
 ```bash
 python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \

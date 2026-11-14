@@ -24,6 +24,10 @@ The CUDA replay matched 26,225 generated tokens over 1,972 instructions
 in the tile suite. The same checkpoint passes 64-element vector add,
 128-element two-pass reduction, and 8×4 by 4×4 matrix multiply. The
 second reduction launch reuses global RAM with zero re-upload.
+Native text matched all 24 first tokens and 21 of 24 full continuations
+with zero GPU token IDs. A clean download passed all 49 package checksums
+and reproduced the seeded tile and native-text results.
+[Restore receipt and verifier output](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#restore-receipt)
 
 ## Changes from Qwen3.5-9B
 
@@ -42,25 +46,31 @@ Kernels run bounded integer arithmetic and report halt, deadlock,
 or a launcher-imposed instruction limit. Each emitted token takes a
 model forward pass.
 
-## Revisions and usage
+## Download and run
 
 `build-manifest.json` pins the QwenGPU build, Qwenputer compiler, and
 Qwen3.5-9B source revisions and records the shard digests.
-`environment.txt` records the validation runtime. Set up the compiler
-environment from the [Qwen-GPU source repository](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md)
-and set `checkpoint` to the downloaded snapshot. The merged weights
-occupy about 86 GB and were qualified on a 96 GB CUDA GPU.
-For a checksum-verified download, use the [pinned checkpoint revision](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
+`environment.txt` records the validation runtime. The merged weights
+occupy about 86 GB and were qualified on a 96 GB CUDA GPU. From the
+QwenGPU checkout, sign in with a Hugging Face account that has access to
+this private checkpoint and download the verified revision.
+
+```bash
+hf auth login
+checkpoint=./Qwen-GPU-v3
+hf download arpjw/Qwen-GPU \
+  --revision fe671778a2409a218dde757871f33f5ca46d9219 --local-dir "$checkpoint"
+```
+
+Set up the pinned environment and run the seeded tile kernel.
+[Reproduction guide](https://github.com/arpjw/qwengpu/blob/main/REPRODUCE.md#run-the-stock-generation-checkpoint)
 
 ```bash
 python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
   --model "$checkpoint" --device cuda --check-reference --out result.json
 ```
 
-The model emitted zero GPU IDs on the frozen native-text corpus.
-The v3 Apple MPS replay is pending. The
-[release receipt](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md)
-identifies the pinned weights and the restore checks.
+The full v3 Apple MPS replay is pending.
 
 ## Attribution
 
