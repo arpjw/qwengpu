@@ -125,11 +125,9 @@ Hugging Face download below.
 
 The frozen v4 backup's packaged `README.md` predates the Hugging Face
 quota failure and still shows a direct v4 Hub download that is not
-available. The corrected [v4 model card](release/model-card-v4.md) gives
-the working private restore path. Before publishing a v4 package, put
-the corrected card in that package, create a new checksum manifest,
-and verify a clean restore of the revised package. Preserve the
-qualified backup and its original checksum as the execution baseline.
+available. The corrected package below includes the revised
+[v4 model card](release/model-card-v4.md). Preserve the frozen backup
+and its original checksum as the CUDA execution baseline.
 
 Reproduce this private file restore with GitHub access and the release
 ID above. The helper reads a token from standard input and requires a
@@ -145,6 +143,48 @@ python scripts/check_checkpoint_package.py "$restored" \
   --expected-checksum-digest \
   f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
 ```
+
+## Corrected v4 private draft package
+
+A separate private GitHub draft, tag `v4-corrected-package-2026-11-14`
+and release ID `445423220`, contains the corrected model card and a new
+`SHA256SUMS`. The [repackage receipt](results/resident_generation_v4_cuda/corrected-package/repackage-receipt.json)
+records 47 unchanged content files and the one changed `README.md`.
+Every weight shard is byte-identical to the CUDA-qualified frozen backup.
+The revised checksum list has SHA-256
+`67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913`.
+The corrected card has SHA-256
+`c214c59bdfd9bb7cbeb4ab854fc0c5eecea8ad3c61ec5c14862afc07c7d5616f`.
+
+GitHub reported 90 assets totaling 86,321,154,200 bytes. The
+[asset receipt](results/resident_generation_v4_cuda/corrected-package/github-backup-receipt.json)
+records private and draft status and matching asset sizes and SHA-256
+values against the [backup manifest](results/resident_generation_v4_cuda/corrected-package/github-backup-manifest.json).
+That manifest has SHA-256
+`3c6c39c345967b0bdc2352edd248384f92dcfdf8ab0e885a1df76cf961b9ea5c`.
+The corrected package passed a full file and pinned-manifest check
+before upload. This package revision changes documentation, so its CUDA
+execution evidence is inherited by byte identity from the frozen
+checkpoint; it is not a new GPU replay.
+
+Restore the corrected package into a nonexistent directory with GitHub
+access:
+
+```bash
+gh auth token | python3 scripts/restore_private_release.py \
+  arpjw/qwengpu v4-corrected-package-2026-11-14 445423220 \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
+  "$restored" --backup-manifest corrected-github-backup-manifest.json
+python3 scripts/check_checkpoint_package.py "$restored" \
+  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
+  --expected-checksum-digest \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913
+```
+
+If the transfer stops, repeat the restore command with `--resume`. It
+rehashes existing expected files, skips complete files, and replaces
+only incomplete ones. It rejects unexpected entries and symlinks in
+the destination.
 
 ## Standalone v4 Apple MPS candidate
 

@@ -8,7 +8,9 @@ common compute suite and all 27 inherited fixtures on both standalone
 CUDA and merged 9B CUDA, and preserves the native-text gate. Its 35
 weight shards and 48-file package passed SHA-256 checks. The private
 Hugging Face upload was rejected by the account's private storage limit.
-A checksum-verified backup is now in a private GitHub draft release.
+A checksum-verified backup is in a private GitHub draft release. A
+second private draft packages the corrected model card with the same
+35 weight shards and a new checksum manifest.
 A clean download passed all package checks and reproduced the seeded
 tile, native text, and 16×16 matrix on a separate 96 GB CUDA GPU.
 Full standalone Apple MPS qualification also remains pending.

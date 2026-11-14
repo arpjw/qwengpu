@@ -32,7 +32,8 @@ token IDs. [Reports and reproduction commands](VALIDATION.md)
 Each generated token requires a model forward pass, so the current
 machine is slow. Apple MPS qualification of v4 remains pending. The
 private v4 checkpoint package passed its 48-file checksum pass and is
-backed up in a private GitHub draft release. A clean download passed
+backed up in a private GitHub draft release. A clean download of the frozen
+execution package passed
 all file and package checks, then reproduced the seeded tile, native text,
 and full 16×16 matrix on a separate 96 GB CUDA GPU. The
 [release receipt](RELEASE.md) and [restored-run reports](results/resident_generation_v4_cuda/restored-reports)
@@ -43,7 +44,7 @@ the account's private storage limit.
 ## Run the verified v4 checkpoint
 
 The merged weights occupy about 86 GB and were restored and run on a
-96 GB CUDA GPU. The v4 package is currently in a private GitHub draft
+96 GB CUDA GPU. The corrected v4 package is in a private GitHub draft
 release. Set up the [pinned environment](REPRODUCE.md#run-the-stock-generation-checkpoint),
 then run these commands from a QwenGPU checkout with `gh` authenticated
 for this repository. Choose a destination outside the checkout that
@@ -54,19 +55,19 @@ checkpoint=../Qwen-GPU-v4
 export QWENPUTER_DIR=/path/to/qwenputer/experimental/riscv
 export PYTHONPATH="$QWENPUTER_DIR:$PWD"
 gh auth token | python3 scripts/restore_private_release.py \
-  arpjw/qwengpu v4-private-backup-2026-11-14 445244518 \
-  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
-  "$checkpoint"
+  arpjw/qwengpu v4-corrected-package-2026-11-14 445423220 \
+  67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
+  "$checkpoint" --backup-manifest corrected-github-backup-manifest.json
 python3 scripts/check_checkpoint_package.py "$checkpoint" \
   --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
-  --expected-checksum-digest f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
+  --expected-checksum-digest 67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913
 "$QWENPUTER_DIR/.venv/bin/python" -m qwengpu.run_resident \
   eval/frozen/tile8_gate_v1/dense_seeded.json \
   --model "$checkpoint" --device cuda --check-reference --out tile.json
 ```
 
-The [release guide](RELEASE.md#qualified-v4-private-draft-backup)
-records the full matrix and native-text replay.
+The [release guide](RELEASE.md#corrected-v4-private-draft-package)
+records the package checks and the frozen CUDA matrix and native-text replay.
 
 ## Apple MPS candidate
 
