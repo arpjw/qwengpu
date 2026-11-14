@@ -269,6 +269,14 @@ match under stock generation. The probes cover barriers, collision
 priority, masked collisions, and boundary rows in both RAM banks.
 See `results/resident_generation_cuda/single.json`.
 
+Eight requests from the frozen 512-byte compute suite pass on the same
+merged checkpoint. They cover vector sizes 0, 17, and 32, reductions
+at those sizes, and matrix shapes 1×1 by 1×1 and 8×4 by 4×4. The 11
+launches match 334 instructions and 4,701 generated tokens. Each
+reduction's second pass uploads zero global words. The checker also
+compares all final RAM words, including untouched guards, to scalar
+arithmetic. See `results/resident_generation_cuda/compute.json`.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,

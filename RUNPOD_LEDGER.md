@@ -374,3 +374,11 @@ RunPod created it at 01:17:43 UTC and verified deletion by 01:57:00 UTC
 No charge had posted on the immediate recheck. Reserve $2.00 for
 compute and disk. The checkpoint manifests and workload traces are in
 `results/resident_generation_cuda/`.
+
+Pod `769wn1axp3j7sg` rebuilt the compact generation checkpoint and
+verified native-text handoff, single-workgroup memory and arithmetic, and
+eight compute requests. It ran on the RTX PRO 6000 Blackwell Server at
+$2.69/hour from 01:58:40 to verified deletion at 02:30:38 UTC on November
+14. The API returned HTTP 204 followed by HTTP 404. Estimated compute
+was $1.43. No charge had posted on the immediate recheck. Reserve $1.70
+for compute and disk.
