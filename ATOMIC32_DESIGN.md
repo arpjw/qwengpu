@@ -33,12 +33,14 @@ directory, run the reference checks from this checkout:
 
 ```bash
 PYTHONPATH="$QWENPUTER_DIR:$PWD" "$QWENPUTER_DIR/.venv/bin/python" \
-  -m unittest tests.test_atomic32 -v
+  -m unittest tests.test_atomic32 tests.test_compiled_atomic32 -v
 ```
 
 The [reference test log](results/atomic32/reference-tests.txt) includes the
 atomic checks and the existing full-integer, assembler, and 512-byte-memory
 tests. It records interpreter and encoding behavior, not model inference.
+The [isolated circuit log](results/atomic32/isolated-circuit-tests.txt)
+records exact Qwenputer graph evaluation for three and eight lanes.
 
 ## Circuit and qualification work
 
@@ -48,7 +50,11 @@ tests. It records interpreter and encoding behavior, not model inference.
    immediate 9. It does not enable the opcode in a compiled model.
 2. Gather both limbs for each lane from the same pre-instruction snapshot.
    Compute each lane's old value with the sum of earlier active addends to
-   the same pair; wrap every sum at 32 bits.
+   the same pair; wrap every sum at 32 bits. The isolated
+   `qwengpu.compiled_atomic32.atomic_add32_results` graph now computes
+   these prefix values and the last active writer per pair. Its exact graph
+   evaluator passes overflow, masks, distinct pairs, and an eight-lane
+   collision. It is not connected to model memory or generation yet.
 3. Commit each distinct pair's final low and high limbs before issuing the
    next instruction. Reuse the model-owned memory writeback protocol with
    enough commit slots for both limbs. Keep the ordering within one model
