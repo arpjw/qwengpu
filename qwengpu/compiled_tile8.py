@@ -484,6 +484,7 @@ def build(
     c.resident_interleaved = resident_interleaved
     c.full_integer = full_integer
     c.internal_stores = internal_stores
+    c.stock_generation_tile = generate
     c.memory_geometry = geometry
     one = c.one
     warp_banks = (
@@ -507,6 +508,8 @@ def build(
         generate_tick = between("generate.tick", gen.TICKET, gen.TICKET + 4)
         generate_schedule = match("generate.schedule", gen.SCHEDULE)
         generated_group = between("generate.group", gen.GROUP, gen.GROUP + 4)
+        generated_row = between("generate.row", gen.ROW, gen.ROW + ROW_PAIRS)
+        generated_restart = generated_group + generated_row
         generated_resets = [match(f"generate.reset.{w}", token)
                             for w, token in enumerate(gen.RESET)]
         release_inputs = [
@@ -669,7 +672,7 @@ def build(
         inter_controls = []
         if generate:
             active_control_data = {
-                2 + i: c.and_([bit, one - generated_group], f"generate.control.raw.{i}")
+                2 + i: c.and_([bit, one - generated_restart], f"generate.control.raw.{i}")
                 for i, bit in enumerate(raw[:7])
             }
         for w in range(4):
@@ -679,7 +682,7 @@ def build(
             if generate:
                 load += release_inputs[w] + step_inputs[w]
                 if w < 2:
-                    load += generated_group
+                    load += generated_restart
                     data = active_control_data
             inter_controls.append(
                 c.slot_head(
@@ -770,10 +773,10 @@ def build(
                     3: group_tickets[1] + group_tickets[2],
                 }
                 if generate:
-                    load_group += generated_group
+                    load_group += generated_restart
                     for i in range(2):
                         group_data[2 + i] += c.and_(
-                            [generated_group, raw[i]], f"generate.group.bit.{i}",
+                            [generated_restart, raw[i]], f"generate.group.bit.{i}",
                         )
                     group_data[4] = generated_group
                 group_low, group_high, *group_mode = c.slot_head(
@@ -876,13 +879,28 @@ def build(
         )[0]
         interleaved_group = interleaved
         if generate:
-            interleaved_group = c.and_([interleaved, one - sequential], "generate.group.interleaved")
+            interleaved_group = c.and_([interleaved, one - sequential, generic],
+                                      "generate.group.interleaved")
         group_low = c.select_bits(
             [([interleaved_group], [previous[1]]), ([one - interleaved_group], [group_low])],
             1,
             "resident.group",
         )[0]
-    row_bits = [warp_bit, tile0, tile1]
+    if generate:
+        row_cursor = [group_low, group_high]
+        advance_row = c.and_(
+            [one - generic, inter_halt,
+             one - c.node(c.t_eq(from_bits(row_cursor) - from_bits(grid[:2]), 0, -3, 3),
+                          "generate.row.last")],
+            "generate.row.advance",
+        )
+        row_pair = c.select_bits(
+            [([generic], [tile0, tile1]), ([one - generic], row_cursor)],
+            2, "generate.row.pair",
+        )
+    else:
+        row_pair = [tile0, tile1]
+    row_bits = [warp_bit, *row_pair]
     rows = c.onehot_of_bits(row_bits, "tile.row", 8)
     pc = [
         c.node(
@@ -1121,7 +1139,7 @@ def build(
                 )
 
     scoped_ports = {}
-    write_grant, write_scoped = Expr(), Expr()
+    write_grant, write_local = Expr(), Expr()
     write_address, write_value, scoped_write_address = [], [], []
 
     def lookup(
@@ -1132,8 +1150,13 @@ def build(
         *,
         reset: bool = False,
         reset_ones: bool = False,
+        tile_port: bool = False,
     ) -> list[Expr]:
-        if resident_alu32 and len(addresses) >= 16:
+        shared_port = name.startswith("shared.")
+        model_port = internal_stores and (shared_port or tile_port)
+        if model_port and generate:
+            keys, ref = {}, Expr()
+        elif resident_alu32 and len(addresses) >= 16:
             members = frozenset(base // 16 + offset for offset in addresses)
             ref = c.token_feature(
                 f"{name}.load",
@@ -1170,25 +1193,47 @@ def build(
                     )
                 keys[slot] = input_keys[start]
             ref = sum(keys.values(), Expr())
-        if internal_stores and name.startswith("shared."):
+        if model_port:
             nib = addresses[0] % 4
-            if nib not in scoped_ports:
-                port = f"scoped.write.{nib}"
-                upload = c.and_([ref], f"{port}.upload")
-                enabled = c.and_([write_grant, write_scoped], f"{port}.commit")
+            assert all(address % 4 == nib for address in addresses)
+            port = f"scoped.write.{nib}"
+            if port not in scoped_ports:
+                if generate:
+                    upload = c.token_feature(
+                        f"{port}.upload",
+                        lambda token, nib=nib: int(
+                            token // 16 % 4 == nib and (
+                                INDEX_OPERAND <= token < INDEX_OPERAND + 4096
+                                or any(start <= token < start + 4096 for start in OUTPUT_BANKS)
+                                or SCOPED_BASE <= token < SCOPED_BASE + 8192
+                                or any(start <= token < start + 2048 for start in RIGHT_OPERANDS)
+                                or ALT_OPERAND <= token < ALT_OPERAND + 4096
+                            )
+                        ),
+                        full=True,
+                    )
+                else:
+                    upload = c.and_([ref], f"{port}.upload")
+                enabled = c.and_([write_grant, write_local], f"{port}.commit")
+                if generate:
+                    upload_bits, commit_bits = legacy_digits[2:], scoped_write_address[2:]
+                else:
+                    upload_bits = legacy_digits
+                    commit_bits = [nib & 1, nib >> 1, *scoped_write_address[2:]]
                 selector = c.select_bits(
-                    [([upload], legacy_digits), ([enabled], [nib & 1, nib >> 1, *scoped_write_address[2:]])],
-                    len(legacy_digits), f"{port}.address",
+                    [([upload], upload_bits), ([enabled], commit_bits)],
+                    len(upload_bits), f"{port}.address",
                 )
                 data = {
                     col: c.and_([upload, value], f"{port}.upload_bit.{bit}")
                     + write_value[4 * nib + bit]
                     for bit, (col, value) in enumerate(raw_nibble.items())
                 }
-                scoped_ports[nib] = selector, upload + enabled, data
-            selector, enabled, data = scoped_ports[nib]
+                scoped_ports[port] = selector, upload + enabled, data
+            selector, enabled, data = scoped_ports[port]
+            offset = 2 if generate else 0
             keys = {
-                slot: key_matches(c, selector, base // 16 + address, enabled)
+                slot: key_matches(c, selector, (base // 16 + address) >> offset, enabled)
                 for slot, address in enumerate(addresses)
             }
             return c.slot_head(name, keys, dict(enumerate(selects)), data, enabled)
@@ -1266,7 +1311,7 @@ def build(
                 if (bank, nib) not in write_ports:
                     port = f"ram.write.{bank}.{nib}"
                     enabled = c.and_(
-                        [write_grant, one - write_scoped, write_address[7] if bank else one - write_address[7]],
+                        [write_grant, one - write_local, write_address[7] if bank else one - write_address[7]],
                         f"{port}.commit",
                     )
                     upload_enabled = c.and_(
@@ -1391,53 +1436,77 @@ def build(
         if resident_tilegrid
         else a_queries
     )
-    a = [
-        bit
-        for nib in range(2)
-        for bit in lookup(
-            f"A.{nib}",
-            operand_base,
-            [offset + 2 * i + nib for offset in bank_offsets for i in range(64)],
-            top_a_queries,
-        )
-    ]
-    if resident_tilegrid:
-        bottom_a_queries = [
-            c.and_([query, bottom_output], f"A.bottom.{i}")
-            for i, query in enumerate(a_queries)
-        ]
-        bottom_a = [
-            bit
-            for nib in range(2)
-            for bit in lookup(
-                f"A.bottom.{nib}",
-                0,
+    def tile_inputs():
+        if generate:
+            parts = [
                 [
-                    base // 16 + 2 * i + nib
-                    for base in BOTTOM_OPERANDS
-                    for i in range(64)
-                ],
-                bottom_a_queries,
-            )
+                    bit
+                    for nib in range(2)
+                    for bit in lookup(
+                        f"A.{parity}.{nib}",
+                        operand_base,
+                        [offset + 2 * i + nib for offset in bank_offsets
+                         for i in range(parity, 64, 2)],
+                        top_a_queries[parity::2],
+                        tile_port=True,
+                    )
+                ]
+                for parity in range(2)
+            ]
+            a = [even + odd for even, odd in zip(*parts, strict=True)]
+        else:
+            a = [
+                bit
+                for nib in range(2)
+                for bit in lookup(
+                    f"A.{nib}",
+                    operand_base,
+                    [offset + 2 * i + nib for offset in bank_offsets for i in range(64)],
+                    top_a_queries,
+                )
+            ]
+        if resident_tilegrid:
+            bottom_a_queries = [
+                c.and_([query, bottom_output], f"A.bottom.{i}")
+                for i, query in enumerate(a_queries)
+            ]
+            bottom_a = [
+                bit
+                for nib in range(2)
+                for bit in lookup(
+                    f"A.bottom.{nib}",
+                    0,
+                    [
+                        base // 16 + 2 * i + nib
+                        for base in BOTTOM_OPERANDS
+                        for i in range(64)
+                    ],
+                    bottom_a_queries,
+                )
+            ]
+            a = [top + bottom for top, bottom in zip(a, bottom_a, strict=True)]
+        b = [
+            [
+                bit
+                for nib in range(2)
+                for bit in lookup(
+                    f"B.{col}.{nib}",
+                    operand_base,
+                    [
+                        offset + 2 * (8 * k + col) + nib
+                        for offset in b_offsets
+                        for k in range(8)
+                    ],
+                    b_queries,
+                tile_port=generate,
+                )
+            ]
+            for col in range(8)
         ]
-        a = [top + bottom for top, bottom in zip(a, bottom_a, strict=True)]
-    b = [
-        [
-            bit
-            for nib in range(2)
-            for bit in lookup(
-                f"B.{col}.{nib}",
-                operand_base,
-                [
-                    offset + 2 * (8 * k + col) + nib
-                    for offset in b_offsets
-                    for k in range(8)
-                ],
-                b_queries,
-            )
-        ]
-        for col in range(8)
-    ]
+        return a, b
+
+    if not generate:
+        a, b = tile_inputs()
     old = [
         bit
         for nib in range(32)
@@ -1448,16 +1517,24 @@ def build(
         for nib in range(HIGH_NIBBLES if resident_wide else 0)
         for bit in state_lookup(f"high.{nib}", HIGH_REGISTER, nib)
     ]
-    c_row = [
-        bit
-        for nib in range(32)
-        for bit in lookup(
-            f"C.{nib}",
-            C_MEMORY,
-            [offset + 32 * row + nib for offset in output_offsets for row in range(8)],
-            row_queries,
-        )
-    ]
+
+    def tile_accumulator():
+        c_row = [
+            bit
+            for nib in range(32)
+            for bit in lookup(
+                f"C.{nib}",
+                C_MEMORY,
+                [offset + 32 * row + nib for offset in output_offsets for row in range(8)],
+                row_queries,
+                tile_port=generate,
+            )
+        ]
+
+        return c_row
+
+    if not generate:
+        c_row = tile_accumulator()
 
     if full_integer:
         extent_load = between(
@@ -1892,22 +1969,35 @@ def build(
                     ],
                     16, f"ram.commit.source.{lane}",
                 )
-                gate = c.and_(
-                    [grants[lane], generic],
-                    f"ram.commit.grant.{lane}",
+                gate = grants[lane] if generate else c.and_(
+                    [grants[lane], generic], f"ram.commit.grant.{lane}",
                 )
                 addr = store_addresses[lane]
                 bit0 = c.node(
                     c.t_and([addr[0], one - store_high]) + c.t_and([one - addr[0], store_high]),
                     f"ram.commit.low_bit.{lane}",
                 )
-                values = [gate, scoped_store, bit0, *addr[1:], *old_value]
+                addr = [bit0, *addr[1:]]
+                local = scoped_store
+                if generate:
+                    tile_store = c.and_([ops["STORE_TILE"], active[lane]],
+                                        f"tile.commit.grant.{lane}")
+                    addr = c.select_bits(
+                        [([tile_store], [*(lane >> bit & 1 for bit in range(3)),
+                                         *row_bits, one, Expr()]),
+                         ([one - tile_store], addr)],
+                        8, f"tile.commit.address.{lane}",
+                    )
+                    gate += tile_store
+                    grants[lane] = gate
+                    local = one - generic + scoped_store
+                values = [gate, local, *addr, *old_value]
                 selected = c.slot_head(
                     f"ram.commit.pending.{lane}", {0: tick}, {0: commit[lane]},
                     {2 + bit: value for bit, value in enumerate(values)}, tick,
                 )
                 write_grant += selected[0]
-                write_scoped += selected[1]
+                write_local += selected[1]
                 if not write_address:
                     write_address = [Expr() for _ in range(8)]
                     write_value = [Expr() for _ in range(16)]
@@ -1931,6 +2021,10 @@ def build(
             scoped_write_address[2:8] = write_address[:6]
             for lane, gather_address in enumerate(gather_addresses):
                 build_gather(lane, gather_address)
+
+    if generate:
+        a, b = tile_inputs()
+        c_row = tile_accumulator()
 
     if resident_globalgrid:
         registers32 = [
@@ -2269,8 +2363,10 @@ def build(
             *gen.generated_schedule(
                 c, generate_schedule, release_inputs, inter_controls, inter_release,
                 issue, inter_halt, inter_deadlock, DONE, DEADLOCK, advance_group, next_group,
+                advance_row, next_group,
             ),
             ([generated_group], gen.token_bits(gen.RESET[0])),
+            ([generated_row], gen.token_bits(gen.SCHEDULE)),
             ([generated_resets[0]], gen.token_bits(gen.RESET[1])),
             ([generated_resets[1]], gen.token_bits(gen.SCHEDULE)),
             *gen.generated_writeback(

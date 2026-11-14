@@ -6,12 +6,33 @@ from pathlib import Path
 
 from qwengpu import resident_generation as gen
 from qwengpu.compiled_tile8 import WIDE_WARP_TAGS, rom_address
-from qwengpu.eval_resident_generation import expected_tokens, launch_prompt, resident_reference
+from qwengpu.eval_resident_generation import (
+    expected_tokens, launch_prompt, launch_registers, resident_reference,
+)
 from qwengpu.eval_tile8 import oracle, parse_launch
 from qwengpu.resident_scheduler import resident_control
 
 
 class ResidentGenerationTests(unittest.TestCase):
+    def test_tile_row_transition_preserves_seeded_registers(self):
+        case = parse_launch({
+            "programs": [[{"op": "ADD16I", "arg": 1}, {"op": "HALT"}],
+                         [{"op": "HALT"}]],
+            "first_row_pair": 1, "row_pairs": 2,
+            "initial_registers": [[0x12340001] * 8, [0x45670001] * 8],
+        }, full_integer=True)
+        reference = resident_reference(oracle(case, 256, looping=True), tiled=True)
+        tokens, controls, regs = expected_tokens(
+            reference, active_warps=2, registers=launch_registers(case),
+        )
+        self.assertIn(gen.ROW + 1, launch_prompt(case))
+        row = tokens.index(gen.ROW + 2)
+        self.assertEqual(tokens[row:row + 3], [gen.ROW + 2, gen.SCHEDULE, gen.TICKET + 1])
+        self.assertTrue(set(tokens).isdisjoint(gen.RESET))
+        self.assertEqual(regs[0][:4], [3, 0, 0, 0])
+        self.assertEqual(regs[0][-32:-28], [4, 3, 2, 1])
+        self.assertEqual(controls[2:], [resident_control(w, status=1) for w in (2, 3)])
+
     def test_four_sequential_groups_reset_both_active_warps(self):
         path = Path(__file__).resolve().parents[1] / "eval/frozen/scoped_memory_v1/isolation.json"
         case = parse_launch(json.loads(path.read_text()), full_integer=True)

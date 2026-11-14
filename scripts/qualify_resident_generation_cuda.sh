@@ -22,6 +22,11 @@ sequential=(
   eval/frozen/scoped_memory_v1/isolation.json
   eval/frozen/memory512_extent_v1/matrix_extent.json
 )
+inherited=()
+for gate in tile8 resident indexed masked divergent loop grid wide resident_add32 window \
+  resident_shared32 resident_addmem32 resident_branch32 resident_loop32; do
+  inherited+=(eval/frozen/"${gate}_gate_v1/"*.json)
+done
 "$python" -m qwengpu.eval_resident_generation --out "$reports/standalone.json" "${fixtures[@]}"
 "$python" -m qwengpu.eval_resident_generation --out "$reports/sequential-standalone.json" "${sequential[@]}"
 "$python" -m qwengpu.merge9b "$base" --resident-generate --out "$model"
@@ -37,6 +42,7 @@ assert report["merged_chip_tokens"] == 0
 PY
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/merged.json" "${fixtures[@]}"
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/sequential-merged.json" "${sequential[@]}"
+"$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/inherited-merged.json" "${inherited[@]}"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/standalone.json" "$reports/merged.json"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \

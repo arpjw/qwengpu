@@ -1,14 +1,15 @@
-"""Stock-generation token protocol for the interleaved integer GPU."""
+"""Stock-generation token protocol for resident workgroups and tiled launches."""
 
 from chipformer.dsl.graph import Expr
 from chipformer.q35.prims import from_bits, onehot_bits
 
-LAYOUT = "qwengpu-resident-generation-9b-v2"
+LAYOUT = "qwengpu-resident-generation-9b-v3"
 SCHEDULE = 2704
 TICKET = 2708
 COMMIT = 2712
 GROUP = 2720
 RESET = (2736, 2752)
+ROW = 2760
 STEP_CONTROL = 0x9800
 RELEASE_CONTROL = 0x9A00
 REGISTER = 0x1C000
@@ -43,7 +44,7 @@ def first_after(c, request, continuation, cursor, choices, name):
 
 def generated_schedule(
     c, schedule, release_inputs, controls, releases, issue, halt, deadlock,
-    done_token, deadlock_token, advance_group, next_group,
+    done_token, deadlock_token, advance_group, next_group, advance_row, next_row,
 ):
     """Save the scheduling decision before any barrier state is rewritten."""
     ready = [
@@ -64,13 +65,15 @@ def generated_schedule(
         token = RELEASE_CONTROL + 128 * (warp + 1)
         yield [release_inputs[warp]], [*stored[7 * (warp + 1):7 * (warp + 2)], *token_bits(token)[7:]]
     for gate, bits, halted, blocked in (
-        ([schedule, c.one - changed, c.one - advance_group], scheduled, halt, deadlock),
+        ([schedule, c.one - changed, c.one - advance_group - advance_row],
+         scheduled, halt, deadlock),
         ([release_inputs[-1]], stored[28:30], *stored[30:32]),
     ):
         yield [*gate, halted], token_bits(done_token)
         yield [*gate, blocked], token_bits(deadlock_token)
         yield [*gate, c.one - halted - blocked], [*bits, *token_bits(TICKET)[2:]]
     yield [schedule, advance_group], [*next_group, *token_bits(GROUP)[2:]]
+    yield [schedule, advance_row], [*next_row, *token_bits(ROW)[2:]]
 
 
 def generated_writeback(

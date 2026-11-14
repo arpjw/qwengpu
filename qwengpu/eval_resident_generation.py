@@ -8,18 +8,19 @@ from pathlib import Path
 
 import torch
 from chipformer.q35.ir import Target
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, StoppingCriteria
 
 from qwengpu import resident_generation as gen
 from qwengpu.alu32 import RUNTIME_EXTENT_BASE
 from qwengpu.cache_register_edge import register_head_names
 from qwengpu.compiled_tile8 import (
-    DEADLOCK, DONE, GLOBAL_GRID, GRID, MASK_REGISTER, ROM32_PC_HIGH, ROM_BANK, ROW_PAIRS,
+    ADVANCE, C_MEMORY, DEADLOCK, DONE, GLOBAL_GRID, GRID, INDEX_OPERAND, MASK_REGISTER, ROM32_PC_HIGH,
+    ROM_BANK, ROW_PAIRS, TICKET,
     WARP_BANKS, WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, WORKGROUP_TICKETS,
     build, build_standalone, program_tokens,
 )
 from qwengpu.eval_compiled_rom import head_row
-from qwengpu.eval_tile8 import _digits, _words, nibbles, oracle, parse_launch
+from qwengpu.eval_tile8 import _check_resident_memory, _digits, _words, nibbles, oracle, parse_launch
 from qwengpu.memory_geometry import WIDE_MEMORY
 from qwengpu.resident_scheduler import (
     EXTRA_WARP_BANKS, RESIDENT_ENABLE, RESIDENT_TICKET, resident_control,
@@ -29,19 +30,30 @@ from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_WORDS
 
 def launch_prompt(case, refresh_words=None):
     groups = case.get("workgroups")
-    if groups not in (1, 2, 3, 4):
+    if groups is not None and groups not in (1, 2, 3, 4):
         raise ValueError("stock generation requires one through four workgroups")
+    if groups is None and refresh_words is not None:
+        raise ValueError("global refresh requires a workgroup launch")
     interleaved = case.get("interleaved", False)
     active_warps = 4 if interleaved else 2
+    descriptor = (
+        GRID + GLOBAL_GRID + ROW_PAIRS * (groups - 1) if groups is not None else
+        GRID + case["first_row_pair"] + case["row_pairs"] - 1
+    )
     tokens = [RESIDENT_ENABLE,
               *(resident_control(warp, status=int(warp >= active_warps)) for warp in range(4)),
-              RESIDENT_TICKET + 3, GRID + GLOBAL_GRID + ROW_PAIRS * (groups - 1)]
-    if groups > 1 and not interleaved:
+              RESIDENT_TICKET + 3, descriptor]
+    if groups is None:
+        tokens.extend(nibbles(INDEX_OPERAND, _digits(case["a"] + case["b"], 8)))
+        tokens.extend(nibbles(C_MEMORY, _digits(case["c"], 16)))
+        tokens.append(gen.ROW + case["first_row_pair"])
+    elif groups > 1 and not interleaved:
         tokens.append(gen.GROUP)
-    words = case["global_words"]
-    if refresh_words is not None:
-        words = words[:refresh_words]
-    tokens.extend(nibbles(WIDE_MEMORY.base, _digits(words, 16)))
+    if groups is not None:
+        words = case["global_words"]
+        if refresh_words is not None:
+            words = words[:refresh_words]
+        tokens.extend(nibbles(WIDE_MEMORY.base, _digits(words, 16)))
     if "scoped_words" in case:
         tokens.extend(nibbles(SCOPED_BASE, _digits(case["scoped_words"], 16)))
     if "extent" in case:
@@ -50,8 +62,8 @@ def launch_prompt(case, refresh_words=None):
         tokens.append(ROM_BANK + warp)
         tokens.extend(program_tokens(program, resident_rom32=True, resident_alu32=True,
                                      resident_scoped="scoped_words" in case, full_integer=True))
-    for bank in (*WARP_BANKS, *EXTRA_WARP_BANKS):
-        tokens.extend(nibbles(bank, initial_registers()))
+    for bank, digits in zip((*WARP_BANKS, *EXTRA_WARP_BANKS), launch_registers(case), strict=True):
+        tokens.extend(nibbles(bank, digits))
     return [*tokens, gen.SCHEDULE]
 
 
@@ -60,7 +72,16 @@ def initial_registers():
             for token in WIDE_WARP_TAGS]
 
 
-def resident_reference(reference):
+def launch_registers(case):
+    registers = [initial_registers() for _ in range(4)]
+    if "workgroups" not in case:
+        for bank, words in zip(registers[:2], case["initial_registers"], strict=True):
+            bank[:32] = _digits([word & 65535 for word in words], 16)
+            bank[-32:] = _digits([word >> 16 for word in words], 16)
+    return registers
+
+
+def resident_reference(reference, *, tiled=False):
     """Translate the sequential reference trace into the four-bank wire format."""
 
     def control(warp, token):
@@ -74,6 +95,9 @@ def resident_reference(reference):
             {
                 **({"advance_group": WORKGROUP_TICKETS.index(schedule["ticket"]) + 1}
                    if schedule["ticket"] in WORKGROUP_TICKETS else {}),
+                **({"advance_row": ((schedule["ticket"] - TICKET) >> 3) & 3}
+                   if tiled and schedule["ticket"] & ADVANCE and schedule["ticket"] not in (DONE, DEADLOCK)
+                   else {}),
                 "ticket": (
                     schedule["ticket"] if schedule["ticket"] in (DONE, DEADLOCK)
                     else RESIDENT_TICKET + (schedule["ticket"] & 1)
@@ -90,16 +114,19 @@ def resident_reference(reference):
     }
 
 
-def expected_tokens(reference, active_warps=4):
+def expected_tokens(reference, active_warps=4, *, registers=None):
     """Encode the independent interpreter's trace for comparison after generation."""
     records = []
     controls = [resident_control(warp, status=int(warp >= active_warps)) for warp in range(4)]
-    registers = [initial_registers() for _ in range(4)]
+    if registers is None:
+        registers = [initial_registers() for _ in range(4)]
     for index, schedule in enumerate(reference["schedules"]):
         if "advance_group" in schedule:
             records.extend((gen.GROUP + schedule["advance_group"], *gen.RESET,
                             gen.SCHEDULE))
             registers[:2] = [initial_registers(), initial_registers()]
+        elif "advance_row" in schedule:
+            records.extend((gen.ROW + schedule["advance_row"], gen.SCHEDULE))
         elif controls != schedule["controls"]:
             records.extend(gen.RELEASE_CONTROL + (token - resident_control(0))
                            for token in schedule["controls"])
@@ -128,6 +155,20 @@ def expected_tokens(reference, active_warps=4):
     return records, controls, registers
 
 
+class InstructionLimit(StoppingCriteria):
+    """Stop before executing an issued ticket once the instruction budget is spent."""
+
+    def __init__(self, maximum, offset, device):
+        self.issued = torch.zeros(1, dtype=torch.int32, device=device)
+        self.maximum = maximum
+        self.offset = offset
+
+    def __call__(self, input_ids, scores, **kwargs):
+        token = input_ids[:, -1] - self.offset
+        self.issued += (token >= gen.TICKET) & (token < gen.TICKET + 4)
+        return self.issued > self.maximum
+
+
 def cache_words(cache, circuit, *, scoped=False):
     words = SCOPED_WORDS if scoped else WIDE_MEMORY.words
     result = []
@@ -145,10 +186,24 @@ def cache_words(cache, circuit, *, scoped=False):
     return _words(result), mirrored
 
 
+def cache_tile_words(cache, circuit):
+    digits = [
+        head_row(cache, circuit, f"shared.0.{nib}", word, 4)
+        for word in range(128)
+        for nib in range(4)
+    ]
+    words = _words([value or 0 for value in digits])
+    operands = [byte for word in words[:64] for byte in (word & 255, word >> 8)]
+    return words, None not in digits and _check_resident_memory(
+        cache, circuit, nibbles(INDEX_OPERAND, _digits(operands, 8)),
+        nibbles(C_MEMORY, _digits(words[64:], 16)), indexed=True,
+    )
+
+
 @torch.no_grad()
 def evaluate(
     model, circuit, case, device, offset=0, *, max_new_tokens=32768,
-    cache=None, refresh_words=None,
+    cache=None, refresh_words=None, max_steps=256,
 ):
     start = time.monotonic()
     if refresh_words is not None and (
@@ -168,16 +223,23 @@ def evaluate(
         past_key_values=cache,
         do_sample=False, eos_token_id=[offset + DONE, offset + DEADLOCK],
         max_new_tokens=max_new_tokens, use_cache=True, return_dict_in_generate=True, pad_token_id=0,
+        stopping_criteria=[InstructionLimit(max_steps, offset, device)],
     )
     generation_seconds = time.monotonic() - start
     tokens = [t - offset for t in output.sequences[0, inputs.size(1):].tolist()]
     retained = output.past_key_values
-    reference = oracle(case, 256, looping=True)
+    reference = oracle(case, max_steps, looping=True)
     sequential = not case.get("interleaved")
+    tiled = "workgroups" not in case
     if sequential:
-        reference = resident_reference(reference)
-    expected, controls, registers = expected_tokens(reference, 2 if sequential else 4)
-    words, mirrors = cache_words(retained, circuit)
+        reference = resident_reference(reference, tiled=tiled)
+    expected, controls, registers = expected_tokens(
+        reference, 2 if sequential else 4, registers=launch_registers(case),
+    )
+    if tiled:
+        words, mirrors = cache_tile_words(retained, circuit)
+    else:
+        words, mirrors = cache_words(retained, circuit)
     scoped = cache_words(retained, circuit, scoped=True) if "scoped_words" in case else None
     observed_registers = [
         [head_row(retained, circuit, name, warp, 4) for name in register_head_names()]
@@ -191,10 +253,18 @@ def evaluate(
     if sequential:
         cursor = head_row(retained, circuit, "workgroup", 0, 3)
         transitions = sum(gen.GROUP < token < gen.GROUP + 4 for token in expected)
-        group_exact = cursor == (4 | transitions) if case["workgroups"] > 1 else cursor == 0
+        if tiled:
+            rows = [token - gen.ROW for token in expected if gen.ROW <= token < gen.ROW + ROW_PAIRS]
+            group_exact = cursor == (rows[-1] if rows else case["first_row_pair"])
+        else:
+            group_exact = cursor == (4 | transitions) if case["workgroups"] > 1 else cursor == 0
     outcome = {DONE: "halted", DEADLOCK: "deadlock"}.get(
         tokens[-1] if tokens else None, "token_limit",
     )
+    if outcome == "token_limit" and sum(
+        gen.TICKET <= token < gen.TICKET + 4 for token in tokens
+    ) > max_steps:
+        outcome = "step_limit"
     first_difference = next(
         (index for index, (actual, wanted) in enumerate(zip(tokens, expected))
          if actual != wanted),
@@ -208,14 +278,14 @@ def evaluate(
         "generation_calls": 1,
         "generation_seconds": round(generation_seconds, 3),
         "host_execution_tokens": 0,
-        "global_upload_words": WIDE_MEMORY.words if refresh_words is None else refresh_words,
+        "global_upload_words": 0 if tiled else WIDE_MEMORY.words if refresh_words is None else refresh_words,
         "cache_length_exact": (
             retained.get_seq_length() == cache_length + len(prompt) + len(tokens) - 1
         ),
         "cache_retained_exact": cache is None or retained is cache,
         "generated_tokens": tokens,
         "expected_tokens": expected,
-        "global_words": words,
+        "tile_words" if tiled else "global_words": words,
         "scoped_words": scoped[0] if scoped else None,
         "tokens_exact": tokens == expected,
         "first_token_difference": first_difference,
@@ -223,7 +293,7 @@ def evaluate(
         "registers_exact": observed_registers == registers,
         "control_exact": control_exact,
         "workgroup_cursor_exact": group_exact,
-        "global_exact": mirrors and words == reference["shared_words"],
+        "memory_exact" if tiled else "global_exact": mirrors and words == reference["shared_words"],
         "scoped_exact": scoped is None or (scoped[1] and scoped[0] == reference["scoped_words"]),
     }
     return retained, report
@@ -234,9 +304,12 @@ def main():
     parser.add_argument("--model", type=Path)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--max-new-tokens", type=int, default=32768)
+    parser.add_argument("--max-steps", type=int, default=256)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("fixtures", type=Path, nargs="+")
     args = parser.parse_args()
+    if args.max_steps < 1:
+        parser.error("--max-steps must be positive")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     if args.model:
         meta = json.loads((args.model / "qwengpu9b.json").read_text())
@@ -255,13 +328,17 @@ def main():
               "circuit": circuit.stats(), "cases": []}
     for fixture in args.fixtures:
         payload = fixture.read_bytes()
+        raw = json.loads(payload)
         case = parse_launch(
-            json.loads(payload), resident_globalgrid=True, resident_compute=True, full_integer=True,
+            raw, resident_globalgrid=True, resident_compute=True, full_integer=True,
         )
         _, result = evaluate(
             model, circuit, case, args.device, offset, max_new_tokens=args.max_new_tokens,
+            max_steps=args.max_steps,
         )
         result.update(fixture=fixture.name, sha256=hashlib.sha256(payload).hexdigest())
+        if "expected_outcome" in raw:
+            result["fixture_outcome_exact"] = result["outcome"] == raw["expected_outcome"]
         report["cases"].append(result)
         failed = [key for key, value in result.items() if key.endswith("_exact") and not value]
         print(f"{fixture.name}: {result['steps']} instructions, "

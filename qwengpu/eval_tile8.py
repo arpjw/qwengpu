@@ -1675,15 +1675,21 @@ def _state_snapshot_digits(bits: list[int] | None, dirty_offset: int) -> list[in
 
 
 def _check_tile_operands(cache, circuit, operands: list[int], *, bank: int = 0) -> bool:
+    split_a = getattr(circuit, "stock_generation_tile", False)
     for address, token in enumerate(operands):
         byte, nibble = divmod(address, 2)
         if byte < 64:
             head, slot = f"A.{nibble}", byte
+            rows_per_bank = 64
+            if split_a:
+                head, slot = f"A.{byte % 2}.{nibble}", byte // 2
+                rows_per_bank = 32
         else:
             row, col = divmod(byte - 64, 8)
             head, slot = f"B.{col}.{nibble}", row
+            rows_per_bank = 8
         if (
-            head_row(cache, circuit, head, slot + bank * (64 if byte < 64 else 8), 4)
+            head_row(cache, circuit, head, slot + bank * rows_per_bank, 4)
             != token & 15
         ):
             return False
