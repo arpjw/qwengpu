@@ -380,6 +380,14 @@ See [CUDA reports](results/resident_generation_v3_cuda/). The final
 CUDA report set and standalone MPS replay are checked by the
 [qualification verifier](scripts/check_resident_generation_v3.py).
 
+The experimental standalone v4 circuit completed the full 16×16
+matrix in one CUDA generation call. It emitted 20,167 exact tokens,
+including 928 instruction tickets and seven panel transitions.
+All 256 output words match the scalar matrix. Generation took
+797.111 seconds on the RTX PRO 6000 Blackwell Server. This result
+uses the exported standalone circuit; merged 9B qualification is
+tracked separately. See [the report](results/resident_generation_v4_cuda/standalone-matmul16.json).
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,
