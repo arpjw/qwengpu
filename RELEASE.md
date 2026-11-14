@@ -168,3 +168,21 @@ Require a halted tile with exact tokens, ROM, registers, control and
 mirrored memory. Compare its tokens and output with the saved v3
 `dense_seeded.json` case. Require 24 of 24 first tokens, at least 21 of
 24 full continuations, and zero chip IDs in the restored text report.
+
+For a qualified v4 package, also reproduce its single-launch 16×16
+matrix on the clean download. Set `qualified_v4` to the complete merged
+v4 CUDA report directory. Use `$qualified_v4/manifest.json` as the
+`--pinned-manifest` and the recorded v4 checksum-manifest digest when
+checking the package. Save the matrix report under the filename the
+restore verifier expects:
+
+```bash
+python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
+  --model "$restored" --device cuda --out "$reports/restored-matmul16.json"
+python scripts/check_restored_checkpoint.py "$reports" \
+  --qualified "$qualified_v4" --v4
+```
+
+The v4 verifier requires the restored matrix tokens, panel transitions,
+output, and one-call count to match the qualified merged report. It also
+compares the restored text token sequences and the seeded tile trace.
