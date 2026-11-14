@@ -1,0 +1,12 @@
+test_cross_group_high_limb (test_resident_generation.ResidentGenerationTests.test_cross_group_high_limb) ... ok
+test_four_sequential_groups_reset_both_active_warps (test_resident_generation.ResidentGenerationTests.test_four_sequential_groups_reset_both_active_warps) ... ok
+test_single_workgroup_leaves_two_warps_halted (test_resident_generation.ResidentGenerationTests.test_single_workgroup_leaves_two_warps_halted) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.016s
+
+OK
+{'layers': 52, 'dims': 12870, 'heads': 370, 'ffn_units': 57167, 'max_units': 4993, 'max_heads': 16} 3201 (7424, 29)
+resident_rom32_v1/workgroup_reset 1479
+scoped_memory_v1/isolation 1305
+resident_interleaved_v1/barrier_groups 332
