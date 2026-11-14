@@ -38,7 +38,10 @@ publish.
 
 The user authorized publication after this exposure was identified.
 The final all-ref scan matched the same reviewed false positives and
-found no new scanner locations.
+found no new scanner locations. The
+[prepublication receipt](results/public-readiness/publication-preflight-2026-11-14.json)
+records the source head, release assets, and model revision checked at
+the visibility boundary.
 
 ## Model publication boundary
 

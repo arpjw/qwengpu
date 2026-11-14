@@ -1,0 +1,30 @@
+{
+  "checked_at_utc": "2026-11-14T21:28:55.118204+00:00",
+  "source_commit": "3996c856f14e5f14d6c8f493f5d9a0ef25a543e1",
+  "source_scan": {
+    "command": "GOMAXPROCS=2 nice -n 15 gitleaks git --log-opts=--all --redact=100 --no-banner --report-format json --exit-code 0",
+    "finding_count": 27,
+    "rule": "generic-api-key",
+    "new_locations_vs_preparation_scan": 0,
+    "missing_locations_vs_preparation_scan": 0,
+    "classification": "The 27 locations were manually reviewed earlier as 25 prompt digests, one matrix digest constant, and one Transformers import."
+  },
+  "github": {
+    "private": true,
+    "draft": true,
+    "release_id": 445423220,
+    "tag": "v4-corrected-package-2026-11-14",
+    "target_commitish": "main",
+    "asset_count": 90,
+    "asset_bytes": 86321154200,
+    "checksum_digest": "67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913"
+  },
+  "hugging_face": {
+    "private": true,
+    "main_revision": "7182ddec3349cace59850f706af11dbe0e7232dc",
+    "main_generation": "v3",
+    "file_count": 53,
+    "card_images_present": true
+  },
+  "qualification": "The corrected v4 package was clean-restored and byte-matched to the independently CUDA-replayed frozen package before publication. The public v4 release and signed-out access must be checked after visibility changes. Hugging Face v4 has not been uploaded."
+}
