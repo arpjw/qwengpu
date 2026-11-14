@@ -400,10 +400,15 @@ physical warp banks on interleaved launches. The model emits its own
 schedule, control, register updates, and memory commit tokens from one
 launch prompt. On merged CUDA, a two-pass 32-element reduction reuses
 one cache with no global upload on the second launch. The 3×5 by 5×2
-and 9×7 by 7×5 multiplies retain C across K panels. Sequential
-workgroups and the full inherited suite still need qualification
-under this protocol. The token-level writeback edge remains visible
-in the generated stream.
+and 9×7 by 7×5 multiplies retain C across K panels. The v2 protocol
+adds sequential workgroups. Standalone CUDA matches the four frozen
+sequential fixtures, including ROM reset, signed addressing, scoped
+isolation, and runtime matrix extents. The inherited suite also
+needs the legacy tile launch path. Of its 27 fixtures, 22 use
+`LOAD_TILE`, `MAC_K`, or `STORE_TILE`, four use legacy shared
+memory with seeded registers and row windows, and one is a
+barrier deadlock that only lacks the launch descriptor. The token-level
+writeback edge remains visible in the generated stream.
 See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
 Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
