@@ -82,15 +82,39 @@ size and SHA-256 matched the [backup manifest](results/resident_generation_v4_cu
 The backup manifest's SHA-256 is
 `5150eab9a807b44feb7e46e6bb4edd43b66cf3063f45a499b39662100ffe79e5`.
 The [asset receipt](results/resident_generation_v4_cuda/github-backup-receipt.json)
-records the private and draft status. This is a verified backup, not yet
-a completed clean restore.
+records the private and draft status. The [upload transcript](results/resident_generation_v4_cuda/github-backup-upload.txt)
+lists the verified assets.
 
-The original package remains on RunPod pod `gmgmirb2mz2hyy` while a
-fresh download from the draft release is being reconstructed and checked.
-The CPU-only recovery pod is billable at $1.345/hour plus storage; it
-will be terminated after the restore evidence is saved. A full v4
-Hugging Face upload still needs private storage capacity. The existing
-v3 revision remains the verified downloadable model below.
+The restore helper downloaded the draft release into an empty directory
+on RunPod. Its [transcript](results/resident_generation_v4_cuda/github-backup-restore.txt)
+records 49 reconstructed files, including all 35 weight shards, with
+matching part and full-file digests. The separate package checker
+confirmed the frozen build manifest, exact shard index, and the original
+SHA256SUMS digest in [restore-checksum.txt](results/resident_generation_v4_cuda/restore-checksum.txt).
+This is a clean byte-for-byte file restore. GPU execution on the restored
+copy is still pending.
+
+The original and restored packages remain on RunPod pod `gmgmirb2mz2hyy`
+while GPU restore is attempted. The CPU-only recovery pod is billable at
+$1.345/hour plus storage and will be terminated after the evidence is
+saved. A full v4 Hugging Face upload still needs private storage
+capacity. The existing v3 revision remains the verified downloadable
+model below.
+
+Reproduce this private file restore with GitHub access and the release
+ID above. The helper reads a token from standard input and requires a
+new destination directory:
+
+```bash
+gh auth token | python scripts/restore_private_release.py \
+  arpjw/qwengpu v4-private-backup-2026-11-14 445244518 \
+  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213 \
+  "$restored"
+python scripts/check_checkpoint_package.py "$restored" \
+  --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
+  --expected-checksum-digest \
+  f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
+```
 
 ## Restore receipt
 

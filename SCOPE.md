@@ -8,8 +8,9 @@ common compute suite and all 27 inherited fixtures on both standalone
 CUDA and merged 9B CUDA, and preserves the native-text gate. Its 35
 weight shards and 48-file package passed SHA-256 checks. The private
 Hugging Face upload was rejected by the account's private storage limit.
-A checksum-verified backup is now in a private GitHub draft release;
-the clean restore is still being checked. Full standalone Apple MPS
+A checksum-verified backup is now in a private GitHub draft release.
+A clean download passed all package checks; execution on that copy
+remains open. Full standalone Apple MPS
 qualification also remains pending. See [VALIDATION.md](VALIDATION.md)
 and [RELEASE.md](RELEASE.md).
 
