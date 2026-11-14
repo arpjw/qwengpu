@@ -10,11 +10,13 @@ from qwengpu.run_compute import execute_request, parse_request
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("model", type=Path)
+    parser.add_argument("model", type=Path, nargs="?")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--suite", type=Path, help="JSON map from case names to compute requests")
     parser.add_argument("--case", action="append", help="run a named request from the suite")
+    parser.add_argument("--matrix-fixture", type=Path, action="append", default=[],
+                        help="add a matrix request, including on the standalone circuit")
     parser.add_argument("matrix", type=Path, nargs="*")
     args = parser.parse_intermixed_args()
     model, circuit, offset = load_generation_model(args.model, args.device)
@@ -23,7 +25,8 @@ def main():
         {"reduction": {"kernel": "reduce",
                        "values": [0xFFFF0000 + 7919 * (i % 8) for i in range(32)]}}
     )
-    requests.update({path.stem: json.loads(path.read_text()) for path in args.matrix})
+    requests.update({path.stem: json.loads(path.read_text())
+                     for path in (*args.matrix, *args.matrix_fixture)})
     if args.case:
         missing = set(args.case) - requests.keys()
         if missing:

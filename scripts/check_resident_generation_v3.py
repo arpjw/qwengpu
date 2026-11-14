@@ -114,26 +114,12 @@ def check_matmul16(root):
     print("16x16 modular multiply: eight panels and retained output tiles exact")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
-    root = parser.parse_args().reports
-    merged = root / "inherited-merged.json"
-    standalone = root / "inherited-standalone.json"
-    check_inherited(merged, BASELINE / "inherited.json")
-    check_inherited(standalone, BASELINE / "inherited.json")
-    for left, right in zip(read(root, merged.name)["cases"],
-                           read(root, standalone.name)["cases"], strict=True):
-        assert left["fixture"] == right["fixture"]
-        assert left["generated_tokens"] == right["generated_tokens"]
-    check(RESULTS / "cache_register_edge_cuda", [root / "interleaved-merged.json"])
-    check(RESULTS / "cache_register_edge_cuda", [root / "sequential-merged.json"],
-          sequential_baseline=BASELINE,
-          matrix_extent_baseline=RESULTS / "memory512_bounds_9b_cuda_fla.json")
-
-    for suite, prior in (("bounds.json", read(V2, "bounds.json")["cases"]),
-                         ("tiled.json", {key: read(BASELINE, f"tiled_{key}.json")
-                                         for key in ("3x5x2", "9x7x5")})):
+def check_compute(root, *, mps):
+    tiled = {key: read(BASELINE, f"tiled_{key}.json") for key in ("3x5x2", "9x7x5")}
+    suites = [("tiled.json", tiled)]
+    if not mps:
+        suites.append(("bounds.json", read(V2, "bounds.json")["cases"]))
+    for suite, prior in suites:
         got = read(root, suite)["cases"]
         if suite == "tiled.json" and "reduction" in got:
             reduction = got.pop("reduction")
@@ -156,6 +142,36 @@ def main():
                     assert run["global_upload_words"] == earlier["global_upload_words"]
             print(f"{name}: scalar result, final memory and upload counts exact")
 
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
+    parser.add_argument("--mps", action="store_true", help="check standalone Apple MPS reports")
+    args = parser.parse_args()
+    root = args.reports
+    backend = "mps" if args.mps else "merged"
+    inherited = root / f"inherited-{backend}.json"
+    assert read(root, inherited.name)["device"] == ("mps" if args.mps else "cuda")
+    check_inherited(inherited, BASELINE / "inherited.json")
+    if not args.mps:
+        standalone = root / "inherited-standalone.json"
+        check_inherited(standalone, BASELINE / "inherited.json")
+        for left, right in zip(read(root, inherited.name)["cases"],
+                               read(root, standalone.name)["cases"], strict=True):
+            assert left["fixture"] == right["fixture"]
+            assert left["generated_tokens"] == right["generated_tokens"]
+    check(RESULTS / "cache_register_edge_cuda", [root / f"interleaved-{backend}.json"])
+    check(RESULTS / "cache_register_edge_cuda", [root / f"sequential-{backend}.json"],
+          sequential_baseline=BASELINE,
+          matrix_extent_baseline=RESULTS / "memory512_bounds_9b_cuda_fla.json")
+    check_compute(root, mps=args.mps)
+    check_memory512(root)
+    check_integer_programs(root)
+    check_relaunches(root)
+    check_matmul16(root)
+    if args.mps:
+        return
+
     manifest = read(root, "manifest.json")
     text = read(root, "text.json")
     handoff = read(root, "handoff.json")
@@ -176,10 +192,6 @@ def main():
     assert deadlock["outcome"] == "deadlock" and all(deadlock["reference"].values())
     assert deadlock["generated_tokens"] == deadlock["expected_tokens"]
     print("Native text, retained handoff and public CLI exact")
-    check_memory512(root)
-    check_integer_programs(root)
-    check_relaunches(root)
-    check_matmul16(root)
 
 
 if __name__ == "__main__":
