@@ -1,0 +1,19 @@
+{
+  "project_cap_usd": 74,
+  "pod_id": "4n7zzre8rv6qyg",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "hourly_compute_usd": 2.69,
+  "created_utc": "2026-11-13T22:14:32.533000+00:00",
+  "termination_verified_by_utc": "2026-11-14T00:48:04+00:00",
+  "termination_http_status": 204,
+  "verification_http_status": 404,
+  "runtime_upper_bound_seconds": 9211.467,
+  "compute_estimate_upper_bound_usd": 6.883012841666668,
+  "posted_at_teardown_usd": 4.113735925406218,
+  "reserved_total_usd": 7.2,
+  "additional_cpu_reserve_usd": 0.05,
+  "prior_reconciled_tracked_usd": 31.35424779332243,
+  "project_tracked_usd": 38.60424779332243,
+  "remaining_project_cap_usd": 35.39575220667757,
+  "account_balance_verified": false
+}

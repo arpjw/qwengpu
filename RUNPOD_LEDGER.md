@@ -330,3 +330,16 @@ remains paused; CPU checks are not MPS qualification.
 The ROM32 A100's posted charge later reconciled to $1.672135, including
 disk. This replaces its $1.85 pending reserve; historical teardown
 estimates above are retained for comparison.
+
+## November 13 integrated integer and writeback runs
+
+The RTX PRO 6000 Blackwell Server pod `4n7zzre8rv6qyg` ran from
+22:14:32 UTC November 13 through the verified teardown at 00:48:04 UTC
+November 14 at the quoted $2.69/hour. The elapsed compute estimate is
+$6.88. RunPod had posted $4.113736 including disk at the immediate
+recheck; this is partial, so reserve $7.20 total for the pod. The
+checkpoint manifests, exact reports, and adapter checks were copied
+before deletion. The API returned HTTP 204 and then HTTP 404.
+Conservative project headroom is about $35.40 under the $74 cap,
+including existing reserves and the two CPU attempts. This is not a
+verified RunPod account balance. See `results/alu32_integrated_runpod_cost.json`.
