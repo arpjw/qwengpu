@@ -91,3 +91,10 @@ observable result while moving from 4,050 to 3,610 input tokens and 125
 to 97 forward calls. It issued no register read or register writeback
 tokens. The fused version combines this adapter with the independent
 model-store commit path.
+
+The follow-up also removes register-plan requests. The runtime reads the
+already-materialized model snapshot to audit changes and copies the
+snapshot columns directly. In the same standalone publication case this
+uses 3,082 input tokens and 97 forward calls, with zero register-plan,
+read, or feedback tokens. See
+`results/cache_register_edge_cuda/standalone_planless.json`.
