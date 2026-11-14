@@ -16,7 +16,7 @@ from qwengpu.compiled_tile8 import ROM_PAYLOAD_BITS, build
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_memory512_handoff import ram_rows
 from qwengpu.eval_resident_generation import evaluate
-from qwengpu.eval_text_handoff import CORPUS, clear_text_history, compare, measure_text
+from qwengpu.eval_text_handoff import CORPUS, PROMPT_INDICES, clear_text_history, compare, measure_text
 from qwengpu.eval_tile8 import parse_launch
 from qwengpu.resident_generation import LAYOUT
 from qwengpu.run_compute import MASK32, compile_request, parse_request, words32
@@ -92,8 +92,9 @@ def main() -> None:
         raise ValueError("producer GPU rows are incomplete or differ from decoded memory")
 
     records = []
-    for index, prompt in enumerate(load_prompts(CORPUS)[:4]):
-        ids = _ids(tokenizer, prompt)
+    corpus = load_prompts(CORPUS)
+    for index in PROMPT_INDICES:
+        ids = _ids(tokenizer, corpus[index])
         fresh = measure_text(model, ids, args.device, offset, eos)
         clear_text_history(cache, config, meta["chip_layers"])
         resumed = measure_text(model, ids, args.device, offset, eos, cache=cache)
