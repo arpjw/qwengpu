@@ -29,7 +29,33 @@ def execution(value):
     return value
 
 
+
+def commit_totals(value):
+    """Check the transport wherever an internal-store launch was recorded."""
+    if isinstance(value, list):
+        return sum(commit_totals(item) for item in value)
+    if not isinstance(value, dict):
+        return 0
+    transport = value.get("transport", {})
+    if "internal_store_words" not in transport:
+        return sum(commit_totals(item) for item in value.values())
+    count = transport["internal_store_words"]
+    assert transport["internal_store_commands"] == count
+    assert transport["internal_store_trace_tags"] == 4 * count
+    assert transport["internal_store_read_tags"] == transport["store_read_tokens"] == 0
+    assert transport["matrix_patch_tokens"] == transport.get("scoped_patch_tokens", 0) == 0
+    if "audit" in value:
+        audit = value["audit"]
+        assert sum(len(call["commits"]) for call in audit) == count
+        assert sum(call["memory"] for call in audit) == (
+            transport["matrix_initial_tokens"] + transport.get("global_refresh_tokens", 0)
+        )
+        if "scoped_initial_tokens" in transport:
+            assert sum(call["scoped"] for call in audit) == transport["scoped_initial_tokens"]
+    return count
+
 def check(root, baseline):
+    commits = 0
     for name in (
         "address_walk", "indexed_words", "integer_edges", "inherited",
         "interleaved_barrier_groups", "interleaved_deadlock", "interleaved_publish",
@@ -39,12 +65,16 @@ def check(root, baseline):
     ):
         old, new = read(baseline, name), read(root, name)
         assert execution(old) == execution(new), name
+        commits += commit_totals(new)
     print("All inherited, arithmetic, control, RAM and dependent trace bodies match.")
     for shape in ("3x5x2", "9x7x5"):
         name = f"tiled_{shape}"
         path = root / f"{name}.json"
         check_tiles(path, ROOT / "eval/frozen/tiled_compute_v1" / f"{shape}.json")
-        assert execution(read(baseline, name)) == execution(read(root, name)), name
+        result = read(root, name)
+        assert execution(read(baseline, name)) == execution(result), name
+        commits += commit_totals(result)
+    print(f"{commits} model-owned words committed across the replay; no address/value tokens.")
     check_stores(root / "model_stores.json")
     text = read(root, "text")
     assert text["next_top1_same"] == 24 and text["greedy_identical"] >= 21
