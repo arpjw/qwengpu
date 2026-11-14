@@ -1971,10 +1971,10 @@ python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
   --model "$model" --device cuda --out matmul16.json
 ```
 
-On v3, the 16×16 launcher retains C between both K panels of each
-output tile. It uses a separate cache per tile and one generation call
-per panel. The earlier tilegrid checkpoint supports a single cache
-and one model-scheduled launch for all four tiles and both panels.
+On v3, the 16×16 launcher uses one cache across all four output tiles
+and retains each C tile between its two K panels. It uses eight
+generation calls. The tilegrid checkpoint schedules all eight panels
+inside a single launch.
 
 On Apple Silicon, the same file inputs work with the standalone
 circuit and `--resident-generate --device mps`. The merged run needs

@@ -324,9 +324,9 @@ def run_matmul(
 def run_generated_matmul(model, circuit, device, offset, a, b, c):
     passes = [{"k": k, "matrix": [row[:] for row in c], "launches": []}
               for k in (0, TILE)]
+    cache = None
     for row in range(0, SIZE, TILE):
         for col in range(0, SIZE, TILE):
-            cache = None
             output = _tile(c, row, col)
             for panel in passes:
                 k = panel["k"]
@@ -334,7 +334,7 @@ def run_generated_matmul(model, circuit, device, offset, a, b, c):
                     {"a": _tile(a, row, k), "b": _tile(b, k, col), "c": output},
                     full_integer=True,
                 )
-                cache, report = evaluate(
+                retained, report = evaluate(
                     model, circuit, case, device, offset, cache=cache,
                     retain_tile_output=k > 0,
                 )
@@ -342,6 +342,9 @@ def run_generated_matmul(model, circuit, device, offset, a, b, c):
                     value for key, value in report.items() if key.endswith("_exact")
                 ):
                     raise ValueError(f"tile ({row}, {col}), K={k}, failed generation or cache audit")
+                if cache is not None and retained is not cache:
+                    raise ValueError("matrix launch replaced its recurrent cache")
+                cache = retained
                 output = report["tile_words"][64:]
                 for i in range(TILE):
                     panel["matrix"][row + i][col:col + TILE] = output[i * TILE:(i + 1) * TILE]
@@ -355,7 +358,7 @@ def run_generated_matmul(model, circuit, device, offset, a, b, c):
         ]
         if panel["matrix"] != expected:
             raise ValueError(f"matrix through K={end} differs from scalar")
-    return {"matrix": passes[-1]["matrix"], "passes": passes}
+    return {"matrix": passes[-1]["matrix"], "passes": passes, "fresh_caches": 1}
 
 
 def main() -> None:

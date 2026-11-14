@@ -85,6 +85,7 @@ def check_matmul16(root):
     old = read(BASELINE, "matmul16.json")
     assert got["input_sha256"] == old["input_sha256"]
     assert got["matrix"] == old["matrix"] and got["retain_c"]
+    assert got["fresh_caches"] == 1
     assert [panel["k"] for panel in got["passes"]] == [0, 8]
     for panel in got["passes"]:
         bank = panel["k"] // 8
