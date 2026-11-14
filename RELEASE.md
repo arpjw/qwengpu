@@ -45,6 +45,15 @@ The build and compiler revisions referenced by the checkpoint must stay
 available to readers of either release path.
 [GitHub visibility guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)
 
+The [history exposure audit](results/public-readiness/history-exposure-audit-2026-11-14.json)
+at source commit `988b757` found nine remote branches, with all eight
+non-main branches fully merged into `main`, and no Git tags. The history
+contains one distinct commit-author email that is not a GitHub noreply
+address. Ten tracked files matched RunPod cost or pod-ID keywords. The
+receipt lists those files without exposing the author address. Decide
+whether this existing history and usage metadata should be public before
+changing visibility.
+
 The final review should cover every GitHub branch and tag, model
 repository references and package files, tracked logs and report
 metadata, and license and source links. Before the flip, refresh the

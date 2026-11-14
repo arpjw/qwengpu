@@ -1,0 +1,37 @@
+{
+  "checked_at_utc": "2026-11-14T20:50:48.582352+00:00",
+  "github_repo_private": true,
+  "hugging_face_repo_private": true,
+  "hugging_face_revision": "7182ddec3349cace59850f706af11dbe0e7232dc",
+  "non_github_noreply_author_email_count": 1,
+  "nonmain_branches_fully_merged_into_main": true,
+  "qualification": "A visibility flip exposes complete Git history, all remote branches, commit identities, and tracked results. This inventory is not a complete personal-data review; use the separate all-ref secret scan and review the listed reports before publication.",
+  "remote_branch_count": 9,
+  "remote_branches": [
+    "origin/codex/cache-register-edge",
+    "origin/codex/full-integer",
+    "origin/codex/fused-dispatch",
+    "origin/codex/general-matmul",
+    "origin/codex/model-writeback",
+    "origin/codex/resident-workgroups",
+    "origin/codex/scoped-memory",
+    "origin/main",
+    "origin/memory512-key-compression"
+  ],
+  "source_commit": "988b7573f0a76458c5e4b71eb81cfc2901d87a6c",
+  "tag_count": 0,
+  "tracked_cost_or_pod_record_files": [
+    "RUNPOD_LEDGER.md",
+    "results/alu32_integrated_runpod_cost.json",
+    "results/compute_runpod_cost.json",
+    "results/memory512_runpod_cost.json",
+    "results/public-readiness/runpod-billing-reconciliation-2026-11-14.json",
+    "results/resident_generation_v4_cuda/corrected-package/teardown-receipt.json",
+    "results/resident_generation_v4_cuda/restored-reports/teardown-receipt.json",
+    "results/resident_generation_v4_cuda/standalone-export/teardown-receipt.json",
+    "results/resident_generation_v4_cuda/teardown-receipt.json",
+    "results/rom32_runpod_cost.json"
+  ],
+  "tracked_file_count": 979,
+  "unique_commit_author_email_count": 1
+}
