@@ -47,6 +47,10 @@ one Transformers import. None of these matches is a credential. The
 [redacted scan summary](results/public-readiness/source-scan-2026-11-14.json)
 records the command, refs, classifications, and finding locations without
 secret values. Rerun the scan if refs change before publication.
+The [current all-ref rescan](results/public-readiness/source-scan-current-2026-11-14.json)
+at the corrected-package teardown commit found the same 27 reviewed
+locations and no new scanner matches. Publication still requires a
+fresh scan against its final refs.
 
 ## Pinned checkpoint
 
