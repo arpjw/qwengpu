@@ -77,7 +77,8 @@ status=0
   --out "$reports/cli-deadlock.json" || status=$?
 test "$status" -eq 3
 "$python" scripts/eval_resident_generation_workloads.py "$model" \
-  --out "$reports/tiled.json" eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json
+  --case 3x5x2 --case 9x7x5 --out "$reports/tiled.json" \
+  eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json
 "$python" -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
   --model "$model" --device cuda --out "$reports/matmul16.json"
 "$python" -m qwengpu.eval_resident_generation --model "$model" \

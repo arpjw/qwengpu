@@ -135,6 +135,12 @@ def main():
                          ("tiled.json", {key: read(BASELINE, f"tiled_{key}.json")
                                          for key in ("3x5x2", "9x7x5")})):
         got = read(root, suite)["cases"]
+        if suite == "tiled.json" and "reduction" in got:
+            reduction = got.pop("reduction")
+            assert reduction["exact"] and reduction["kernel"] == "reduce"
+            assert [run["global_upload_words"] for run in reduction["launches"]] == [256, 0]
+            for run in reduction["launches"]:
+                check_launch(run)
         assert got.keys() == prior.keys()
         for name, case in got.items():
             old = prior[name]
