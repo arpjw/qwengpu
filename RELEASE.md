@@ -29,6 +29,15 @@ qualification manifest before uploading. Keep the checksum file's
 digest in the GitHub receipt so the restored copy can be verified
 independently.
 
+```bash
+original_manifest=results/resident_generation_v3_cuda/manifest.json
+python scripts/check_checkpoint_package.py "$package" \
+  --pinned-manifest "$original_manifest" --write
+# Save the printed digest in the receipt before downloading.
+python scripts/check_checkpoint_package.py "$restored" \
+  --pinned-manifest "$original_manifest" --expected-checksum-digest "$digest"
+```
+
 ## Store and restore
 
 1. Use a user-controlled private Hugging Face model repository and verify
@@ -47,7 +56,8 @@ independently.
    if the build pod lacks disk for two copies. Verify every packaged
    file against `SHA256SUMS`, verify its digest against the original,
    and confirm the weight index references all and only the packaged
-   shards.
+   shards. Exclude Hub-generated Git metadata such as `.gitattributes`
+   if it was absent from the original package.
 4. Load the restored directory with the pinned inference environment.
    Run one frozen GPU kernel with exact token and final-state checks,
    and run the native text gate against the pinned base. Save both
