@@ -430,7 +430,10 @@ def build(
     resident_interleaved: bool = False,
     internal_stores: bool = False,
     generate: bool = False,
+    generated_tilegrid: bool = False,
 ) -> Circ:
+    if generated_tilegrid and not generate:
+        raise ValueError("generated tilegrid requires stock generation")
     internal_stores = internal_stores or generate
     full_integer = full_integer or internal_stores
     resident_interleaved = resident_interleaved or full_integer
@@ -510,6 +513,9 @@ def build(
         generated_group = between("generate.group", gen.GROUP, gen.GROUP + 4)
         generated_row = between("generate.row", gen.ROW, gen.ROW + ROW_PAIRS)
         generated_restart = generated_group + generated_row
+        if generated_tilegrid:
+            generated_panel = between("generate.panel", gen.PANEL, gen.PANEL + 8)
+            generated_restart += generated_panel
         generated_resets = [match(f"generate.reset.{w}", token)
                             for w, token in enumerate(gen.RESET)]
         release_inputs = [
@@ -657,10 +663,11 @@ def build(
             load_inter_ticket += generate_tick
         cursor_data = {2: raw[0], 3: raw[1]}
         if generate:
-            load_inter_ticket += generated_group
+            reset_cursor = generated_group + (generated_panel if generated_tilegrid else Expr())
+            load_inter_ticket += reset_cursor
             cursor_data = {
-                2 + i: c.and_([raw[i], one - generated_group], f"generate.cursor.raw.{i}")
-                + generated_group for i in range(2)
+                2 + i: c.and_([raw[i], one - reset_cursor], f"generate.cursor.raw.{i}")
+                + reset_cursor for i in range(2)
             }
         previous = c.slot_head(
             "resident.cursor",
@@ -776,7 +783,7 @@ def build(
                     load_group += generated_restart
                     for i in range(2):
                         group_data[2 + i] += c.and_(
-                            [generated_restart, raw[i]], f"generate.group.bit.{i}",
+                            [generated_group + generated_row, raw[i]], f"generate.group.bit.{i}",
                         )
                     group_data[4] = generated_group
                 group_low, group_high, *group_mode = c.slot_head(
@@ -888,6 +895,39 @@ def build(
         )[0]
     if generate:
         row_cursor = [group_low, group_high]
+        panel_transition = None
+        if generated_tilegrid:
+            load_panel = load_grid + generated_panel
+            panel = c.slot_head(
+                "generate.panel.cursor", {0: load_panel}, {0: tick + generate_schedule},
+                {2 + i: c.and_([generated_panel, raw[i]], f"generate.panel.bit.{i}")
+                 for i in range(3)},
+                load_panel,
+            )
+            tiled_grid = c.and_([one - generic, grid[4], grid[5], grid[6]],
+                                "generate.panel.enabled")
+            last_row = c.node(c.t_eq(from_bits(row_cursor) - from_bits(grid[:2]), 0, -3, 3),
+                              "generate.panel.last_row")
+            position = from_bits(panel)
+            advances = c.node(c.t_lt(position, 7, 0, 7), "generate.panel.more")
+            next_panel = c.select_bits(
+                [([c.node(c.t_eq(position, p, 0, 7), f"generate.panel.at.{p}")],
+                  gen.token_bits(p + 1)[:3]) for p in range(7)],
+                3, "generate.panel.next",
+            )
+            panel_transition = (
+                c.and_([tiled_grid, inter_halt, last_row, advances], "generate.panel.advance"),
+                next_panel,
+            )
+            bank_bit = c.select_bits([([tiled_grid], [panel[0]]),
+                                      ([one - tiled_grid], [bank_bit])], 1,
+                                     "generate.panel.operand")[0]
+            second_output = c.select_bits([([tiled_grid], [panel[1]]),
+                                           ([one - tiled_grid], [second_output])], 1,
+                                          "generate.panel.right")[0]
+            bottom_output = c.select_bits([([tiled_grid], [panel[2]]),
+                                           ([one - tiled_grid], [bottom_output])], 1,
+                                          "generate.panel.bottom")[0]
         advance_row = c.and_(
             [one - generic, inter_halt,
              one - c.node(c.t_eq(from_bits(row_cursor) - from_bits(grid[:2]), 0, -3, 3),
@@ -1208,6 +1248,9 @@ def build(
                                 or SCOPED_BASE <= token < SCOPED_BASE + 8192
                                 or any(start <= token < start + 2048 for start in RIGHT_OPERANDS)
                                 or ALT_OPERAND <= token < ALT_OPERAND + 4096
+                                or (generated_tilegrid and any(
+                                    start <= token < start + 2048 for start in BOTTOM_OPERANDS
+                                ))
                             )
                         ),
                         full=True,
@@ -1465,7 +1508,24 @@ def build(
                     top_a_queries,
                 )
             ]
-        if resident_tilegrid:
+        if generated_tilegrid:
+            bottom_a_queries = [
+                c.and_([query, bottom_output], f"A.bottom.{i}")
+                for i, query in enumerate(a_queries)
+            ]
+            bottom_parts = [
+                [
+                    bit for nib in range(2) for bit in lookup(
+                        f"A.bottom.{parity}.{nib}", 0,
+                        [base // 16 + 2 * i + nib for base in BOTTOM_OPERANDS
+                         for i in range(parity, 64, 2)],
+                        bottom_a_queries[parity::2], tile_port=True,
+                    )
+                ]
+                for parity in range(2)
+            ]
+            a = [old + even + odd for old, even, odd in zip(a, *bottom_parts, strict=True)]
+        elif resident_tilegrid:
             bottom_a_queries = [
                 c.and_([query, bottom_output], f"A.bottom.{i}")
                 for i, query in enumerate(a_queries)
@@ -1961,6 +2021,7 @@ def build(
             # Capture a potential store before any main-memory read stage. On
             # the fixed lane commit token, the journal supplies data and address
             # to the same downstream RAM heads that service normal loads.
+            output_bank_bits = [Expr(), Expr()] if generated_tilegrid else []
             for lane in range(8):
                 old_value = c.select_bits(
                     [
@@ -1992,6 +2053,9 @@ def build(
                     grants[lane] = gate
                     local = one - generic + scoped_store
                 values = [gate, local, *addr, *old_value]
+                if generated_tilegrid:
+                    values.extend(c.and_([tile_store, select], f"tile.commit.bank.{lane}.{i}")
+                                  for i, select in enumerate((second_output, bottom_output)))
                 selected = c.slot_head(
                     f"ram.commit.pending.{lane}", {0: tick}, {0: commit[lane]},
                     {2 + bit: value for bit, value in enumerate(values)}, tick,
@@ -2003,8 +2067,10 @@ def build(
                     write_value = [Expr() for _ in range(16)]
                 for i, bit in enumerate(selected[2:10]):
                     write_address[i] += bit
-                for i, bit in enumerate(selected[10:]):
+                for i, bit in enumerate(selected[10:26]):
                     write_value[i] += bit
+                for i, bit in enumerate(selected[26:]):
+                    output_bank_bits[i] += bit
             # The scoped namespace aliases existing shared ports. Build the
             # canonical address from the saved local word and commit nibble.
             scoped_write_address = c.select_bits(
@@ -2019,6 +2085,9 @@ def build(
                 13, "scoped.write.base",
             )
             scoped_write_address[2:8] = write_address[:6]
+            if generated_tilegrid:
+                # C bank addresses differ only in these two high bits.
+                scoped_write_address[11:13] = output_bank_bits
             for lane, gather_address in enumerate(gather_addresses):
                 build_gather(lane, gather_address)
 
@@ -2364,9 +2433,11 @@ def build(
                 c, generate_schedule, release_inputs, inter_controls, inter_release,
                 issue, inter_halt, inter_deadlock, DONE, DEADLOCK, advance_group, next_group,
                 advance_row, next_group,
+                panel_transition,
             ),
             ([generated_group], gen.token_bits(gen.RESET[0])),
             ([generated_row], gen.token_bits(gen.SCHEDULE)),
+            *([([generated_panel], gen.token_bits(gen.RESET[0]))] if generated_tilegrid else []),
             ([generated_resets[0]], gen.token_bits(gen.RESET[1])),
             ([generated_resets[1]], gen.token_bits(gen.SCHEDULE)),
             *gen.generated_writeback(

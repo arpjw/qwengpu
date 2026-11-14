@@ -10,6 +10,7 @@ COMMIT = 2712
 GROUP = 2720
 RESET = (2736, 2752)
 ROW = 2760
+PANEL = 2784
 STEP_CONTROL = 0x9800
 RELEASE_CONTROL = 0x9A00
 REGISTER = 0x1C000
@@ -45,6 +46,7 @@ def first_after(c, request, continuation, cursor, choices, name):
 def generated_schedule(
     c, schedule, release_inputs, controls, releases, issue, halt, deadlock,
     done_token, deadlock_token, advance_group, next_group, advance_row, next_row,
+    panel_transition=None,
 ):
     """Save the scheduling decision before any barrier state is rewritten."""
     ready = [
@@ -64,8 +66,9 @@ def generated_schedule(
     for warp in range(3):
         token = RELEASE_CONTROL + 128 * (warp + 1)
         yield [release_inputs[warp]], [*stored[7 * (warp + 1):7 * (warp + 2)], *token_bits(token)[7:]]
+    advance_panel = Expr() if panel_transition is None else panel_transition[0]
     for gate, bits, halted, blocked in (
-        ([schedule, c.one - changed, c.one - advance_group - advance_row],
+        ([schedule, c.one - changed, c.one - advance_group - advance_row - advance_panel],
          scheduled, halt, deadlock),
         ([release_inputs[-1]], stored[28:30], *stored[30:32]),
     ):
@@ -74,6 +77,8 @@ def generated_schedule(
         yield [*gate, c.one - halted - blocked], [*bits, *token_bits(TICKET)[2:]]
     yield [schedule, advance_group], [*next_group, *token_bits(GROUP)[2:]]
     yield [schedule, advance_row], [*next_row, *token_bits(ROW)[2:]]
+    if panel_transition is not None:
+        yield [schedule, advance_panel], [*panel_transition[1], *token_bits(PANEL)[3:]]
 
 
 def generated_writeback(

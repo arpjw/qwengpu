@@ -1986,6 +1986,17 @@ and retains each C tile between its two K panels. It uses eight
 generation calls. The tilegrid checkpoint schedules all eight panels
 inside a single launch.
 
+The experimental stock-generation tilegrid compiler can be checked
+independently of the v3 checkpoint. The replay preloads eight operand
+tiles and four output tiles, checks every emitted instruction and panel
+transition against the reference, and reads the four final physical
+output banks. The compiler experiment needs a new checkpoint build
+before it can be exercised through stock Qwen inference.
+
+```bash
+python scripts/check_stock_matmul16_ir.py eval/frozen/matmul16_gate_v1/dense_seeded.json
+```
+
 The following assembled program communicates 32-bit values between two warps
 through each workgroup's scoped shared bank. Each value uses two adjacent
 16-bit shared words. A barrier orders the producer before the consumer,
