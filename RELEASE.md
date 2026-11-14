@@ -179,6 +179,9 @@ record the exact result. No new CUDA execution run was performed.
 The 35 weight shards are among the 47 unchanged content files, which
 are byte-identical to the qualified and independently replayed frozen
 package.
+The temporary CPU pod and network volume were deleted after the
+transcripts were copied and matched locally. The [teardown receipt](results/resident_generation_v4_cuda/corrected-package/teardown-receipt.json)
+records their 204 deletion responses and empty follow-up lists.
 
 Restore the corrected package into a nonexistent directory with GitHub
 access:

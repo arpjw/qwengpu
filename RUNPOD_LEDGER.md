@@ -526,3 +526,27 @@ attributed to this project here. This headroom is conditional on the
 repository identifying every project pod; it is not account credit or
 a final invoice. The [reconciliation receipt](results/public-readiness/runpod-billing-reconciliation-2026-11-14.json)
 records the query window, attribution, and exact amounts.
+
+## November 14 corrected v4 private package restore
+
+CPU3 General Purpose pod `xtyhwtf8stbams` used four vCPUs and 16 GB
+at a live $0.16/hour quote. A 220 GB standard network volume
+`aco0bscpgh` in EU-NL-1 held the temporary package and clean restore.
+The first restore stopped after shard 16 when writes to the volume
+returned `Disk quota exceeded`; after redundant package copies were
+removed, the resumable restore verified all 49 files. The separate
+pinned package checker exited zero. The receipts and transcripts are in
+[corrected-package](results/resident_generation_v4_cuda/corrected-package).
+
+The pod and volume were deleted after their results were copied and
+verified. Deletion returned 204 for each; the pod lookup returned 404,
+and subsequent pod and network-volume lists were empty. The last billing
+read posted $0.452005 for the pod and $0.064167 for the volume, or
+$0.516172 combined. Because billing can lag, reserve $0.75 total for
+this task. Adding that reserve and the earlier $0.48 pending-pod reserve
+to the 15:57 UTC documented project charges gives $67.592165 against
+the $74 cap, with conditional headroom of $6.407835. This attribution
+remains conditional on the earlier reconciliation's project-pod list;
+it is neither account credit nor a final invoice. The exact
+[teardown receipt](results/resident_generation_v4_cuda/corrected-package/teardown-receipt.json)
+records the posted and reserved figures.
