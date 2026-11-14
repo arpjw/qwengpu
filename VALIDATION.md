@@ -310,8 +310,12 @@ text matches 24 of 24 first tokens and 21 of 24 continuations up
 to 16 tokens, with zero chip IDs. The compiler replay matches all
 27 inherited fixtures, covering 1,972 instructions, 26,225 tokens,
 and every final word across all eight mirrored memory lanes. This
-replay evaluates the IR on the expected token history. Model-level
-qualification uses autonomous generation on the merged checkpoint.
+replay evaluates the IR on the expected token history. Autonomous
+generation on the merged checkpoint also matches all 27 fixtures,
+with one generation call per fixture and zero host-supplied execution
+tokens. The final memory, instruction count, outcomes, and fixture hashes
+match the prior model-owned-store checkpoint. The suite includes
+deadlock and the 256-instruction bounded loop.
 See `results/resident_generation_v3_cuda/`.
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
