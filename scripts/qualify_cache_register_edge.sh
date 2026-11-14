@@ -19,5 +19,5 @@ for fixture in interleaved_publish barrier_groups deadlock; do
     deadlock) stock=interleaved_deadlock ;;
   esac
   if [[ "$fixture" == deadlock ]]; then [[ "$rc" == 3 ]]; else [[ "$rc" == 0 ]]; fi
-  "$py" scripts/check_cache_register_edge.py "$baseline/$stock.json" "$reports/$fixture.json"
+  "$py" scripts/check_cache_register_edge.py "$baseline/$stock.json" "$reports/$fixture.json" --require-planless
 done

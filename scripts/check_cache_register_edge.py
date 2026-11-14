@@ -9,14 +9,16 @@ def read(path):
     return json.loads(path.read_bytes())
 
 
-def check(baseline, result):
+def check(baseline, result, *, require_planless=False):
     assert result["transport_mode"] in ("cache-register-edge", "fused-cache-edge")
     assert result["reference"] and all(result["reference"].values())
     for key in baseline.keys() - {"checkpoint", "device", "transport", "transport_mode"}:
         assert baseline[key] == result[key], key
     old, new = baseline["transport"], result["transport"]
     assert new["resident_state_exact"]
-    assert new["state_plan_tokens"] == new["state_read_tokens"] == new["warp_update_tokens"] == 0
+    assert new["state_read_tokens"] == new["warp_update_tokens"] == 0
+    if require_planless:
+        assert new["state_plan_tokens"] == 0
     assert new["cache_register_trace_tags"] == old["warp_update_tokens"]
     assert new["cache_register_copies"] > 0
     if "internal_store_commands" in new:
@@ -35,5 +37,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("baseline", type=Path)
     parser.add_argument("result", type=Path)
+    parser.add_argument("--require-planless", action="store_true")
     args = parser.parse_args()
-    check(read(args.baseline), read(args.result))
+    check(read(args.baseline), read(args.result), require_planless=args.require_planless)
