@@ -1,0 +1,207 @@
+{
+  "scan_time_utc": "2026-11-14T15:54:35+00:00",
+  "source_commit": "6df7da992891a9a7b9c10fe10eddc96244f099a8",
+  "command": "gitleaks git --log-opts='--all' --redact=100 --no-banner --report-format json --exit-code 0",
+  "gitleaks_version": "8.30.1",
+  "commits_reachable_from_all_local_refs": 555,
+  "remote_branch_count": 9,
+  "tag_count": 0,
+  "finding_count": 27,
+  "classifications": {
+    "tokenized_prompt_sha256": 25,
+    "matrix_token_sha256_constant": 1,
+    "transformers_import": 1
+  },
+  "review_conclusion": "The 27 scanner matches are 25 prompt digests, one matrix-token digest constant, and one Transformers import. Source review found no credential in these matches. This is not proof that every possible secret is absent.",
+  "findings": [
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_v4_cuda/restored-reports/restored-text.json",
+      "line_at_commit": 46,
+      "commit": "ba7b62947a34600b01d618a9dd0dbd8832664fe8",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_v4_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "9007dc60edbed449d7c858579a964d5a0a824275",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "scripts/check_single_launch_matmul16.py",
+      "line_at_commit": 11,
+      "commit": "e0fee726ba536a841f5e0059c15f764c00a2df66",
+      "classification": "matrix_token_sha256_constant"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_v3_cuda/restored-text.json",
+      "line_at_commit": 46,
+      "commit": "ef5fe9d7a39332380b82ba3c89f3f04c6469f1ee",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_v3_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "47b655b3ffb9cc4551d8376730d111177540336d",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_v2_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "8c8099c11da25195df5da13d9f4dc04944e70d1c",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "0fe1b0c897cbb85927923146bad33c7a98f274b3",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_generation_cuda/initial/text.json",
+      "line_at_commit": 46,
+      "commit": "26fd5bcaf970f91efb86111c930b3ebf8b0224a6",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/control_generation_cuda/text.json",
+      "line_at_commit": 44,
+      "commit": "ca92f4fa9a9020f8f767ff590c404c12e11e4de0",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/control_generation_cuda/text-24.json",
+      "line_at_commit": 44,
+      "commit": "ca92f4fa9a9020f8f767ff590c404c12e11e4de0",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/model_stores_merged_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "487588fed88852ccd9423ef3a5012207802ad8b0",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/final_candidate_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "b3f624412ea0cbcb82c3c887d29a2e7f4d572e26",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/scoped_9b/text.json",
+      "line_at_commit": 46,
+      "commit": "d0cc1c5ad58741e5c03ef88fcf8f511ee3e80ab8",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/alu32_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "5597d02e92900252e1dc285faad6864c7c4ddf9c",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/rom32_cuda/text.json",
+      "line_at_commit": 46,
+      "commit": "4ef30803c0a6a796d14e9ed940b1bd91754591ff",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/memory512_text_9b_cuda_fla.json",
+      "line_at_commit": 46,
+      "commit": "d70ebb2a8a59c1edc491c32250854436bf33d36a",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/memory512_opt/memory512_text_9b_cuda_fla.json",
+      "line_at_commit": 46,
+      "commit": "9192ec445e73cf923c8e1ebc5871f8ed0d3fe9df",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/memory512_initial/memory512_text_9b_cuda_fla.json",
+      "line_at_commit": 46,
+      "commit": "32dd9337b1b6ebc343ed723e730512d79a3ee5de",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/memory512_initial_text_9b_cuda_fla.json",
+      "line_at_commit": 46,
+      "commit": "41c611d0d834139bdded6c7e1c358e522333f8f6",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/compute_text_9b_cuda_fla.json",
+      "line_at_commit": 45,
+      "commit": "a18d684d78e89d854625d6049749cc34a40629ff",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/globalgrid_text_9b_cuda_fla.json",
+      "line_at_commit": 45,
+      "commit": "e04484fe55d25f82bb6ff3fe6aec0505a9603a41",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/tilegrid_text_9b_cuda_fla.json",
+      "line_at_commit": 45,
+      "commit": "b98bbd42ee39a5299cdb7571169926b891203083",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_tilepipe_text_9b_cuda_fla.json",
+      "line_at_commit": 44,
+      "commit": "763e29485aa21b7eb716d768d62e2989d33db656",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_add32_text_9b_cuda_h100_control.json",
+      "line_at_commit": 44,
+      "commit": "e7c169ef974964feaa41f152882fb59cf093a2ba",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_addmem32_text_9b_cuda_fla.json",
+      "line_at_commit": 44,
+      "commit": "e7c169ef974964feaa41f152882fb59cf093a2ba",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "results/resident_add32_text_9b_cuda_fla.json",
+      "line_at_commit": 44,
+      "commit": "7bf1fe0ca53d132ac3dd7e4081e18ba393fef07d",
+      "classification": "tokenized_prompt_sha256"
+    },
+    {
+      "rule": "generic-api-key",
+      "file": "qwengpu/textcheck_9b.py",
+      "line_at_commit": 51,
+      "commit": "28a16a60544304dda2fc8850be427850b6215ce5",
+      "classification": "transformers_import"
+    }
+  ]
+}
