@@ -54,6 +54,7 @@ def commit_totals(value):
             assert sum(call["scoped"] for call in audit) == transport["scoped_initial_tokens"]
     return count
 
+
 def check(root, baseline):
     commits = 0
     for name in (
