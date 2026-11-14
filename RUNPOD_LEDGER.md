@@ -382,3 +382,11 @@ $2.69/hour from 01:58:40 to verified deletion at 02:30:38 UTC on November
 14. The API returned HTTP 204 followed by HTTP 404. Estimated compute
 was $1.43. No charge had posted on the immediate recheck. Reserve $1.70
 for compute and disk.
+
+The two-vCPU CPU3 General Purpose pod `8fwsdvrqtppazx` ran all 51
+Linux regression tests at `d615810` with 8 GB RAM and 5 GB ephemeral
+disk. Its live rate was $0.08/hour before disk. It ran from 02:53:28
+to verified deletion by 03:03:26 UTC on November 14 (HTTP 204 followed
+by HTTP 404). Estimated compute was $0.013 and no charge had posted
+at teardown. Reserve $0.02 for compute and disk. The transcript and
+reproduction command are in `results/resident_generation_v2_cuda/`.
