@@ -5,6 +5,20 @@ of the qualified merged checkpoint. The private GitHub backup and clean
 file restore passed before the task pod was terminated. A public release
 is a separate decision.
 
+## V4 handoff status
+
+| Gate | Status | Evidence |
+| --- | --- | --- |
+| Fixed merged 9B CUDA qualification | Passed | [Qualified reports](results/resident_generation_v4_cuda) and [verifier output](results/resident_generation_v4_cuda/verification.txt) |
+| Independent clean GPU replay of the frozen package | Passed | [Restored reports](results/resident_generation_v4_cuda/restored-reports) and [verifier output](results/resident_generation_v4_cuda/restored-reports/restored-verifier.txt) |
+| Corrected model-card package | Passed clean file restore and pinned checksum check; CUDA execution evidence is inherited from byte-identical weights | [Clean restore receipt](results/resident_generation_v4_cuda/corrected-package/clean-restore-receipt.json) and [live asset audit](results/public-readiness/corrected-v4-live-asset-audit-2026-11-14.json) |
+| Durable private backup | Available as a private GitHub draft; 90 assets match the manifest | [Backup receipt](results/resident_generation_v4_cuda/corrected-package/github-backup-receipt.json) |
+| Hugging Face v4 | Not uploaded because the account reached its private storage limit; the private Hub repo still holds v3 | [Quota and revision record](#qualified-v4-private-draft-backup) |
+| Public visibility | Awaiting an explicit publication decision and a final source scan | [Public release review](#public-release-review) |
+
+Apple MPS qualification and 32-bit atomics are separate follow-on work.
+Neither is a gate for the fixed v4 CUDA handoff.
+
 ## License and attribution
 
 QwenGPU source is distributed under the [MIT License](LICENSE).
