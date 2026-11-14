@@ -35,14 +35,14 @@ tile and native-text results. [Restore receipt and verifier output](RELEASE.md#r
 
 The merged weights occupy about 86 GB. Qualification used a 96 GB NVIDIA
 RTX PRO 6000 Blackwell Server Edition GPU. From the QwenGPU checkout,
-sign in with a Hugging Face account that has access to the private
-checkpoint and download the verified revision.
+download the verified revision. If the model repository requires access,
+sign in with `hf auth login` first.
 
 ```bash
-hf auth login
 checkpoint=./Qwen-GPU-v3
 hf download arpjw/Qwen-GPU \
-  --revision fe671778a2409a218dde757871f33f5ca46d9219 --local-dir "$checkpoint"
+  --revision fe671778a2409a218dde757871f33f5ca46d9219 \
+  --exclude .gitattributes --local-dir "$checkpoint"
 ```
 
 Set up the pinned environment and run a kernel.
@@ -61,8 +61,10 @@ python -m qwengpu.run_compute examples/memory512_reduce_128.json \
 - [Validation and saved reports](VALIDATION.md)
 - [Stock-generation protocol](MODEL_WRITEBACK_DESIGN.md)
 - [Scope and remaining gates](SCOPE.md)
-- [Private checkpoint release and restore](RELEASE.md)
+- [Checkpoint release and restore](RELEASE.md)
 - [Development history and earlier launchers](docs/DEVELOPMENT_HISTORY.md)
 
 Qwen-GPU builds on [QwenCPU](https://github.com/arpjw/qwencpu) and uses
 [Qwenputer](https://github.com/divagr18/qwenputer) to compile the circuit.
+The source is MIT-licensed. The Hugging Face checkpoint derives from
+Qwen3.5-9B under Apache 2.0. [License and attribution](RELEASE.md#license-and-attribution)

@@ -5,9 +5,45 @@ of the qualified merged checkpoint. Keep the build pod until the
 restore checks and receipt below are complete. A public release is a
 separate decision.
 
-The verified v3 package is stored in the private Hugging Face model repository
+## License and attribution
+
+QwenGPU source is distributed under the [MIT License](LICENSE).
+The derived model package carries the Apache 2.0 license from its
+pinned Qwen3.5-9B base. The model card describes the modifications.
+The pinned checkpoint's `LICENSE` was compared byte for byte with the
+upstream license. The pinned base file listing contains `LICENSE`.
+[Qwen3.5-9B upstream license](https://huggingface.co/Qwen/Qwen3.5-9B/blob/c202236235762e1c871ad0ccb60c8ee5ba337b9a/LICENSE)
+
+The merge code credits the MIT-licensed QwenCPU implementation. The
+checkpoint build uses the MIT-licensed Qwenputer compiler.
+[QwenCPU license](https://github.com/arpjw/qwencpu/blob/main/LICENSE) ·
+[Pinned Qwenputer license](https://github.com/divagr18/qwenputer/blob/ca13310e2f9f788d1dd3feeea8213c1b0c23913c/LICENSE)
+
+## Public release review
+
+Keep both repositories private through qualification and teardown. The
+GitHub history currently includes the author's commit email and RunPod
+cost records, including provider pod IDs, usage, and spend. A visibility
+flip exposes that history alongside the source and reports. Decide
+whether to retain it before flipping. If a clean history is needed,
+preserve the private original and prepare a reviewed public snapshot.
+The build and compiler revisions referenced by the checkpoint must stay
+available to readers of either release path.
+[GitHub visibility guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)
+
+The final review should cover every GitHub branch and tag, model
+repository references and package files, tracked logs and report
+metadata, and license and source links. Before the flip, refresh the
+secret scan against the final refs, verify the model revision and
+checksums, and confirm the documentation matches the completed
+qualification. After a flip, check both READMEs, images, source pins,
+and the pinned model download in a signed-out session.
+
+## Pinned checkpoint
+
+The verified v3 package is stored in the Hugging Face model repository
 [`arpjw/Qwen-GPU`](https://huggingface.co/arpjw/Qwen-GPU). Hugging Face
-reports it as private and lists all 50 package files at revision
+listed all 50 package files at revision
 [`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
 
 ## Restore receipt

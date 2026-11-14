@@ -52,14 +52,14 @@ model forward pass.
 Qwen3.5-9B source revisions and records the shard digests.
 `environment.txt` records the validation runtime. The merged weights
 occupy about 86 GB and were qualified on a 96 GB CUDA GPU. From the
-QwenGPU checkout, sign in with a Hugging Face account that has access to
-this private checkpoint and download the verified revision.
+QwenGPU checkout, download the verified revision. If the model
+repository requires access, sign in with `hf auth login` first.
 
 ```bash
-hf auth login
 checkpoint=./Qwen-GPU-v3
 hf download arpjw/Qwen-GPU \
-  --revision fe671778a2409a218dde757871f33f5ca46d9219 --local-dir "$checkpoint"
+  --revision fe671778a2409a218dde757871f33f5ca46d9219 \
+  --exclude .gitattributes --local-dir "$checkpoint"
 ```
 
 Set up the pinned environment and run the seeded tile kernel.
@@ -76,5 +76,7 @@ The full v3 Apple MPS replay is pending.
 
 The underlying Qwen3.5-9B model is copyright 2026 Alibaba Cloud and is
 provided under the Apache License 2.0. This checkpoint includes the
-modifications described above. See the packaged `LICENSE` and any
-accompanying notices.
+modifications described above. Its GPU circuit is from the MIT-licensed
+QwenGPU project and was compiled with the MIT-licensed Qwenputer compiler.
+See the packaged [Apache 2.0 license](LICENSE) and the
+[source and compiler attribution](https://github.com/arpjw/qwengpu/blob/main/RELEASE.md#license-and-attribution).
