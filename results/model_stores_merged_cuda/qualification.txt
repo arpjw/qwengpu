@@ -1,0 +1,8 @@
+All inherited, arithmetic, control, RAM and dependent trace bodies match.
+cuda: 3x5x2, 1 tiles, 2 panels, 50 steps, all output and guard words exact
+cuda: 9x7x5, 4 tiles, 8 panels, 270 steps, all output and guard words exact
+2086 model-owned words committed across the replay; no address/value tokens.
+cuda: address_walk, 52 fixed commits, zero address/value tokens
+cuda: interleaved_publish, 64 fixed commits, zero address/value tokens
+cuda: isolation, 192 fixed commits, zero address/value tokens
+Native text, 31 weight shard hashes and RAM retention verified.
