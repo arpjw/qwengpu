@@ -217,6 +217,23 @@ On the fixed 24-prompt text corpus, all 24 first tokens and 21 full
 chip tokens. The artifact manifest hashes all 28 weight shards and
 records 61,946,385,152 weight bytes.
 
+### Stock generation on four resident warp banks
+
+The initial standalone and merged CUDA cases in `results/resident_generation_cuda/initial/`
+match the interpreter and the existing cache-adapter baseline on four-warp
+publication, independent barrier release, and deadlock. The three launches
+execute 97 instructions and emit 902 tokens on each backend. Audits compare
+every generated dispatch, control, register nibble, and lane commit token,
+and read the final physical register, control, and mirrored memory rows.
+Each case uses a single stock generation call and one fresh cache. The merged
+manifest records 33 shards, 7,680 hidden dimensions, and 81,885,909,632
+weight bytes. On merged CUDA, the separate 48-instruction cross-group
+test also matches all 327 generated tokens. The producer publishes
+`0x00010047`, and the consumer reads both limbs, adds one, and publishes
+`0x00010048`. The initial merged text run matches all 24 first tokens,
+20 of 24 continuations, and emits zero chip tokens. The continuation
+threshold is 21.
+
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
 records immediately after termination. The source/results were copied first,

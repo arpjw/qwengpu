@@ -395,12 +395,13 @@ cross-backend status is in VALIDATION.md. Its host transport coalesces
 reads with scheduling and skips unchanged control tokens. The qualified
 model-owned store variant removes programmable global and scoped store
 tags, committing 2,086 words in the merged replay. General cyclic
-register writeback in stock Qwen remains open; the store checkpoint
-still relays register tags. The bounded control experiment runs its
-sixteen-stage machine through stock greedy generation. The next
-experiment extends that protocol to the integrated checkpoint and
-reuses each register row across arbitrarily many instructions within a
-launch budget. See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
+register writeback through stock generation now reuses the same four
+physical warp banks on interleaved launches. The model emits its own
+schedule, control, register updates, and memory commit tokens from one
+launch prompt. Sequential workgroups, retained-cache relaunch, and
+tiled kernels still need qualification under this protocol. The
+token-level writeback edge remains visible in the generated stream.
+See [MODEL_WRITEBACK_DESIGN.md](MODEL_WRITEBACK_DESIGN.md).
 Atomics, floating-point execution, graphics,
 CUDA compatibility, and useful acceleration have no current evidence.
 The capacity step is qualified in MEMORY512_DESIGN.md. NEXT_MEMORY_DESIGN.md
