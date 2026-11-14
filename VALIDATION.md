@@ -446,8 +446,13 @@ and deadlock CLI checks are exact. The CLI reduction uses one generation
 call per pass and uploads `[256, 0]` global words. The scoped 32-bit
 workgroup is exact across 52 instructions, including both scoped and global
 memory. The 3×5 by 5×2 and 9×7 by 7×5 tiled workloads match their scalar
-results and retained-memory audits. The single-launch matrix, package and
-restore gates remain in progress.
+results and retained-memory audits. The full 16×16 matrix completed in one
+merged-model generation call with 928 instructions, 20,167 exact tokens,
+seven model-selected panel transitions, and 256 correct output cells.
+Generation took 1,424.663 seconds on the RTX PRO 6000 Blackwell Server.
+The remaining memory and arithmetic replays, full verifier, package and
+restore gates are in progress. See the
+[v4 validation graphic](docs/media/validation-v4.png).
 
 The control H100 pod was quoted at $3.99/hour and existed for about 11 minutes
 8 seconds, projecting roughly $0.74 GPU time. Its billing query had no posted
