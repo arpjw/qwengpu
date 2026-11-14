@@ -8,8 +8,8 @@ common compute suite and all 27 inherited fixtures on both standalone
 CUDA and merged 9B CUDA, and preserves the native-text gate. Its 35
 weight shards and 48-file package passed SHA-256 checks. The private
 Hugging Face upload was rejected by the account's private storage limit.
-A checksum-verified backup is in a private GitHub draft release. A
-second private draft packages the corrected model card with the same
+A checksum-verified backup is in a private GitHub draft release. The
+public v4 release packages the corrected model card with the same
 35 weight shards and a new checksum manifest. Its clean restore passed
 all 49 file checks and the pinned build-manifest checker.
 A clean download passed all package checks and reproduced the seeded

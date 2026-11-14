@@ -1,9 +1,12 @@
-# Private checkpoint handoff
+# Checkpoint release and restore
 
 The final RunPod teardown required a verified, recoverable private copy
-of the qualified merged checkpoint. The private GitHub backup and clean
-file restore passed before the task pod was terminated. A public release
-is a separate decision.
+of the qualified merged checkpoint. The GitHub backup and clean file
+restore passed before the task pod was terminated. The corrected v4
+package is now distributed in the public GitHub release. Hugging Face
+serves the independently verified v3 revision. The v4 Hub upload remains
+open because the private storage quota rejected it and a public staged
+upload has not been completed.
 
 ## V4 handoff status
 
@@ -12,9 +15,9 @@ is a separate decision.
 | Fixed merged 9B CUDA qualification | Passed | [Qualified reports](results/resident_generation_v4_cuda) and [verifier output](results/resident_generation_v4_cuda/verification.txt) |
 | Independent clean GPU replay of the frozen package | Passed | [Restored reports](results/resident_generation_v4_cuda/restored-reports) and [verifier output](results/resident_generation_v4_cuda/restored-reports/restored-verifier.txt) |
 | Corrected model-card package | Passed clean file restore and pinned checksum check; CUDA execution evidence is inherited from byte-identical weights | [Clean restore receipt](results/resident_generation_v4_cuda/corrected-package/clean-restore-receipt.json) and [live asset audit](results/public-readiness/corrected-v4-live-asset-audit-2026-11-14.json) |
-| Durable private backup | Available as a private GitHub draft; 90 assets match the manifest | [Backup receipt](results/resident_generation_v4_cuda/corrected-package/github-backup-receipt.json) |
-| Hugging Face v4 | Not uploaded because the account reached its private storage limit; the private Hub repo still holds v3 | [Quota and revision record](#qualified-v4-private-draft-backup) |
-| Public visibility | Kept private for review by explicit user choice; a final source scan is required before any later publication | [Private review](PUBLICATION_REVIEW.md) |
+| Durable v4 distribution | Public GitHub release; its 90 assets matched the pinned manifest before publication | [Backup receipt](results/resident_generation_v4_cuda/corrected-package/github-backup-receipt.json) |
+| Hugging Face v4 | Not uploaded; the Hub repository serves the verified v3 checkpoint | [Quota and revision record](#qualified-v4-private-draft-backup) |
+| Public visibility | GitHub source and Hugging Face model repositories are public | [Publication review](PUBLICATION_REVIEW.md) |
 
 Apple MPS qualification and 32-bit atomics are separate follow-on work.
 Neither is a gate for the fixed v4 CUDA handoff.
@@ -35,16 +38,17 @@ checkpoint build uses the MIT-licensed Qwenputer compiler.
 
 ## Public release review
 
-The current decision is to keep both repositories private for review.
-The [short review note](PUBLICATION_REVIEW.md) summarizes the verified
-checkpoint, exposure inventory, and remaining publication checks.
+The user authorized publication after final review. The
+[review note](PUBLICATION_REVIEW.md) summarizes the verified checkpoint,
+exposure inventory, and remaining Hub v4 work. The paragraphs below
+record the prepublication checks and history, including the earlier
+private state.
 
-Keep both repositories private through qualification and teardown. The
-GitHub history currently includes the author's commit email and RunPod
-cost records, including provider pod IDs, usage, and spend. A visibility
-flip exposes that history alongside the source and reports. Decide
-whether to retain it before flipping. If a clean history is needed,
-preserve the private original and prepare a reviewed public snapshot.
+Both repositories were kept private through qualification and teardown.
+The GitHub history includes the author's commit email and RunPod cost
+records, including provider pod IDs, usage, and spend. Publication
+exposes that history alongside the source and reports. The user approved
+publication with this exposure identified.
 The build and compiler revisions referenced by the checkpoint must stay
 available to readers of either release path.
 [GitHub visibility guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)
@@ -54,9 +58,7 @@ at source commit `988b757` found nine remote branches, with all eight
 non-main branches fully merged into `main`, and no Git tags. The history
 contains one distinct commit-author email that is not a GitHub noreply
 address. Ten tracked files matched RunPod cost or pod-ID keywords. The
-receipt lists those files without exposing the author address. Decide
-whether this existing history and usage metadata should be public before
-changing visibility.
+receipt lists those files without exposing the author address.
 
 The final review should cover every GitHub branch and tag, model
 repository references and package files, tracked logs and report
@@ -184,10 +186,11 @@ python scripts/check_checkpoint_package.py "$restored" \
   f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213
 ```
 
-## Corrected v4 private draft package
+## Corrected v4 public package
 
-A separate private GitHub draft, tag `v4-corrected-package-2026-11-14`
-and release ID `445423220`, contains the corrected model card and a new
+Originally staged as a private GitHub draft, the published release with
+tag `v4-corrected-package-2026-11-14` and ID `445423220` contains the
+corrected model card and a new
 `SHA256SUMS`. The [repackage receipt](results/resident_generation_v4_cuda/corrected-package/repackage-receipt.json)
 records 47 unchanged content files and the one changed `README.md`.
 Every weight shard is byte-identical to the CUDA-qualified frozen backup.
@@ -252,14 +255,14 @@ The temporary CPU pod and network volume were deleted after the
 transcripts were copied and matched locally. The [teardown receipt](results/resident_generation_v4_cuda/corrected-package/teardown-receipt.json)
 records their 204 deletion responses and empty follow-up lists.
 
-Restore the corrected package into a nonexistent directory with GitHub
-access:
+Restore the corrected package into a nonexistent directory. No GitHub
+sign-in is required for the published release:
 
 ```bash
-gh auth token | python3 scripts/restore_private_release.py \
+python3 scripts/restore_private_release.py \
   arpjw/qwengpu v4-corrected-package-2026-11-14 445423220 \
   67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
-  "$restored" --backup-manifest corrected-github-backup-manifest.json
+  "$restored" --backup-manifest corrected-github-backup-manifest.json --public
 python3 scripts/check_checkpoint_package.py "$restored" \
   --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
   --expected-checksum-digest \
@@ -271,13 +274,11 @@ rehashes existing expected files, skips complete files, and replaces
 only incomplete ones. It rejects unexpected entries and symlinks in
 the destination.
 
-If this repository and the corrected release are later made public,
-run the same restore command without the `gh auth token |` prefix and
-with `--public`. The helper then requires a published release in a
-public repository while preserving the release ID and checksum checks.
-Run `scripts/check_release_assets.py` with `--public` too. Publication
-still requires an explicit visibility decision, a fresh source scan,
-and a pinned v4 Hugging Face revision if that destination is used.
+The helper requires a published release in a public repository while
+preserving the release ID and checksum checks. Run
+`scripts/check_release_assets.py` with `--public` too. A v4 Hugging Face
+revision requires its own upload, clean restore, and pinning; it is not
+implied by this GitHub release.
 
 The Hugging Face upload helper verifies the pinned build manifest, all
 package file hashes, and the `SHA256SUMS` digest before sending files.

@@ -32,16 +32,19 @@ token IDs. [Reports and reproduction commands](VALIDATION.md)
 Each generated token requires a model forward pass, so the current
 machine is slow. Apple MPS qualification of v4 remains pending and is
 separate from the CUDA-qualified v4 release scope. The
-private v4 checkpoint package passed its 48-file checksum pass and is
-backed up in a private GitHub draft release. A clean download of the frozen
+v4 checkpoint package passed its 48-file checksum pass and is
+backed up in the public GitHub release. A clean download of the frozen
 execution package passed
 all file and package checks, then reproduced the seeded tile, native text,
 and full 16×16 matrix on a separate 96 GB CUDA GPU. The
 [release receipt](RELEASE.md) and [restored-run reports](results/resident_generation_v4_cuda/restored-reports)
 record the comparison. The previously verified v3 checkpoint remains
-available at its pinned revision. The v4 Hugging Face upload is blocked by
-the account's private storage limit. A separate clean restore of the
-corrected model-card package passed all 49 file checks and the pinned
+available at its pinned revision. The Hugging Face repository serves v3;
+the corrected v4 package is distributed through the
+[GitHub v4 release](https://github.com/arpjw/qwengpu/releases/tag/v4-corrected-package-2026-11-14).
+The v4 upload to Hugging Face was blocked by the private storage limit.
+A separate clean restore of the corrected model-card package passed all
+49 file checks and the pinned
 build-manifest check.
 The v4 checkpoint does not implement 32-bit atomic memory operations;
 the [atomic instruction gate](ATOMIC32_DESIGN.md) is follow-on work.
@@ -49,20 +52,19 @@ the [atomic instruction gate](ATOMIC32_DESIGN.md) is follow-on work.
 ## Run the verified v4 checkpoint
 
 The merged weights occupy about 86 GB and were restored and run on a
-96 GB CUDA GPU. The corrected v4 package is in a private GitHub draft
-release. Set up the [pinned environment](REPRODUCE.md#run-the-stock-generation-checkpoint),
-then run these commands from a QwenGPU checkout with `gh` authenticated
-for this repository. Choose a destination outside the checkout that
-does not already exist:
+96 GB CUDA GPU. The corrected v4 package is in the public GitHub release.
+Set up the [pinned environment](REPRODUCE.md#run-the-stock-generation-checkpoint),
+then run these commands from a QwenGPU checkout. Choose a destination
+outside the checkout that does not already exist:
 
 ```bash
 checkpoint=../Qwen-GPU-v4
 export QWENPUTER_DIR=/path/to/qwenputer/experimental/riscv
 export PYTHONPATH="$QWENPUTER_DIR:$PWD"
-gh auth token | python3 scripts/restore_private_release.py \
+python3 scripts/restore_private_release.py \
   arpjw/qwengpu v4-corrected-package-2026-11-14 445423220 \
   67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913 \
-  "$checkpoint" --backup-manifest corrected-github-backup-manifest.json
+  "$checkpoint" --backup-manifest corrected-github-backup-manifest.json --public
 python3 scripts/check_checkpoint_package.py "$checkpoint" \
   --pinned-manifest results/resident_generation_v4_cuda/manifest.json \
   --expected-checksum-digest 67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913
@@ -71,9 +73,9 @@ python3 scripts/check_checkpoint_package.py "$checkpoint" \
   --model "$checkpoint" --device cuda --check-reference --out tile.json
 ```
 
-The [release guide](RELEASE.md#corrected-v4-private-draft-package)
+The [release guide](RELEASE.md#corrected-v4-public-package)
 records the package checks, the frozen CUDA matrix and native-text replay,
-and the restore switch for a future published release.
+and the public restore procedure.
 
 ## Apple MPS candidate
 
@@ -82,11 +84,10 @@ smoke traces for deadlock and cooperative 32-bit shared memory. It
 contains no pretrained text weights. The [standalone artifact card](release/standalone-v4-card.md)
 records how to run the full Apple MPS qualification; that run is pending.
 
-## Older v3 Hugging Face checkpoint
+## Hugging Face v3 checkpoint
 
 The verified v3 release remains at its immutable Hugging Face revision.
-Sign in with `hf auth login` if the private model repository requires
-access.
+The pinned revision is available without signing in.
 
 ```bash
 checkpoint=./Qwen-GPU-v3
@@ -108,7 +109,7 @@ includes the pinned environment, build path, and v4 qualification command.
 
 - [Scope and remaining gates](SCOPE.md)
 - [Checkpoint release and restore](RELEASE.md)
-- [Private publication review](PUBLICATION_REVIEW.md)
+- [Publication review and remaining limits](PUBLICATION_REVIEW.md)
 - [Stock-generation protocol](MODEL_WRITEBACK_DESIGN.md)
 - [Development history and earlier launchers](docs/DEVELOPMENT_HISTORY.md)
 
