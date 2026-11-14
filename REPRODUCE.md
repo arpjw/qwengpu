@@ -1995,6 +1995,7 @@ interleaved workgroups use identical local addresses.
 ```bash
 python -m qwengpu.assemble --full-integer examples/scoped_shared_u32.qga \
   --data examples/scoped_shared_u32_data.json --out shared.json
+python scripts/check_stock_tile_ir.py shared.json
 python -m qwengpu.run_resident shared.json --model "$model" --device cuda \
   --check-reference --trace --out shared-result.json
 ```

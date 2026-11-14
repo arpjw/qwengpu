@@ -1,0 +1,11 @@
+RunPod Linux CPU replay using Qwenputer compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c.
+Run from the QwenGPU checkout with the pinned compiler environment.
+
+python -m qwengpu.assemble --full-integer examples/scoped_shared_u32.qga --data examples/scoped_shared_u32_data.json --out /tmp/scoped-shared-u32-kernel.json
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 python scripts/check_stock_tile_ir.py /tmp/scoped-shared-u32-kernel.json
+
+Compiler replay matched the reference token stream and all eight mirrors
+of the final global and scoped RAM. The live compiler output follows.
+
+{'layers': 52, 'dims': 12857, 'heads': 372, 'ffn_units': 57312, 'max_units': 4993, 'max_heads': 16} 3611 (7936, 31)
+/workspace/reports/scoped-shared-u32-kernel.json 52 837 d79d6d641bb4a7353b2a03f15f82c5f78fc01c85b95200c9006bce9a57434c89

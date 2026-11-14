@@ -18,17 +18,17 @@ BASE_HIDDEN = 4096
 MERGE_TARGET = Target(16, 32, 12288)
 
 
-def memory_words(circuit, state, tiled):
+def memory_words(circuit, state, *, global_ram):
     locations = {node.name: i for i, node in enumerate(circuit.nodes)
                  if isinstance(node, Head)}
     words = []
-    for word in range(128 if tiled else 256):
+    for word in range(256 if global_ram else 128):
         value = 0
         for nib in range(4):
             mirrors = []
             for lane in range(8):
-                name = (f"shared.{lane}.{nib}" if tiled else
-                        f"ram.{lane}.{nib}.{word // 128}")
+                name = (f"ram.{lane}.{nib}.{word // 128}" if global_ram else
+                        f"shared.{lane}.{nib}")
                 row = state[locations[name], "S", 0][word % 128]
                 assert tuple(row[:2]) == (A_REF, A_REF), (name, word)
                 assert all(bit in (0, A_BIT) for bit in row[2:6]), (name, word)
@@ -68,8 +68,10 @@ def main():
         for i, (got, want) in enumerate(zip(actual, expected, strict=True)):
             if got != want:
                 raise ValueError(f"{path}: token {i} {got=} {want=} previous={expected[max(0, i-8):i]}")
-        actual_words = memory_words(circuit, carry, "workgroups" not in case)
+        actual_words = memory_words(circuit, carry, global_ram="workgroups" in case)
         assert actual_words == reference["shared_words"], path
+        if "scoped_words" in case:
+            assert memory_words(circuit, carry, global_ram=False) == reference["scoped_words"], path
         print(path, len(reference["trace"]), len(expected), hashlib.sha256(payload).hexdigest(), flush=True)
 
 
