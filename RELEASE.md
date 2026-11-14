@@ -76,9 +76,9 @@ from v3. Hugging Face documents 100 GB of private storage for a free
 account and 1 TB for PRO; storage limits apply across repositories.
 [Storage limits](https://huggingface.co/docs/hub/storage-limits)
 
-The v4 package is backed up in the private GitHub draft release
-[`v4-private-backup-2026-11-14`](https://github.com/arpjw/qwengpu/releases/tag/untagged-e80052861b89eced6f60),
-release ID `445244518`. GitHub reported 91 uploaded assets totaling
+The v4 package is backed up on the private GitHub [releases page](https://github.com/arpjw/qwengpu/releases)
+as draft tag `v4-private-backup-2026-11-14`, release ID `445244518`.
+GitHub reported 91 uploaded assets totaling
 86,321,158,445 bytes, including 89 package assets, the backup manifest,
 and an extra copy of the checksum list. Each package asset's reported
 size and SHA-256 matched the [backup manifest](results/resident_generation_v4_cuda/github-backup-manifest.json).
@@ -162,9 +162,9 @@ The [export transcript](results/resident_generation_v4_cuda/standalone-export/ex
 and [upload transcript](results/resident_generation_v4_cuda/standalone-export/upload-transcript.txt)
 record the artifact creation and verified assets.
 
-The private draft release
-[`v4-standalone-mps-candidate-2026-11-14`](https://github.com/arpjw/qwengpu/releases/tag/untagged-774774d9793eae763296)
-has release ID `445397359`. GitHub reported 17 assets totaling
+The private draft on the GitHub [releases page](https://github.com/arpjw/qwengpu/releases)
+has tag `v4-standalone-mps-candidate-2026-11-14` and release ID
+`445397359`. GitHub reported 17 assets totaling
 12,048,693,460 bytes, all with SHA-256 digests. The [asset receipt](results/resident_generation_v4_cuda/standalone-export/github-backup-receipt.json)
 records the private and draft status, and the [backup manifest](results/resident_generation_v4_cuda/standalone-export/standalone-backup-manifest.json)
 maps every file to its verified assets. Restore into a nonexistent directory using
@@ -191,6 +191,14 @@ Set `QWENGPU_STANDALONE_WEIGHTS="$standalone"` before running the
 [v4 MPS qualification script](scripts/qualify_resident_generation_mps.sh).
 The standalone circuit is a candidate for that script, not an MPS
 qualified checkpoint.
+
+GitHub can change a draft release's `untagged-*` URL when its notes are
+edited. Resolve the current URL from its stable release ID:
+
+```sh
+gh api repos/arpjw/qwengpu/releases/445244518 --jq .html_url
+gh api repos/arpjw/qwengpu/releases/445397359 --jq .html_url
+```
 
 ## Restore receipt
 
