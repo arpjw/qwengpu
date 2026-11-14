@@ -1,0 +1,36 @@
+{
+  "checked_at_utc": "2026-11-14T20:48:49.542585+00:00",
+  "corrected_package_checksum_digest": "67e063bedb52e3f55fd5a298962e8a111c1de92ade2632225f9cc5a6e9d73913",
+  "missing_local_links": {
+    "README.md": [],
+    "RELEASE.md": [],
+    "SCOPE.md": []
+  },
+  "public_source_checks": {
+    "base_license_matches_package": true,
+    "base_license_sha256": "bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a",
+    "qwen_base_public": true,
+    "qwen_base_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "qwencpu_repo_public": true,
+    "qwenputer_commit": "ca13310e2f9f788d1dd3feeea8213c1b0c23913c"
+  },
+  "qualification": "Source card and graphics match the corrected private package. Public source pins resolve. This does not make either private repository public or validate a future Hugging Face v4 upload.",
+  "source_card_and_graphics": {
+    "README.md": {
+      "matches_corrected_package": true,
+      "sha256": "c214c59bdfd9bb7cbeb4ab854fc0c5eecea8ad3c61ec5c14862afc07c7d5616f",
+      "source_path": "release/model-card-v4.md"
+    },
+    "architecture.png": {
+      "matches_corrected_package": true,
+      "sha256": "8d50c3b9c68f246c8d16f9e27a1a2e9b931cf4fe6dae2a453bf85f3b9f09371d",
+      "source_path": "docs/media/architecture.png"
+    },
+    "validation-v4.png": {
+      "matches_corrected_package": true,
+      "sha256": "a37701380ed6220227d5e0959f38cd704771654e06bf76e279ab3eb705c7da2c",
+      "source_path": "docs/media/validation-v4.png"
+    }
+  },
+  "source_commit": "3af7ff6ba3a524b5cad20afca4a8444fde2f6f69"
+}

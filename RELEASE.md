@@ -67,6 +67,14 @@ reported 557 scanned commits and the same 27 reviewed locations, with
 no new scanner matches. Publication still requires a fresh scan against
 its final refs.
 
+The [card and source audit](results/public-readiness/card-and-source-audit-2026-11-14.json)
+confirms that the v4 model card and both graphics in this checkout match
+the corrected package's checksums. Its simple local-link check found no
+missing targets in the main README, scope, or release guide. The pinned
+QwenCPU repository, Qwenputer commit, and public Qwen3.5 base revision
+resolve; the base license digest matches the corrected package. This
+does not verify signed-out access to the still-private repositories.
+
 ## Pinned checkpoint
 
 The verified v3 package is stored in the Hugging Face model repository
