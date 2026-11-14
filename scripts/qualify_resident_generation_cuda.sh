@@ -29,6 +29,10 @@ sequential=(
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/sequential-merged.json" "${sequential[@]}"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/standalone.json" "$reports/merged.json"
+"$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
+  "$reports/sequential-standalone.json" "$reports/sequential-merged.json" \
+  --sequential-baseline results/model_stores_merged_cuda \
+  --matrix-extent-baseline results/memory512_bounds_9b_cuda_fla.json
 "$python" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
   --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 --out "$reports/text.json"
 "$python" - "$reports/text.json" <<'PY'
