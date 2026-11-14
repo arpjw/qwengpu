@@ -1,0 +1,15 @@
+RunPod NVIDIA RTX PRO 6000 Blackwell Server Edition
+97887 MiB GPU memory
+NVIDIA driver 595.91.07
+125000000000 bytes approximate host RAM limit
+Image runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
+torch==2.14.1
+transformers==5.19.0
+safetensors==0.8.0
+numpy==2.5.4
+flash-linear-attention==0.6.0
+causal-conv1d absent (Transformers PyTorch fallback)
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2
+Compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c
+Base Qwen/Qwen3.5-9B c202236235762e1c871ad0ccb60c8ee5ba337b9a
+Checkpoint source d61581004f98aba79fdd524e38466a1dcca75423
