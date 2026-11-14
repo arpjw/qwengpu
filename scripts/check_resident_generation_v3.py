@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from check_resident_generation import check, check_inherited
+from check_single_launch_matmul16 import check as check_single_launch_matmul16, LAYOUT as V4_LAYOUT
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 V2 = RESULTS / "resident_generation_v2_cuda"
@@ -23,16 +24,21 @@ def read(directory, filename):
     return json.loads((directory / filename).read_text())
 
 
-def check_manifest(manifest):
+def check_manifest(manifest, *, v4=False):
     index = manifest["files"]["model.safetensors.index.json"]
     shards = set(index["weight_map"].values())
     assert shards and set(manifest["sha256"]) == shards | set(manifest["files"])
     assert sum(manifest["dtype_bytes"].values()) == index["metadata"]["total_size"]
     pinned = json.loads(PINNED_V3.read_text())
-    for key in ("checkpoint_source_commit", "compiler_commit", "base_revision",
-                "files", "sha256", "dtype_bytes", "non_bf16"):
+    keys = ("compiler_commit", "base_revision")
+    if v4:
+        assert manifest["files"]["qwengpu9b.json"]["layout"] == V4_LAYOUT
+        assert len(manifest["checkpoint_source_commit"]) == 40
+    else:
+        keys += ("checkpoint_source_commit", "files", "sha256", "dtype_bytes", "non_bf16")
+    for key in keys:
         assert manifest[key] == pinned[key], f"v3 checkpoint differs from pinned manifest in {key}"
-    print(f"Verified the pinned v3 manifest and {len(shards)} weight shard hashes")
+    print(f"Verified the {'v4 candidate' if v4 else 'pinned v3'} manifest with {len(shards)} shard digests")
 
 
 def check_launch(run):
@@ -232,11 +238,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
     parser.add_argument("--mps", action="store_true", help="check standalone Apple MPS reports")
+    parser.add_argument("--v4", action="store_true", help="check the v4 CUDA candidate and single-launch tilegrid")
     parser.add_argument("--compare-cuda", type=Path,
                         help="compare MPS reports with a complete merged CUDA report directory")
     args = parser.parse_args()
     if args.compare_cuda is not None and not args.mps:
         parser.error("--compare-cuda requires --mps")
+    if args.v4 and args.mps:
+        parser.error("use check_single_launch_matmul16.py --mps for the v4 MPS matrix gate")
     root = args.reports
     backend = "mps" if args.mps else "merged"
     device = "mps" if args.mps else "cuda"
@@ -244,7 +253,8 @@ def main():
     reports = (inherited.name, f"interleaved-{backend}.json", f"sequential-{backend}.json",
                "tiled.json", "memory512-raw.json", "memory512-compute.json",
                "integer-programs.json", "scoped_reset.json", "interleaved_handoff.json",
-               "matmul16.json", "scoped-shared-u32.json")
+               "matmul16-single-launch.json" if args.v4 else "matmul16.json",
+               "scoped-shared-u32.json")
     if not args.mps:
         reports += ("bounds.json", "inherited-standalone.json", "text.json", "handoff.json",
                     "cli-reduction.json", "cli-deadlock.json")
@@ -276,7 +286,10 @@ def main():
     check_integer_programs(root)
     check_relaunches(root)
     check_scoped_shared_u32(root)
-    check_matmul16(root)
+    if args.v4:
+        check_single_launch_matmul16(root)
+    else:
+        check_matmul16(root)
     if args.mps:
         if args.compare_cuda is not None:
             check_cross_backend(root, args.compare_cuda)
@@ -286,7 +299,7 @@ def main():
     text = read(root, "text.json")
     handoff = read(root, "handoff.json")
     assert text["merge"] == manifest["files"]["qwengpu9b.json"] == handoff["checkpoint"]
-    check_manifest(manifest)
+    check_manifest(manifest, v4=args.v4)
     assert text["next_top1_same"] == 24 and text["greedy_identical"] >= 21
     assert text["merged_chip_tokens"] == 0
     assert handoff["exact"] and handoff["consumer"]["global_upload_words"] == 0

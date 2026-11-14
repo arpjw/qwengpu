@@ -2009,6 +2009,14 @@ python -m qwengpu.textcheck_9b "$base" "$v4_model" --device cuda \
 python scripts/check_single_launch_matmul16.py "$reports"
 ```
 
+To run the complete CUDA regression suite on an existing v4 candidate,
+pass the source commit used to build its weights.
+
+```bash
+bash scripts/qualify_resident_generation_cuda.sh --existing --v4 \
+  "$base" "$v4_model" "$reports" "$v4_source_commit"
+```
+
 To exercise the v4 panel scheduler on Apple MPS, export its standalone
 weights on a Linux builder. Copy the resulting directory to the Apple
 host, then run the same frozen fixture with the standalone launch mode.
