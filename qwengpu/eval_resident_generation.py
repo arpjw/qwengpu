@@ -116,11 +116,10 @@ def evaluate(model, circuit, case, device, offset=0, *, max_new_tokens=32768):
     expected, controls, registers = expected_tokens(reference)
     words, mirrors = cache_words(retained, circuit)
     scoped = cache_words(retained, circuit, scoped=True) if "scoped_words" in case else None
-    register_exact = all(
-        head_row(retained, circuit, name, warp, 4) == value
-        for warp, bank in enumerate(registers)
-        for name, value in zip(register_head_names(), bank, strict=True)
-    )
+    observed_registers = [
+        [head_row(retained, circuit, name, warp, 4) for name in register_head_names()]
+        for warp in range(4)
+    ]
     control_exact = all(
         head_row(retained, circuit, f"resident.control.{warp}", 0, 7) == (token & 127)
         for warp, token in enumerate(controls)
@@ -148,7 +147,7 @@ def evaluate(model, circuit, case, device, offset=0, *, max_new_tokens=32768):
         "tokens_exact": tokens == expected,
         "first_token_difference": first_difference,
         "outcome_exact": outcome == reference["outcome"],
-        "registers_exact": register_exact,
+        "registers_exact": observed_registers == registers,
         "control_exact": control_exact,
         "global_exact": mirrors and words == reference["shared_words"],
         "scoped_exact": scoped is None or (scoped[1] and scoped[0] == reference["scoped_words"]),
@@ -188,10 +187,12 @@ def main():
         )
         result.update(fixture=fixture.name, sha256=hashlib.sha256(payload).hexdigest())
         report["cases"].append(result)
+        failed = [key for key, value in result.items() if key.endswith("_exact") and not value]
         print(f"{fixture.name}: {result['steps']} instructions, "
-              f"{len(result['generated_tokens'])} generated tokens", flush=True)
+              f"{len(result['generated_tokens'])} generated tokens"
+              f"{', failed: ' + ', '.join(failed) if failed else ', exact'}", flush=True)
         args.out.write_text(json.dumps(report, indent=2) + "\n")
-        if not all(value for key, value in result.items() if key.endswith("_exact")):
+        if failed:
             raise SystemExit(1)
 
 

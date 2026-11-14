@@ -19,6 +19,8 @@ fixtures=(
 "$python" -m qwengpu.eval_resident_generation --out "$reports/standalone.json" "${fixtures[@]}"
 "$python" -m qwengpu.merge9b "$base" --resident-generate --out "$model"
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/merged.json" "${fixtures[@]}"
+"$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
+  "$reports/standalone.json" "$reports/merged.json"
 "$python" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \
   --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 --out "$reports/text.json"
 "$python" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \

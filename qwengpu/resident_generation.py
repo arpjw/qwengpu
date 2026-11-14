@@ -15,19 +15,27 @@ REGISTER_STRIDE = 0x800
 
 def first_after(c, request, continuation, cursor, choices, name):
     """Select the first set position past the preceding token's cursor."""
-    prior = Expr()
-    selected = []
+    candidates = []
     for index, choice in enumerate(choices):
         later = request - continuation + c.node(
             c.t_lt(cursor, index, 0, 127, lits=[continuation]),
             f"{name}.after.{index}",
         )
-        candidate = c.and_([later, choice], f"{name}.candidate.{index}")
-        selected.append(c.node(
-            c.t_eq(prior, 0, 0, index, lits=[candidate]),
-            f"{name}.first.{index}",
-        ))
-        prior += candidate
+        candidates.append(c.and_([later, choice], f"{name}.candidate.{index}"))
+    groups = [candidates[i:i + 8] for i in range(0, len(candidates), 8)]
+    occupied = [
+        c.node(c.t_ge(sum(group, Expr()), 1, 0, len(group)), f"{name}.occupied.{i}")
+        for i, group in enumerate(groups[:-1])
+    ]
+    selected = []
+    for group_index, group in enumerate(groups):
+        prior = sum(occupied[:group_index], Expr())
+        for index, candidate in enumerate(group):
+            selected.append(c.node(
+                c.t_eq(prior, 0, 0, group_index + index, lits=[candidate]),
+                f"{name}.first.{len(selected)}",
+            ))
+            prior += candidate
     return selected
 
 

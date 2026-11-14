@@ -564,6 +564,17 @@ def build(
         if resident_plan
         else []
     )
+    if generate:
+        # Stock generation reads the snapshot directly. Keep the upload
+        # vocabulary and legacy datapath, without the host polling ports.
+        reads.clear()
+        writes.clear()
+        index_reads.clear()
+        mask_reads.clear()
+        branch_reads.clear()
+        loop_reads.clear()
+        high_reads.clear()
+        plan_reads.clear()
     code = [
         c.token_feature(
             f"code.{bit}",
@@ -1062,10 +1073,12 @@ def build(
             for nib in range(len(warp_tags)):
                 lookup_start = start + 16 * nib
                 generated_start = gen.REGISTER + gen.REGISTER_STRIDE * bank + 16 * nib
-                input_keys[lookup_start] = between(
-                    f"generate.register.load.{bank}.{nib}", lookup_start, lookup_start + 16
-                ) + between(
-                    f"generate.register.update.{bank}.{nib}", generated_start, generated_start + 16
+                input_keys[lookup_start] = c.token_feature(
+                    f"generate.register.load.{bank}.{nib}",
+                    lambda t, old=lookup_start, new=generated_start: int(
+                        t // 16 in (old // 16, new // 16)
+                    ),
+                    full=True,
                 )
 
     scoped_ports = {}
