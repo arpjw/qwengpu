@@ -2003,6 +2003,10 @@ To build and test the experimental v4 merge on CUDA:
 python -m qwengpu.merge9b "$base" --generated-tilegrid --out "$v4_model"
 python -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
   --model "$v4_model" --device cuda --out "$reports/matmul16-single-launch.json"
+python -m qwengpu.textcheck_9b "$base" "$v4_model" --device cuda \
+  --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
+  --out "$reports/text.json"
+python scripts/check_single_launch_matmul16.py "$reports"
 ```
 
 The following assembled program communicates 32-bit values between two warps
