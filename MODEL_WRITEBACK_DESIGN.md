@@ -116,3 +116,9 @@ weights-only cyclic register writeback.
 ```bash
 bash scripts/qualify_cache_register_edge.sh "$model" "$stock_reports" "$edge_reports"
 ```
+
+The same runtime adapter also matched both panels of the 3×5 by 5×2
+matrix multiply on merged CUDA. Each panel committed 12 output words
+without register or RAM address/value tokens; the second panel retained
+C and uploaded only its A/B operands. See
+`results/cache_register_edge_cuda/tiled_3x5x2.json`.
