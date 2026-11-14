@@ -2,8 +2,8 @@
 
 The approved project cap is $74 in total. Check posted pod billing before
 provisioning and reserve enough for any still pending estimates. Quotes and
-elapsed-time estimates are separate from posted billing. The last refresh
-was November 7, 2026 at 05:16 UTC.
+elapsed-time estimates are separate from posted billing. The table below
+is the November 7 snapshot; the current reconciliation is at the end.
 
 For the final checkpoint pod, complete the durable private handoff in
 [RELEASE.md](RELEASE.md) before teardown.
@@ -505,3 +505,24 @@ lookup returned 404, and the pod list was empty. The [teardown receipt](results/
 and [package evidence](results/resident_generation_v4_cuda/standalone-export)
 are saved. Using the earlier conservative $0.78 project headroom, this
 leaves approximately $0.30 under the $74 cap pending reconciliation.
+
+## November 14 posted-billing reconciliation
+
+The RunPod billing read at 15:57 UTC covered November 4 through 14.
+The 64 pod IDs in this ledger include 63 with posted billing and the
+latest CPU pod, which still has none. Two earlier QwenGPU cost receipts
+identify additional pods absent from the table: ROM32 pod
+`8rdef678p99dc9` posted $1.672135, and memory512 pod
+`rzjdl84vtyup6a` posted $3.835291. Including those, documented
+project pod charges total $66.348554. The task network volume
+`cvfkmzhj4t` posted another $0.013611, bringing documented project
+charges to $66.362165. The latest CPU pod remains reserved at $0.48,
+for $66.842165 posted plus reserve and conditional $7.157835 headroom
+under the $74 cap.
+
+The account's billing response contains 65 other billed pod IDs with
+no match in the current QwenGPU files or all-ref patches. They are not
+attributed to this project here. This headroom is conditional on the
+repository identifying every project pod; it is not account credit or
+a final invoice. The [reconciliation receipt](results/public-readiness/runpod-billing-reconciliation-2026-11-14.json)
+records the query window, attribution, and exact amounts.

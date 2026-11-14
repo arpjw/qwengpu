@@ -1,0 +1,32 @@
+{
+  "queried_at_utc": "2026-11-14T15:57:04Z",
+  "billing_window_start_utc": "2026-11-04T00:00:00Z",
+  "billing_window_end_utc": "2026-11-15T00:00:00Z",
+  "project_cap_usd": 74,
+  "method": "Match RunPod pod billing records to the 64 pod IDs in RUNPOD_LEDGER.md and two additional QwenGPU cost-receipt IDs. Add the separately billed project network volume. Exclude other account resources with no QwenGPU source-history reference.",
+  "ledger_pod_ids": 64,
+  "ledger_pod_ids_with_posted_records": 63,
+  "additional_project_pods": [
+    {
+      "pod_id": "8rdef678p99dc9",
+      "receipt": "results/rom32_runpod_cost.json",
+      "posted_usd": 1.672135395463556
+    },
+    {
+      "pod_id": "rzjdl84vtyup6a",
+      "receipt": "results/memory512_runpod_cost.json",
+      "posted_usd": 3.835290767834522
+    }
+  ],
+  "documented_project_pod_posted_usd": 66.34855352817249,
+  "project_network_volume_id": "cvfkmzhj4t",
+  "project_network_volume_posted_usd": 0.013611110858619213,
+  "documented_project_posted_usd": 66.3621646390311,
+  "pending_pod_id": "1odnhe4hcw4087",
+  "pending_pod_posted_usd": 0,
+  "pending_pod_reserve_usd": 0.48,
+  "documented_project_posted_plus_reserve_usd": 66.84216463903111,
+  "conditional_project_headroom_usd": 7.1578353609688925,
+  "unattributed_billed_account_pod_ids": 65,
+  "qualification": "Headroom is conditional on all QwenGPU pods being recorded in the repository. The other 65 billed account pod IDs do not appear in the current repository files or all-ref patches. This is a project attribution, not an account balance or final invoice."
+}
