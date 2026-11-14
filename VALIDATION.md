@@ -1788,3 +1788,9 @@ stay in recurrent state. The input audit recorded no writeback tags in
 either global or scoped memory, and the launcher issued no store
 readback requests. The exact reports are in
 `results/model_stores_merged_cuda/model_stores.json`.
+
+At identical trace results, the three merged launches used 4,504, 3,602,
+and 5,608 input tokens, down from 4,868, 4,050, and 6,952 respectively.
+The savings come from replacing each four-nibble store read and
+four-nibble feedback with a single fixed lane command. These are token
+and call counts, not an acceleration claim.
