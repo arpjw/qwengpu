@@ -45,7 +45,8 @@ python scripts/check_checkpoint_package.py "$package" \
   --pinned-manifest "$original_manifest" --write
 # Save the printed digest in the receipt before downloading.
 python scripts/check_checkpoint_package.py "$restored" \
-  --pinned-manifest "$original_manifest" --expected-checksum-digest "$digest"
+  --pinned-manifest "$original_manifest" --expected-checksum-digest "$digest" \
+  > "$reports/restore-checksum.txt"
 ```
 
 ## Store and restore
@@ -92,6 +93,7 @@ python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
 python -m qwengpu.textcheck_9b "$base" "$restored" --device cuda \
   --corpus eval/frozen/text_add32_gate_v1/prompts.json --max-new-tokens 16 \
   --out "$reports/restored-text.json"
+python scripts/check_restored_checkpoint.py "$reports"
 ```
 
 Require a halted tile with exact tokens, ROM, registers, control and
