@@ -121,11 +121,17 @@ python scripts/check_checkpoint_package.py "$restored" \
 
 1. Use a user-controlled private Hugging Face model repository and verify
    its visibility before uploading. Upload directly from RunPod with an
-   account credential scoped to the destination. Use the Hub's resumable
-   folder upload with an explicit file list or a clean staging
-   directory. Keep credentials, caches, and unrelated artifacts outside
-   the upload. Record the commit SHA once the whole package is uploaded.
+   account credential scoped to the destination. The upload helper checks
+   that the repository is private, reads the token from standard input,
+   uploads the flat package, and verifies the resulting revision and
+   visibility. Keep credentials, caches, and unrelated artifacts outside
+   the package. Record the commit SHA once the whole package is uploaded.
    [Hugging Face upload guide](https://huggingface.co/docs/huggingface_hub/main/guides/upload)
+
+   ```bash
+   printf '%s\n' "$HF_TOKEN" | python scripts/upload_private_model.py \
+     "$package" arpjw/Qwen-GPU --message "Upload qualified Qwen-GPU v4"
+   ```
 2. If Hub access or quota prevents the copy, use a user-controlled
    private object-storage bucket. Use a versioned or immutable prefix
    and record the provider, bucket, prefix, and object versions. Keep
