@@ -85,3 +85,9 @@ leaves recurrent ballast in place. Neither the reference interpreter
 nor a CPU-computed value is used for the copy. Trace decoding remains
 independent of the update. This protocol is an experiment; stock
 inference still uses the original register tag relay.
+
+In the standalone CUDA publication trace, the adapter retained every
+observable result while moving from 4,050 to 3,610 input tokens and 125
+to 97 forward calls. It issued no register read or register writeback
+tokens. The fused version combines this adapter with the independent
+model-store commit path.
