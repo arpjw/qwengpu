@@ -18,6 +18,7 @@ from qwengpu.alu32 import (
     ALU_LIMITS, ALU_OPS, ALU_SIGNED_ARGS, FULL_INTEGER_OPS,
     LOGIC_OPS, RUNTIME_EXTENT_BASE, RUNTIME_EXTENT_MAX, RUNTIME_EXTENT_OP, WIDE_INDEX_OPS,
 )
+from qwengpu.atomic32 import ATOMIC_ADD_OP, atomic_add32
 from qwengpu.compiled_tile import (
     READY0,
     READY1,
@@ -295,7 +296,9 @@ def parse_launch(
     resident_scoped: bool = False,
     resident_interleaved: bool = False,
     full_integer: bool = False,
+    atomic32: bool = False,
 ) -> dict:
+    full_integer = full_integer or atomic32
     resident_interleaved = resident_interleaved or full_integer
     resident_scoped = resident_scoped or resident_interleaved
     resident_alu32 = resident_alu32 or resident_scoped
@@ -352,6 +355,8 @@ def parse_launch(
                 "globalgrid launches use global_words and zero-initialized warp state"
             )
         geometry = WIDE_MEMORY if resident_memory512 else LEGACY_MEMORY
+        if atomic32 and not resident_memory512:
+            raise ValueError("atomic add requires 512-byte global memory")
         words = _unsigned(
             data.get("global_words", [0] * geometry.words),
             geometry.words,
@@ -369,6 +374,8 @@ def parse_launch(
             words[64:] if not resident_memory512 else [0] * 64,
         )
     else:
+        if atomic32:
+            raise ValueError("atomic add requires a workgroups descriptor")
         if "global_words" in data:
             raise ValueError("global_words requires a workgroups descriptor")
         a = _unsigned(data.get("a", [0] * 64), 64, 255, "a")
@@ -414,6 +421,7 @@ def parse_launch(
             + (ALU_OPS if resident_alu32 else ())
             + (SCOPED_OPS if resident_scoped and workgroups else ())
             + (FULL_INTEGER_OPS if full_integer and workgroups else ())
+            + ((ATOMIC_ADD_OP,) if atomic32 and workgroups else ())
         )
         slots = 32 if resident_rom32 else 16
         for warp, program in enumerate(raw):
@@ -488,6 +496,7 @@ def parse_launch(
         **({"interleaved": True} if interleaved else {}),
         **({"extent": extent} if extent is not None else {}),
         **({"memory512": True} if resident_memory512 else {}),
+        **({"atomic32": True} if atomic32 else {}),
         **({"global_words": words} if resident_memory512 and workgroups else {}),
         **({"scoped_words": scoped_words} if scoped_words is not None else {}),
     }
@@ -624,6 +633,8 @@ def execute(
     bottom: BottomRow | None = None,
 ) -> dict:
     """Run a kernel with optional retained memory and fresh A and B operands."""
+    if case.get("atomic32") and not getattr(circuit, "atomic32", False):
+        raise ValueError("atomic add requires a compiled atomic32 checkpoint")
     resident_shared32 = circuit.resident_shared32
     resident_addmem32 = circuit.resident_addmem32
     resident_branch32 = circuit.resident_branch32
@@ -1835,6 +1846,7 @@ def oracle(
         before = acc[warp]
         candidate = before
         active = masks[warp]
+        atomic_patch = []
         if op == "LOAD_TILE":
             candidate = c[start : start + 8]
         elif op == "MAC_K":
@@ -1946,6 +1958,28 @@ def oracle(
                 word >> 16 if active >> lane & 1 else high[warp][lane]
                 for lane, word in enumerate(words)
             ]
+        elif op == ATOMIC_ADD_OP:
+            addends = [
+                lo | hi << 16 for lo, hi in zip(before, high[warp], strict=True)
+            ]
+            ram, returned = atomic_add32(ram, indices[warp], addends, active)
+            candidate = [value & 65535 for value in returned]
+            high[warp] = [value >> 16 for value in returned]
+            committed = set()
+            for lane, index_word in enumerate(indices[warp]):
+                if not active >> lane & 1:
+                    continue
+                address = index_word & ~1
+                if address in committed:
+                    continue
+                committed.add(address)
+                for word in (address, address + 1):
+                    atomic_patch.extend(
+                        nibbles(
+                            WIDE_MEMORY.base + 64 * word,
+                            _digits([ram[word]], 16),
+                        )
+                    )
         elif op == "ADDIDX":
             indices[warp] = [
                 (addr + arg) % (256 if global512 else INDEX_WORDS)
@@ -2172,6 +2206,7 @@ def oracle(
                     else {}
                 ),
                 "patch": patch,
+                **({"atomic_patch": atomic_patch} if op == ATOMIC_ADD_OP else {}),
                 **(
                     {"mask": nibbles(MASK_REGISTER, _digits([masks[warp]], 8))}
                     if masked

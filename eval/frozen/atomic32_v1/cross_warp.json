@@ -1,0 +1,21 @@
+{
+  "workgroups": 1,
+  "programs": [
+    [
+      {"op": "LANE_ID"},
+      {"op": "SAVE_INDEX"},
+      {"op": "ADD32I", "arg": 1},
+      {"op": "ATOMIC_ADD_INDEX32"},
+      {"op": "BARRIER"},
+      {"op": "HALT"}
+    ],
+    [
+      {"op": "ADD32I", "arg": 0},
+      {"op": "SAVE_INDEX"},
+      {"op": "ADD32I", "arg": 1},
+      {"op": "BARRIER"},
+      {"op": "ATOMIC_ADD_INDEX32"},
+      {"op": "HALT"}
+    ]
+  ]
+}

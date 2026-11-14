@@ -20,6 +20,7 @@ from qwengpu.alu32 import (
     decode_alu_token,
     lane_results,
 )
+from qwengpu.atomic32 import ATOMIC32_HALT_ARG, ATOMIC_ADD_OP
 from qwengpu.compiled_control import _stack
 from qwengpu.compiled_rom import CODE_AMP, KAPPA, _increment4
 from qwengpu.compiled_tile import (
@@ -115,6 +116,24 @@ RESIDENT_COMPUTE_LAYOUT = "qwengpu-resident-compute-9b-v1"
 ID_OPS = ("LANE_ID", "WORKGROUP_ID", "THREAD_ID", "GLOBAL_ID")
 GLOBAL_OPS = ID_OPS + ("WARP_SUM", "SHL32I", "MASK_LANES")
 COMPUTE_OPS = ("MASK_GLOBAL_LT", "MATRIX_MAC8")
+ATOMIC32_BASE_TAG = sum(
+    map(
+        len,
+        (
+            OPS,
+            INDEX_OPS,
+            MASK_OPS,
+            BRANCH_OPS,
+            LOOP_OPS,
+            (ADD32I_OP,),
+            SHARED32_OPS,
+            ADDMEM32_OPS,
+            ("WHILE_HI_BIT",),
+            GLOBAL_OPS,
+            COMPUTE_OPS,
+        ),
+    )
+)
 GLOBAL_WIRE = 192
 GLOBAL_GRID = 128
 RESET_WARP = (2064, 2080)
@@ -187,6 +206,7 @@ def program_tokens(
     resident_alu32: bool = False,
     resident_scoped: bool = False,
     full_integer: bool = False,
+    atomic32: bool = False,
 ) -> list[int]:
     slots = 32 if resident_rom32 or resident_alu32 or resident_scoped else 16
     if not 1 <= len(program) <= slots:
@@ -206,6 +226,12 @@ def program_tokens(
     def wire(address: int, op: str, arg: int) -> int:
         # The reserved HALT immediates extend the ROM without changing its stride.
         halt = OPS.index("HALT") * 256
+        if op == ATOMIC_ADD_OP:
+            if not (atomic32 and full_integer):
+                raise ValueError("atomic add requires the atomic32 layout")
+            if arg:
+                raise ValueError("atomic add takes no immediate")
+            return halt + ATOMIC32_HALT_ARG
         if op == "MASK_GLOBAL_LT":
             return OPS.index("BARRIER") * 256 + 32 + arg
         if op == "MATRIX_MAC8":
@@ -301,6 +327,7 @@ def rom_payload(
     resident_alu32: bool = False,
     resident_scoped: bool = False,
     full_integer: bool = False,
+    atomic32: bool = False,
 ) -> int:
     decoded = (
         decode_alu_token(token, scoped=resident_scoped, full_integer=full_integer)
@@ -322,6 +349,8 @@ def rom_payload(
     if resident_memory512 and wire in PAIR_DECODE:
         return PAIR_DECODE[wire]
     tag, arg = divmod(wire, 256)
+    if atomic32 and full_integer and OPS[tag] == "HALT" and arg == ATOMIC32_HALT_ARG:
+        return ATOMIC32_BASE_TAG * 256
     if resident_compute and OPS[tag] == "BARRIER":
         if 32 <= arg <= 96:
             return 29 * 256 + arg - 32

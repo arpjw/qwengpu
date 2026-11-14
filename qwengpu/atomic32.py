@@ -6,6 +6,9 @@ instruction-level result that a new circuit must reproduce.
 
 from collections.abc import Sequence
 
+ATOMIC_ADD_OP = "ATOMIC_ADD_INDEX32"
+ATOMIC32_HALT_ARG = 9
+
 
 def atomic_add32(
     global_words: Sequence[int],

@@ -25,12 +25,27 @@ memory and is invalid for scoped private or workgroup-shared addresses.
 `qwengpu.atomic32.atomic_add32` is an executable reference transition for
 this contract. It copies its input memory, applies one instruction, and
 returns the completed memory and lane registers. It is not a model result.
-Run its boundary checks with `python3 -m unittest tests.test_atomic32 -v`.
+`eval/frozen/atomic32_v1/cross_warp.json` fixes a two-warp barrier and
+collision case for the future model run.
+
+With `QWENPUTER_DIR` set to the pinned Qwenputer `experimental/riscv`
+directory, run the reference checks from this checkout:
+
+```bash
+PYTHONPATH="$QWENPUTER_DIR:$PWD" "$QWENPUTER_DIR/.venv/bin/python" \
+  -m unittest tests.test_atomic32 -v
+```
+
+The [reference test log](results/atomic32/reference-tests.txt) includes the
+atomic checks and the existing full-integer, assembler, and 512-byte-memory
+tests. It records interpreter and encoding behavior, not model inference.
 
 ## Circuit and qualification work
 
 1. Allocate an unused ROM encoding in a new layout and add the operation to
    parsing, assembly, and exact token decode without changing v4 encodings.
+   The reference-only `--atomic32` assembly flag now uses reserved HALT
+   immediate 9. It does not enable the opcode in a compiled model.
 2. Gather both limbs for each lane from the same pre-instruction snapshot.
    Compute each lane's old value with the sum of earlier active addends to
    the same pair; wrap every sum at 32 bits.
