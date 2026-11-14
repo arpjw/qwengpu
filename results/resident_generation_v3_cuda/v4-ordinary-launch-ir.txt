@@ -1,0 +1,17 @@
+V4 compiler replay for ordinary launches on RunPod Linux.
+Qwenputer compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c.
+The v4 circuit is from GitHub commit 8bd0ca2.
+
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  python scripts/check_stock_tile_ir.py --generated-tilegrid \
+  eval/frozen/tile8_gate_v1/deadlock.json \
+  eval/frozen/resident_interleaved_v1/cross_group_high_limb.json \
+  eval/frozen/resident_rom32_v1/workgroup_reset.json
+
+{'layers': 52, 'dims': 12919, 'heads': 375, 'ffn_units': 57419, 'max_units': 4993, 'max_heads': 16} 3766 (7936, 31)
+eval/frozen/tile8_gate_v1/deadlock.json 2 7 a422e8a688f085d760e01d21866eba92398c237d445aa5bb0f51eab6cc645680
+eval/frozen/resident_interleaved_v1/cross_group_high_limb.json 48 327 278d346700bc8586a9ec13f0c08135a2ad17d1e1ab401e3d074d1bb63cc0ee89
+eval/frozen/resident_rom32_v1/workgroup_reset.json 128 1479 e970d81adbcfb7c316267a6bf16c52700e929a5606d1b8263e7d7e31c7689051
+
+Each line gives the instruction count, generated token count, and fixture digest.
+All final memory mirrors matched the independent reference.

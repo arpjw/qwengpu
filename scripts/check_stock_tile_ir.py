@@ -40,9 +40,11 @@ def memory_words(circuit, state, *, global_ram):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--generated-tilegrid", action="store_true",
+                        help="check the ordinary launch path on the v4 circuit")
     parser.add_argument("fixtures", type=Path, nargs="+")
     args = parser.parse_args()
-    circuit = build(MERGE_TARGET, generate=True)
+    circuit = build(MERGE_TARGET, generate=True, generated_tilegrid=args.generated_tilegrid)
     code = [next(iter(value.terms)) for value in circuit.code]
     allocation = allocate(circuit, None, set(code), MERGE_TARGET.intermediate)
     hidden, ballast = pick_hidden(BASE_HIDDEN, max(3269, 1 + allocation.n_slots))
