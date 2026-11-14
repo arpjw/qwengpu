@@ -1922,6 +1922,25 @@ from checkpoint metadata.
 The lane mask governs all new writes. ALU and address instructions are
 available in both programmable global and legacy tiled launches.
 
+### Run the stock-generation checkpoint
+
+Build the sequential v2 weights from source revision
+`d61581004f98aba79fdd524e38466a1dcca75423`. Use the pinned compiler and
+base revision above and the CUDA environment recorded in
+`results/resident_generation_v2_cuda/environment.txt`. The merged
+weights occupy about 81 GB, with additional disk needed for the base.
+The verified run used a 96 GB Blackwell GPU and a host with a 125 GB
+RAM limit.
+
+```bash
+python -m qwengpu.merge9b "$base" --resident-generate --out "$model"
+python -m qwengpu.eval_resident_generation --model "$model" --device cuda \
+  --out sequential.json eval/frozen/scoped_memory_v1/isolation.json
+```
+
+The evaluator compares the generated stream and final recurrent memory
+to the interpreter.
+
 ### Run general tiled uint32 matrix multiply
 
 Use the existing compiler environment. The 9×7 by 7×5 fixture exercises
