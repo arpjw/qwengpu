@@ -9,6 +9,7 @@ LAYOUTS = (LAYOUT, TILEGRID_LAYOUT)
 SCHEDULE = 2704
 TICKET = 2708
 COMMIT = 2712
+ATOMIC_HIGH_COMMIT = 2800
 GROUP = 2720
 RESET = (2736, 2752)
 ROW = 2760
@@ -85,6 +86,7 @@ def generated_schedule(
 
 def generated_writeback(
     c, request, reg_input, commit_inputs, raw, bank_bits, values, dirty, grants,
+    commit_tokens=None,
 ):
     """Drain changed register nibbles, then commit stores in lane order."""
     cursor = from_bits(raw[4:11])
@@ -106,7 +108,19 @@ def generated_writeback(
     store_request = c.and_([request, c.one - any_register], "generate.store.request") + commit
     lane = sum((i * hit for i, hit in enumerate(commit_inputs)), Expr())
     stores = first_after(c, store_request, commit, lane, grants, "generate.store")
-    yield [sum(stores, Expr())], [*onehot_bits(stores, 3), *token_bits(COMMIT)[3:]]
+    if commit_tokens is None:
+        yield [sum(stores, Expr())], [*onehot_bits(stores, 3), *token_bits(COMMIT)[3:]]
+    else:
+        if len(commit_tokens) != len(stores):
+            raise ValueError("commit token count must match store grants")
+        yield [sum(stores, Expr())], [
+            sum(
+                (select for select, token in zip(stores, commit_tokens, strict=True)
+                 if token >> bit & 1),
+                Expr(),
+            )
+            for bit in range(18)
+        ]
     yield [store_request, c.one - sum(stores, Expr())], token_bits(SCHEDULE)
 
 

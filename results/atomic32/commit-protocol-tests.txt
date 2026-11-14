@@ -1,0 +1,23 @@
+test_existing_eight_lane_commit_sequence (tests.test_atomic32_protocol.Atomic32ProtocolTests.test_existing_eight_lane_commit_sequence) ... ok
+test_extra_commit_tokens_do_not_overlap_controls (tests.test_atomic32_protocol.Atomic32ProtocolTests.test_extra_commit_tokens_do_not_overlap_controls) ... ok
+test_new_sixteen_limb_commit_sequence (tests.test_atomic32_protocol.Atomic32ProtocolTests.test_new_sixteen_limb_commit_sequence) ... ok
+test_all_eight_lanes_collide_with_wrap (tests.test_compiled_atomic32.CompiledAtomic32Tests.test_all_eight_lanes_collide_with_wrap) ... ok
+test_collisions_wrap_masks_and_last_pair (tests.test_compiled_atomic32.CompiledAtomic32Tests.test_collisions_wrap_masks_and_last_pair) ... ok
+test_assembled_launch_reaches_reference_interpreter (tests.test_atomic32.Atomic32Tests.test_assembled_launch_reaches_reference_interpreter) ... ok
+test_colliding_lanes_return_ordered_old_values (tests.test_atomic32.Atomic32Tests.test_colliding_lanes_return_ordered_old_values) ... ok
+test_experimental_opcode_keeps_existing_rom_decode (tests.test_atomic32.Atomic32Tests.test_experimental_opcode_keeps_existing_rom_decode) ... ok
+test_frozen_cross_warp_barrier_case (tests.test_atomic32.Atomic32Tests.test_frozen_cross_warp_barrier_case) ... ok
+test_mask_and_last_pair_boundary (tests.test_atomic32.Atomic32Tests.test_mask_and_last_pair_boundary) ... ok
+test_next_warp_sees_completed_instruction (tests.test_atomic32.Atomic32Tests.test_next_warp_sees_completed_instruction) ... ok
+test_rejects_non_word_or_non_lane_inputs (tests.test_atomic32.Atomic32Tests.test_rejects_non_word_or_non_lane_inputs) ... ok
+test_batched_ram_read_preserves_banks_nibbles_and_mirrors (tests.test_resident_generation.ResidentGenerationTests.test_batched_ram_read_preserves_banks_nibbles_and_mirrors) ... ok
+test_cross_group_high_limb (tests.test_resident_generation.ResidentGenerationTests.test_cross_group_high_limb) ... ok
+test_four_sequential_groups_reset_both_active_warps (tests.test_resident_generation.ResidentGenerationTests.test_four_sequential_groups_reset_both_active_warps) ... ok
+test_single_workgroup_leaves_two_warps_halted (tests.test_resident_generation.ResidentGenerationTests.test_single_workgroup_leaves_two_warps_halted) ... ok
+test_tile_relaunch_uploads_operands_without_output_words (tests.test_resident_generation.ResidentGenerationTests.test_tile_relaunch_uploads_operands_without_output_words) ... ok
+test_tile_row_transition_preserves_seeded_registers (tests.test_resident_generation.ResidentGenerationTests.test_tile_row_transition_preserves_seeded_registers) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.198s
+
+OK

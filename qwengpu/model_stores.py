@@ -2,6 +2,7 @@
 
 COMMIT_BASE = 2688
 COMMIT_COUNT = 8
+ATOMIC_HIGH_COMMIT_BASE = 2696
 INTERNAL_STORES_LAYOUT = "qwengpu-resident-model-stores-9b-v1"
 
 

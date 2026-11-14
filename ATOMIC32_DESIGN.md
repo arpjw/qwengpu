@@ -41,6 +41,8 @@ atomic checks and the existing full-integer, assembler, and 512-byte-memory
 tests. It records interpreter and encoding behavior, not model inference.
 The [isolated circuit log](results/atomic32/isolated-circuit-tests.txt)
 records exact Qwenputer graph evaluation for three and eight lanes.
+The [commit protocol log](results/atomic32/commit-protocol-tests.txt)
+covers both commit widths and the existing resident-generation tests.
 
 ## Circuit and qualification work
 
@@ -58,7 +60,11 @@ records exact Qwenputer graph evaluation for three and eight lanes.
 3. Commit each distinct pair's final low and high limbs before issuing the
    next instruction. Reuse the model-owned memory writeback protocol with
    enough commit slots for both limbs. Keep the ordering within one model
-   generation cache and account for any extra generated tokens.
+   generation cache and account for any extra generated tokens. An optional
+   sixteen-slot generated-writeback selector now emits separate high-limb
+   commit tokens after the existing eight slots. Its isolated protocol
+   test checks both the old eight-slot and new sixteen-slot sequences.
+   The RAM journal is not wired to those high-limb tokens yet.
 4. Freeze boundary, carry, overflow, same-pair collision, masked lane,
    cross-warp, interleaved-workgroup, barrier, and native-text handoff cases.
    Compare the complete generated trace and final recurrent memory against
