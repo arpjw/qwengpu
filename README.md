@@ -8,7 +8,7 @@ refer to simulated machines inside model state, not physical hardware.
 The processor weights are constructed by the compiler; this experiment does
 not fine-tune the pretrained model.
 
-The current qualified layout, `qwengpu-resident-memory512-9b-v1`, has 512
+The qualified 512-byte layout, `qwengpu-resident-memory512-9b-v1`, has 512
 bytes of programmable global memory. The same constructed checkpoint runs
 uint32 vector addition up to 64 elements, reduction up to 128 inputs, and
 byte-input matrix programs with uint32 accumulation.
@@ -72,6 +72,11 @@ register and memory updates. One checkpoint runs the four-warp
 publication, barrier and deadlock traces, a two-pass reduction, and two
 tiled matrix multiplies. See [the protocol and run commands](MODEL_WRITEBACK_DESIGN.md#reusing-the-integrated-register-banks-through-generation)
 and [the CUDA reports](results/resident_generation_cuda/).
+
+The v3 stock-generation checkpoint adds the legacy tile launch, with
+seeded registers and row-pair windows. The public launchers detect v3
+from its checkpoint metadata. The pinned build and validation
+commands are in [REPRODUCE.md](REPRODUCE.md#run-the-stock-generation-checkpoint).
 
 
 ## Original SIMT variant
