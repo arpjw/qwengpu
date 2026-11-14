@@ -829,6 +829,10 @@ def execute(
         reads.extend(range(READ_HIGH, READ_HIGH + HIGH_NIBBLES))
     store_reads = list(range(READ_STORE, READ_STORE + 32))
     plan_reads = list(range(READ_PLAN, READ_PLAN + plan_bytes + int(resident_io)))
+    state_plan_count = plan_bytes
+    if edge is not None:
+        plan_reads = plan_reads[plan_bytes:]
+        state_plan_count = 0
     state_reads = reads
     reads = state_reads + store_reads
     schedules = []
@@ -1102,12 +1106,12 @@ def execute(
             control, *bitmap = feed([*tick_input, *plan_reads], 1 + len(plan_reads))
             plan_bits = []
             for byte, token in enumerate(bitmap):
-                base = PLAN_TAG + 256 * byte
+                base = PLAN_TAG + 256 * (byte + (plan_bytes if edge is not None else 0))
                 if not base <= token < base + 256:
                     raise ValueError(f"invalid state plan byte {byte}")
                 plan_bits.extend((token >> bit) & 1 for bit in range(8))
-            store_bits = plan_bits[8 * plan_bytes :]
-            plan_bits = plan_bits[: 8 * plan_bytes]
+            store_bits = plan_bits[8 * state_plan_count :]
+            plan_bits = plan_bits[: 8 * state_plan_count]
             selected = [nib for nib, changed in enumerate(plan_bits) if changed]
             store_slots = (
                 [
@@ -1141,7 +1145,7 @@ def execute(
                     raise ValueError(f"missing planned shared store at nibble {nib}")
                 store_output[nib] = token
             packet = state_output + store_output
-            transport["state_plan_tokens"] += plan_bytes
+            transport["state_plan_tokens"] += state_plan_count
             transport["state_read_tokens"] += state_count
             if resident_io:
                 transport["store_plan_tokens"] += 1
@@ -1151,7 +1155,7 @@ def execute(
             control, *packet = feed([*tick_input, *reads], 1 + len(reads))
         _check_control(control, warp, rom32, interleaved)
         observed_bits = snapshot(cache, circuit, 0)
-        if resident_plan and (
+        if resident_plan and edge is None and (
             observed_bits is None
             or plan_bits != observed_bits[dirty_offset : dirty_offset + len(warp_tags)]
         ):
@@ -1167,6 +1171,10 @@ def execute(
             if store_bits != expected_stores:
                 raise ValueError("shared store plan does not match the model snapshot")
         if edge is not None:
+            selected = [
+                nib for nib, changed in enumerate(observed_bits[dirty_offset : dirty_offset + len(warp_tags)])
+                if changed
+            ]
             expected_digits = _state_snapshot_digits(observed_bits, dirty_offset)
             for nib in selected:
                 packet[nib] = warp_banks[warp] + 16 * nib + expected_digits[nib]
