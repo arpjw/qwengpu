@@ -1,9 +1,10 @@
 # Recurrent writeback without host data tokens
 
-The qualified scheduler reads registers and memory in early model layers.
-Its ALU and scatter arbitration run later. Those later layers cannot
-directly change the recurrent tensors of earlier layers. The current
-runner bridges the boundary by feeding emitted data tokens.
+The qualified scheduler reads registers and memory before the ALU.
+An ALU result cannot directly change the recurrent state of an earlier
+layer. The runner feeds back emitted register tokens to bridge that
+boundary. Indexed stores have a shorter dependency chain: their address,
+value, and collision decision can be resolved before the memory heads.
 
 The implementation targets indexed global, workgroup-shared, and lane-private stores. A store already
 has its value in a register. TICK reads that value and the saved index,
