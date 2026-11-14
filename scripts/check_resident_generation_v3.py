@@ -1,6 +1,7 @@
 """Check v3 reports against earlier checkpoints and the native-text gate."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -109,6 +110,27 @@ def check_relaunches(root):
         print(f"{name}: state and retained global memory exact")
 
 
+def check_scoped_shared_u32(root):
+    run = read(root, "scoped-shared-u32.json")
+    kernel = (root / "scoped-shared-u32-kernel.json").read_bytes()
+    assert run["kernel_sha256"] == hashlib.sha256(kernel).hexdigest()
+    assert run["instructions"] == 52 and run["outcome"] == "halted"
+    assert run["rom_exact"]
+    check_launch(run)
+    expected_global = [0] * 256
+    expected_scoped = [0] * 128
+    for group in range(2):
+        for lane in range(8):
+            high = 16 * group + lane + 250
+            source = 16 * group + 2 * lane
+            dest = 32 * group + 16 + 2 * lane
+            expected_scoped[source:source + 2] = [250, high]
+            expected_global[dest:dest + 2] = [260, high]
+    assert run["scoped_words"] == expected_scoped
+    assert run["global_words"] == expected_global
+    print("Both shared banks and all 16 reconstructed uint32 results exact")
+
+
 def check_matmul16(root):
     got = read(root, "matmul16.json")
     old = read(BASELINE, "matmul16.json")
@@ -171,7 +193,7 @@ def main():
     reports = (inherited.name, f"interleaved-{backend}.json", f"sequential-{backend}.json",
                "tiled.json", "memory512-raw.json", "memory512-compute.json",
                "integer-programs.json", "scoped_reset.json", "interleaved_handoff.json",
-               "matmul16.json")
+               "matmul16.json", "scoped-shared-u32.json")
     if not args.mps:
         reports += ("bounds.json", "inherited-standalone.json", "text.json", "handoff.json",
                     "cli-reduction.json", "cli-deadlock.json")
@@ -202,6 +224,7 @@ def main():
     check_memory512(root)
     check_integer_programs(root)
     check_relaunches(root)
+    check_scoped_shared_u32(root)
     check_matmul16(root)
     if args.mps:
         return

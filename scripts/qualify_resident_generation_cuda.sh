@@ -89,6 +89,10 @@ status=0
   --model "$model" --device cuda --check-reference --trace \
   --out "$reports/cli-deadlock.json" || status=$?
 test "$status" -eq 3
+"$python" -m qwengpu.assemble --full-integer examples/scoped_shared_u32.qga \
+  --data examples/scoped_shared_u32_data.json --out "$reports/scoped-shared-u32-kernel.json"
+"$python" -m qwengpu.run_resident "$reports/scoped-shared-u32-kernel.json" \
+  --model "$model" --device cuda --check-reference --trace --out "$reports/scoped-shared-u32.json"
 "$python" scripts/eval_resident_generation_workloads.py "$model" \
   --case 3x5x2 --case 9x7x5 --out "$reports/tiled.json" \
   eval/frozen/tiled_compute_v1/{3x5x2,9x7x5}.json

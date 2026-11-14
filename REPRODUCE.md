@@ -1986,6 +1986,19 @@ and retains each C tile between its two K panels. It uses eight
 generation calls. The tilegrid checkpoint schedules all eight panels
 inside a single launch.
 
+The following assembled program communicates 32-bit values between two warps
+through each workgroup's scoped shared bank. Each value uses two adjacent
+16-bit shared words. A barrier orders the producer before the consumer,
+which reconstructs the value and writes it to global RAM. The two
+interleaved workgroups use identical local addresses.
+
+```bash
+python -m qwengpu.assemble --full-integer examples/scoped_shared_u32.qga \
+  --data examples/scoped_shared_u32_data.json --out shared.json
+python -m qwengpu.run_resident shared.json --model "$model" --device cuda \
+  --check-reference --trace --out shared-result.json
+```
+
 On Apple Silicon, the same file inputs work with the standalone
 circuit and `--resident-generate --device mps`. The merged run needs
 a host with enough memory for the 86 GB checkpoint and its inference

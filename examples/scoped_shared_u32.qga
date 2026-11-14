@@ -1,0 +1,31 @@
+# Each workgroup has its own 16-word shared bank. Warp 0 publishes eight
+# uint32 values in adjacent 16-bit words. Warp 1 reconstructs them.
+.warp 0
+GLOBAL_ID
+SHL32I 1
+SAVE_INDEX
+GLOBAL_ID
+ADD32I 250
+SHL32 16
+ADD32I 250
+STORE_SHARED
+SHR32 16
+ADDIDX 1
+STORE_SHARED
+BARRIER
+HALT
+
+.warp 1
+GLOBAL_ID
+SHL32I 1
+SAVE_INDEX
+BARRIER
+ADDIDX 1
+LOAD_SHARED
+SHL32 16
+ADDIDX -1
+LOAD_SHARED
+ADD32I 10
+STORE_INDEX
+STORE_INDEX_HI
+HALT

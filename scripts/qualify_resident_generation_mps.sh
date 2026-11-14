@@ -45,6 +45,10 @@ done
   --out "$reports/scoped_reset.json"
 "$python" scripts/eval_interleaved_handoff.py --device mps --resident-generate \
   --out "$reports/interleaved_handoff.json"
+"$python" -m qwengpu.assemble --full-integer examples/scoped_shared_u32.qga \
+  --data examples/scoped_shared_u32_data.json --out "$reports/scoped-shared-u32-kernel.json"
+"$python" -m qwengpu.run_resident "$reports/scoped-shared-u32-kernel.json" \
+  --resident-generate --device mps --check-reference --trace --out "$reports/scoped-shared-u32.json"
 "$python" -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
   --resident-generate --device mps --out "$reports/matmul16.json"
 "$python" scripts/check_resident_generation_v3.py --mps "$reports"
