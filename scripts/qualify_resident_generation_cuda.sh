@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the resident generation checkpoint and replay frozen interleaved kernels.
+# Build the resident generation checkpoint and replay frozen resident kernels.
 set -euo pipefail
 
 base="${1:?expected Qwen3.5-9B source path}"
@@ -16,9 +16,17 @@ fixtures=(
   eval/frozen/resident_interleaved_v1/deadlock.json
   eval/frozen/resident_interleaved_v1/cross_group_high_limb.json
 )
+sequential=(
+  eval/frozen/resident_rom32_v1/workgroup_reset.json
+  eval/frozen/resident_alu32_v1/address_walk.json
+  eval/frozen/scoped_memory_v1/isolation.json
+  eval/frozen/memory512_extent_v1/matrix_extent.json
+)
 "$python" -m qwengpu.eval_resident_generation --out "$reports/standalone.json" "${fixtures[@]}"
+"$python" -m qwengpu.eval_resident_generation --out "$reports/sequential-standalone.json" "${sequential[@]}"
 "$python" -m qwengpu.merge9b "$base" --resident-generate --out "$model"
 "$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/merged.json" "${fixtures[@]}"
+"$python" -m qwengpu.eval_resident_generation --model "$model" --out "$reports/sequential-merged.json" "${sequential[@]}"
 "$python" scripts/check_resident_generation.py results/cache_register_edge_cuda \
   "$reports/standalone.json" "$reports/merged.json"
 "$python" -m qwengpu.textcheck_9b "$base" "$model" --device cuda \

@@ -20,7 +20,7 @@ def launch(model, circuit, raw, device, offset, cache, *, transport_mode,
     if transport_mode != "stock_generation":
         raise ValueError("expected stock generation transport")
     case = parse_launch(
-        {**raw, "interleaved": raw["workgroups"] == 2},
+        raw,
         resident_globalgrid=True, resident_compute=True, full_integer=True,
     )
     retained, report = evaluate(

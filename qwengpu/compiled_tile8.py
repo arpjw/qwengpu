@@ -506,6 +506,9 @@ def build(
     if generate:
         generate_tick = between("generate.tick", gen.TICKET, gen.TICKET + 4)
         generate_schedule = match("generate.schedule", gen.SCHEDULE)
+        generated_group = between("generate.group", gen.GROUP, gen.GROUP + 4)
+        generated_resets = [match(f"generate.reset.{w}", token)
+                            for w, token in enumerate(gen.RESET)]
         release_inputs = [
             between(f"generate.release.{w}", gen.RELEASE_CONTROL + 128 * w,
                     gen.RELEASE_CONTROL + 128 * w + 96)
@@ -649,25 +652,41 @@ def build(
         )
         if generate:
             load_inter_ticket += generate_tick
+        cursor_data = {2: raw[0], 3: raw[1]}
+        if generate:
+            load_inter_ticket += generated_group
+            cursor_data = {
+                2 + i: c.and_([raw[i], one - generated_group], f"generate.cursor.raw.{i}")
+                + generated_group for i in range(2)
+            }
         previous = c.slot_head(
             "resident.cursor",
             {0: load_inter_ticket},
             {0: query},
-            {2: raw[0], 3: raw[1]},
+            cursor_data,
             load_inter_ticket,
         )
         inter_controls = []
+        if generate:
+            active_control_data = {
+                2 + i: c.and_([bit, one - generated_group], f"generate.control.raw.{i}")
+                for i, bit in enumerate(raw[:7])
+            }
         for w in range(4):
             lo = RESIDENT_CONTROL + 128 * w
             load = between(f"resident.control.load.{w}", lo, lo + 96)
+            data = {2 + i: bit for i, bit in enumerate(raw[:7])}
             if generate:
                 load += release_inputs[w] + step_inputs[w]
+                if w < 2:
+                    load += generated_group
+                    data = active_control_data
             inter_controls.append(
                 c.slot_head(
                     f"resident.control.{w}",
                     {0: load},
                     {0: query},
-                    {2 + i: bit for i, bit in enumerate(raw[:7])},
+                    data,
                     load,
                 )
             )
@@ -700,6 +719,8 @@ def build(
             ),
         )
         grid_queries = schedule + sum(resets, Expr())
+        if generate:
+            grid_queries += generate_schedule
         grid_value = {2: raw[0], 3: raw[1]}
         if resident_tilebanks:
             grid_queries += tick
@@ -744,14 +765,22 @@ def build(
             )
             if resident_tilegrid:
                 load_group = load_grid + relayed_group
-                group_low, group_high = c.slot_head(
+                group_data = {
+                    2: group_tickets[0] + group_tickets[2],
+                    3: group_tickets[1] + group_tickets[2],
+                }
+                if generate:
+                    load_group += generated_group
+                    for i in range(2):
+                        group_data[2 + i] += c.and_(
+                            [generated_group, raw[i]], f"generate.group.bit.{i}",
+                        )
+                    group_data[4] = generated_group
+                group_low, group_high, *group_mode = c.slot_head(
                     "workgroup",
                     {0: load_group},
                     {0: grid_queries},
-                    {
-                        2: group_tickets[0] + group_tickets[2],
-                        3: group_tickets[1] + group_tickets[2],
-                    },
+                    group_data,
                     load_group,
                 )
                 more_rows = c.and_([grid[6], one - group_high], "workgroup.more_rows")
@@ -771,6 +800,13 @@ def build(
                     last_global = c.node(
                         c.t_eq(count_difference, 0, -3, 3), "workgroup.global_last"
                     )
+                    if generate:
+                        sequential = group_mode[0]
+                        advance_group = c.and_(
+                            [sequential, inter_halt, one - last_global], "generate.group.advance",
+                        )
+                        both = c.and_([group_low, group_high], "generate.group.carry")
+                        next_group = [one - group_low, group_low + group_high - 2 * both]
                     group_ready = c.and_(
                         [group_ready, one - generic], "workgroup.tile_mode"
                     ) + c.and_([generic, one - last_global], "workgroup.global_mode")
@@ -838,8 +874,11 @@ def build(
             1,
             "resident.local_warp",
         )[0]
+        interleaved_group = interleaved
+        if generate:
+            interleaved_group = c.and_([interleaved, one - sequential], "generate.group.interleaved")
         group_low = c.select_bits(
-            [([interleaved], [previous[1]]), ([one - interleaved], [group_low])],
+            [([interleaved_group], [previous[1]]), ([one - interleaved_group], [group_low])],
             1,
             "resident.group",
         )[0]
@@ -1262,6 +1301,9 @@ def build(
 
     if resident_interleaved:
         warp_resets.extend([Expr(), Expr()])
+    if generate:
+        warp_resets[:2] = [reset + gen_reset for reset, gen_reset in
+                          zip(warp_resets[:2], generated_resets, strict=True)]
     state_queries = (
         [
             c.and_([tick, one - warp_bit], "state.query.0"),
@@ -2226,8 +2268,11 @@ def build(
                                *gen.token_bits(gen.STEP_CONTROL)[9:]]),
             *gen.generated_schedule(
                 c, generate_schedule, release_inputs, inter_controls, inter_release,
-                issue, inter_halt, inter_deadlock, DONE, DEADLOCK,
+                issue, inter_halt, inter_deadlock, DONE, DEADLOCK, advance_group, next_group,
             ),
+            ([generated_group], gen.token_bits(gen.RESET[0])),
+            ([generated_resets[0]], gen.token_bits(gen.RESET[1])),
+            ([generated_resets[1]], gen.token_bits(gen.SCHEDULE)),
             *gen.generated_writeback(
                 c, writeback_request, register_input, commit_inputs, cursors,
                 [saved[129], saved[bank_offset]], values,

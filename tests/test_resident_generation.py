@@ -12,6 +12,19 @@ from qwengpu.resident_scheduler import resident_control
 
 
 class ResidentGenerationTests(unittest.TestCase):
+    def test_four_sequential_groups_reset_both_active_warps(self):
+        path = Path(__file__).resolve().parents[1] / "eval/frozen/scoped_memory_v1/isolation.json"
+        case = parse_launch(json.loads(path.read_text()), full_integer=True)
+        reference = resident_reference(oracle(case, 256, looping=True))
+        tokens, controls, _ = expected_tokens(reference, active_warps=2)
+        self.assertIn(gen.GROUP, launch_prompt(case))
+        transitions = [i for i, token in enumerate(tokens) if gen.GROUP <= token < gen.GROUP + 4]
+        self.assertEqual([tokens[i] for i in transitions], [gen.GROUP + i for i in (1, 2, 3)])
+        for index in transitions:
+            self.assertEqual(tokens[index + 1:index + 5],
+                             [*gen.RESET, gen.SCHEDULE, gen.TICKET])
+        self.assertEqual(controls[2:], [resident_control(w, status=1) for w in (2, 3)])
+
     def test_single_workgroup_leaves_two_warps_halted(self):
         root = Path(__file__).resolve().parents[1] / "eval/frozen/full_integer_v1"
         raw = json.loads((root / "indexed_words.json").read_text())

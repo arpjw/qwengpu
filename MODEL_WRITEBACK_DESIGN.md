@@ -177,6 +177,13 @@ preserves the barrier release decision while four control tokens
 commit it in order. Register updates follow ascending nibble order.
 Store commits follow ascending lane order.
 
+The v2 layout uses the same dispatch path for sequential and interleaved
+workgroups. A sequential launch starts with physical banks 0 and 1 active.
+After both halt, the circuit emits the next logical group number, clears
+each active register bank with a separate token, and resumes scheduling.
+The group cursor supplies the IDs and scoped addresses for later groups.
+The two uploaded ROMs and global RAM remain resident across transitions.
+
 ```bash
 bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports" \
   "$(git rev-parse HEAD)"

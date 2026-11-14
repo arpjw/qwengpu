@@ -15,7 +15,8 @@ from qwengpu.alu32 import RUNTIME_EXTENT_BASE
 from qwengpu.cache_register_edge import register_head_names
 from qwengpu.compiled_tile8 import (
     DEADLOCK, DONE, GLOBAL_GRID, GRID, MASK_REGISTER, ROM32_PC_HIGH, ROM_BANK, ROW_PAIRS,
-    WARP_BANKS, WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, build, build_standalone, program_tokens,
+    WARP_BANKS, WARP_DIRTY_OFFSET, WIDE_WARP_TAGS, WORKGROUP_TICKETS,
+    build, build_standalone, program_tokens,
 )
 from qwengpu.eval_compiled_rom import head_row
 from qwengpu.eval_tile8 import _digits, _words, nibbles, oracle, parse_launch
@@ -28,12 +29,15 @@ from qwengpu.scoped_memory import SCOPED_BASE, SCOPED_WORDS
 
 def launch_prompt(case, refresh_words=None):
     groups = case.get("workgroups")
-    if groups != 1 and not (groups == 2 and case.get("interleaved")):
-        raise ValueError("stock generation requires one workgroup or two interleaved workgroups")
-    active_warps = 2 * groups
+    if groups not in (1, 2, 3, 4):
+        raise ValueError("stock generation requires one through four workgroups")
+    interleaved = case.get("interleaved", False)
+    active_warps = 4 if interleaved else 2
     tokens = [RESIDENT_ENABLE,
               *(resident_control(warp, status=int(warp >= active_warps)) for warp in range(4)),
               RESIDENT_TICKET + 3, GRID + GLOBAL_GRID + ROW_PAIRS * (groups - 1)]
+    if groups > 1 and not interleaved:
+        tokens.append(gen.GROUP)
     words = case["global_words"]
     if refresh_words is not None:
         words = words[:refresh_words]
@@ -57,7 +61,7 @@ def initial_registers():
 
 
 def resident_reference(reference):
-    """Translate one workgroup's reference trace into the four-bank wire format."""
+    """Translate the sequential reference trace into the four-bank wire format."""
 
     def control(warp, token):
         pc = (token & 15) + (16 if token & ROM32_PC_HIGH else 0)
@@ -68,6 +72,8 @@ def resident_reference(reference):
         **reference,
         "schedules": [
             {
+                **({"advance_group": WORKGROUP_TICKETS.index(schedule["ticket"]) + 1}
+                   if schedule["ticket"] in WORKGROUP_TICKETS else {}),
                 "ticket": (
                     schedule["ticket"] if schedule["ticket"] in (DONE, DEADLOCK)
                     else RESIDENT_TICKET + (schedule["ticket"] & 1)
@@ -90,7 +96,11 @@ def expected_tokens(reference, active_warps=4):
     controls = [resident_control(warp, status=int(warp >= active_warps)) for warp in range(4)]
     registers = [initial_registers() for _ in range(4)]
     for index, schedule in enumerate(reference["schedules"]):
-        if controls != schedule["controls"]:
+        if "advance_group" in schedule:
+            records.extend((gen.GROUP + schedule["advance_group"], *gen.RESET,
+                            gen.SCHEDULE))
+            registers[:2] = [initial_registers(), initial_registers()]
+        elif controls != schedule["controls"]:
             records.extend(gen.RELEASE_CONTROL + (token - resident_control(0))
                            for token in schedule["controls"])
         controls = schedule["controls"][:]
@@ -163,10 +173,10 @@ def evaluate(
     tokens = [t - offset for t in output.sequences[0, inputs.size(1):].tolist()]
     retained = output.past_key_values
     reference = oracle(case, 256, looping=True)
-    single_group = case["workgroups"] == 1
-    if single_group:
+    sequential = not case.get("interleaved")
+    if sequential:
         reference = resident_reference(reference)
-    expected, controls, registers = expected_tokens(reference, 2 if single_group else 4)
+    expected, controls, registers = expected_tokens(reference, 2 if sequential else 4)
     words, mirrors = cache_words(retained, circuit)
     scoped = cache_words(retained, circuit, scoped=True) if "scoped_words" in case else None
     observed_registers = [
@@ -177,6 +187,11 @@ def evaluate(
         head_row(retained, circuit, f"resident.control.{warp}", 0, 7) == (token & 127)
         for warp, token in enumerate(controls)
     )
+    group_exact = True
+    if sequential:
+        cursor = head_row(retained, circuit, "workgroup", 0, 3)
+        transitions = sum(gen.GROUP < token < gen.GROUP + 4 for token in expected)
+        group_exact = cursor == (4 | transitions) if case["workgroups"] > 1 else cursor == 0
     outcome = {DONE: "halted", DEADLOCK: "deadlock"}.get(
         tokens[-1] if tokens else None, "token_limit",
     )
@@ -207,6 +222,7 @@ def evaluate(
         "outcome_exact": outcome == reference["outcome"],
         "registers_exact": observed_registers == registers,
         "control_exact": control_exact,
+        "workgroup_cursor_exact": group_exact,
         "global_exact": mirrors and words == reference["shared_words"],
         "scoped_exact": scoped is None or (scoped[1] and scoped[0] == reference["scoped_words"]),
     }
