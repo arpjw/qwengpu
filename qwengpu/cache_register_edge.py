@@ -46,14 +46,16 @@ class CacheRegisterEdge:
                 chunk, col = divmod(bit, CHUNK_BITS)
                 layer, head = _head_location(circuit, f"stage.0.{chunk}")
                 columns.append((layer, head * ratio, 2 + col))
-            moves.append((dst_layer, dst_head * ratio, tuple(columns)))
+            src_layer, src_head, first = columns[0]
+            contiguous = columns == [(src_layer, src_head, first + i) for i in range(4)]
+            moves.append((dst_layer, dst_head * ratio, tuple(columns), contiguous))
         self.moves = tuple(moves)
 
     def apply(self, cache, warp: int) -> None:
-        for dst_layer, dst_head, columns in self.moves:
+        for dst_layer, dst_head, columns, contiguous in self.moves:
             dst = cache.layers[dst_layer].recurrent_states[0][0, dst_head, warp]
             src_layer, src_head, first = columns[0]
-            if columns == tuple((src_layer, src_head, first + i) for i in range(4)):
+            if contiguous:
                 source = cache.layers[src_layer].recurrent_states[0][0, src_head, 0]
                 dst[2:6].copy_(source[first : first + 4])
                 continue
