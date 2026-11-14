@@ -13,6 +13,7 @@ from qwengpu.assemble import assemble
 from qwengpu.alu32 import ALU_VOCAB
 from qwengpu.compiled_tile8 import RESIDENT_COMPUTE_LAYOUT, TILEGRID_VOCAB
 from qwengpu.eval_globalgrid import launch
+from qwengpu.eval_resident_generation import launch_compute, load_generation_model
 from qwengpu.eval_tile import _unsigned
 from qwengpu.compiled_tile8 import ROM32_VOCAB
 from qwengpu.eval_tile8 import load_tile_model
@@ -22,6 +23,7 @@ from qwengpu.memory_geometry import (
     ROM32_LAYOUTS,
     WIDE_MEMORY,
 )
+from qwengpu.resident_generation import LAYOUT as GENERATION_LAYOUT
 
 MASK32 = 0xFFFFFFFF
 GUARD = 0xD00D0000
@@ -341,20 +343,30 @@ def main() -> None:
     variants.add_argument("--resident-scoped", action="store_true")
     variants.add_argument("--resident-interleaved", action="store_true")
     variants.add_argument("--full-integer", action="store_true")
+    variants.add_argument("--resident-generate", action="store_true")
     parser.add_argument("--device", default="mps", choices=("mps", "cuda", "cpu"))
     parser.add_argument("--trace", action="store_true")
     parser.add_argument(
         "--transport",
-        choices=("fixed", "state-store-plan", "cache-register-edge"),
-        default="state-store-plan",
+        choices=("fixed", "state-store-plan", "cache-register-edge", "stock-generation"),
     )
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-    meta = (
-        json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
+    try:
+        meta = json.loads((args.model / "qwengpu9b.json").read_text()) if args.model else None
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
+    if args.model is not None and not isinstance(meta, dict):
+        parser.error("expected checkpoint metadata")
+    generated = args.resident_generate or (
+        meta is not None and meta.get("layout") == GENERATION_LAYOUT
     )
+    if args.transport and (args.transport == "stock-generation") != generated:
+        parser.error("selected transport is incompatible with the checkpoint layout")
+    transport = args.transport or ("stock-generation" if generated else "state-store-plan")
     memory512 = (
-        args.resident_memory512
+        generated
+        or args.resident_memory512
         or args.resident_rom32
         or args.resident_alu32
         or args.resident_scoped
@@ -367,7 +379,7 @@ def main() -> None:
         request = parse_request(json.loads(payload), memory512=memory512)
     except (OSError, ValueError, TypeError) as exc:
         parser.error(str(exc))
-    if meta is not None and (
+    if meta is not None and not generated and (
         meta.get("layout")
         not in (MEMORY512_LAYOUTS if memory512 else (RESIDENT_COMPUTE_LAYOUT,))
         or meta.get("chip_vocab")
@@ -382,33 +394,53 @@ def main() -> None:
         )
     ):
         parser.error("expected a merged compute checkpoint")
-    model, circuit = load_tile_model(
-        args.model,
-        args.device,
-        resident_compute=True,
-        resident_memory512=memory512,
-        resident_rom32=args.resident_rom32,
-        resident_alu32=args.resident_alu32,
-        resident_scoped=args.resident_scoped,
-        resident_interleaved=args.resident_interleaved,
-        full_integer=args.full_integer,
-    )
+    if generated:
+        if meta is not None and (
+            meta.get("layout") != GENERATION_LAYOUT
+            or meta.get("chip_vocab") != ALU_VOCAB
+            or type(meta.get("chip_token_offset")) is not int
+            or meta["chip_token_offset"] < 0
+        ):
+            parser.error("expected a merged resident generation checkpoint")
+        model, circuit, offset = load_generation_model(args.model, args.device)
+    else:
+        model, circuit = load_tile_model(
+            args.model,
+            args.device,
+            resident_compute=True,
+            resident_memory512=memory512,
+            resident_rom32=args.resident_rom32,
+            resident_alu32=args.resident_alu32,
+            resident_scoped=args.resident_scoped,
+            resident_interleaved=args.resident_interleaved,
+            full_integer=args.full_integer,
+        )
+        offset = meta["chip_token_offset"] if meta else 0
     result = execute_request(
         model,
         circuit,
         request,
         args.device,
-        meta["chip_token_offset"] if meta else 0,
-        transport_mode=args.transport.replace("-", "_"),
+        offset,
+        transport_mode=transport.replace("-", "_"),
+        launcher=launch_compute if generated else launch,
     )
     if not args.trace:
         result.pop("global_words")
         result["launches"] = [
             {
                 **({"tile": run["tile"], "k_panel": run["k_panel"]} if "tile" in run else {}),
-                "instructions": len(run["trace"]),
-                "decisions": len(run["schedules"]),
-                "transport": run["transport"],
+                **({
+                    "instructions": run["steps"],
+                    "generation_calls": run["generation_calls"],
+                    "generated_tokens": len(run["generated_tokens"]),
+                    "host_execution_tokens": run["host_execution_tokens"],
+                    "global_upload_words": run["global_upload_words"],
+                } if generated else {
+                    "instructions": len(run["trace"]),
+                    "decisions": len(run["schedules"]),
+                    "transport": run["transport"],
+                }),
             }
             for run in result["launches"]
         ]
@@ -418,7 +450,7 @@ def main() -> None:
         "device": args.device,
         "merge": meta,
         "torch": torch.__version__,
-        "transport_mode": args.transport,
+        "transport_mode": transport,
         **result,
     }
     output = json.dumps(report, indent=2) + "\n"

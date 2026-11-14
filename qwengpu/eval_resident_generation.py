@@ -200,6 +200,20 @@ def cache_tile_words(cache, circuit):
     )
 
 
+def load_generation_model(checkpoint, device):
+    if checkpoint is None:
+        model, circuit = build_standalone(generate=True)
+        return model.to(device).eval(), circuit, 0
+    meta = json.loads((checkpoint / "qwengpu9b.json").read_text())
+    if meta.get("layout") != gen.LAYOUT:
+        raise ValueError(f"expected a {gen.LAYOUT} checkpoint")
+    model = AutoModelForCausalLM.from_pretrained(checkpoint, dtype=torch.bfloat16)
+    config = model.config
+    circuit = build(Target(config.linear_num_key_heads, config.linear_num_value_heads,
+                           config.intermediate_size), generate=True)
+    return model.to(device).eval(), circuit, meta["chip_token_offset"]
+
+
 @torch.no_grad()
 def evaluate(
     model, circuit, case, device, offset=0, *, max_new_tokens=32768,
@@ -299,6 +313,21 @@ def evaluate(
     return retained, report
 
 
+def launch_compute(model, circuit, raw, device, offset, cache, *, transport_mode,
+                   refresh_global_prefix=0):
+    if transport_mode != "stock_generation":
+        raise ValueError("expected stock generation transport")
+    case = parse_launch(raw, full_integer=True)
+    retained, report = evaluate(
+        model, circuit, case, device, offset, cache=cache,
+        refresh_words=None if cache is None else refresh_global_prefix,
+    )
+    failures = [key for key, value in report.items() if key.endswith("_exact") and not value]
+    if failures:
+        raise ValueError(f"generation differs at token {report['first_token_difference']}: {failures}")
+    return retained, report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path)
@@ -311,19 +340,7 @@ def main():
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    if args.model:
-        meta = json.loads((args.model / "qwengpu9b.json").read_text())
-        if meta["layout"] != gen.LAYOUT:
-            raise ValueError("expected a stock resident generation checkpoint")
-        model = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.bfloat16)
-        cfg = model.config
-        circuit = build(Target(cfg.linear_num_key_heads, cfg.linear_num_value_heads,
-                               cfg.intermediate_size), generate=True)
-        offset = meta["chip_token_offset"]
-    else:
-        model, circuit = build_standalone(generate=True)
-        offset = 0
-    model.to(args.device).eval()
+    model, circuit, offset = load_generation_model(args.model, args.device)
     report = {"device": args.device, "torch": torch.__version__,
               "circuit": circuit.stats(), "cases": []}
     for fixture in args.fixtures:

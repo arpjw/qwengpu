@@ -39,6 +39,7 @@ from qwengpu.eval_tile8 import (
     oracle,
     parse_launch,
 )
+from qwengpu.eval_resident_generation import evaluate, load_generation_model
 from qwengpu.memory_geometry import (
     FULL_INTEGER_LAYOUTS,
     INTERLEAVED_LAYOUTS,
@@ -48,9 +49,66 @@ from qwengpu.memory_geometry import (
     ROM32_LAYOUTS,
     WIDE_MEMORY,
 )
+from qwengpu.resident_generation import LAYOUT as GENERATION_LAYOUT
 
 RESULT_FORMAT = "qwengpu-resident-launch-v1"
 EXIT_CODES = {"halted": 0, "deadlock": 3, "step_limit": 4}
+
+
+def write_result(result, destination):
+    output = json.dumps(result, indent=2)
+    if destination:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(output + "\n", encoding="utf-8")
+    else:
+        print(output)
+
+
+def default_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def run_generated(args, payload, meta):
+    if meta is not None and (
+        meta.get("layout") != GENERATION_LAYOUT
+        or meta.get("chip_vocab") != ALU_VOCAB
+        or type(meta.get("chip_token_offset")) is not int
+        or meta["chip_token_offset"] < 0
+    ):
+        raise ValueError("expected a merged resident generation checkpoint")
+    if args.transport:
+        raise ValueError("--transport is for legacy resident I/O checkpoints")
+    raw = json.loads(payload)
+    case = parse_launch(raw, full_integer=True)
+    device = args.device or default_device()
+    model, circuit, offset = load_generation_model(args.model, device)
+    _, observed = evaluate(model, circuit, case, device, offset, max_steps=args.max_steps)
+    if "expected_outcome" in raw:
+        observed["fixture_outcome_exact"] = observed["outcome"] == raw["expected_outcome"]
+    exact = {key: value for key, value in observed.items() if key.endswith("_exact")}
+    tokens = observed.pop("generated_tokens")
+    expected = observed.pop("expected_tokens")
+    result = {
+        "format": RESULT_FORMAT,
+        "checkpoint": GENERATION_LAYOUT if meta else "standalone-resident-generate",
+        "device": device,
+        "kernel_sha256": hashlib.sha256(payload).hexdigest(),
+        "max_steps": args.max_steps,
+        "instructions": observed.pop("steps"),
+        "transport_mode": "stock-generation",
+        "generated_token_count": len(tokens),
+        **observed,
+    }
+    if args.trace:
+        result.update(generated_tokens=tokens, expected_tokens=expected)
+    if args.check_reference:
+        result["reference"] = exact
+    write_result(result, args.out)
+    return EXIT_CODES.get(observed["outcome"], 1) if all(exact.values()) else 1
 
 
 def main() -> int:
@@ -162,6 +220,7 @@ def main() -> int:
         help="compare the execution trace and final state to the reference interpreter",
     )
     variants.add_argument("--full-integer", action="store_true")
+    variants.add_argument("--resident-generate", action="store_true")
     args = parser.parse_args()
     if args.max_steps < 1:
         parser.error("--max-steps must be positive")
@@ -238,10 +297,14 @@ def main() -> int:
     )
     try:
         payload = args.kernel.read_bytes()
-        if args.model is not None:
-            meta = json.loads(
-                (args.model / "qwengpu9b.json").read_text(encoding="utf-8")
-            )
+        meta = json.loads(
+            (args.model / "qwengpu9b.json").read_text(encoding="utf-8")
+        ) if args.model is not None else None
+        if args.model is not None and not isinstance(meta, dict):
+            raise ValueError("expected checkpoint metadata")
+        if args.resident_generate or (meta is not None and meta.get("layout") == GENERATION_LAYOUT):
+            return run_generated(args, payload, meta)
+        if meta is not None:
             if (
                 not isinstance(meta, dict)
                 or meta.get("layout")
@@ -388,15 +451,7 @@ def main() -> int:
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 
-    device = args.device
-    if device is None:
-        device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
+    device = args.device or default_device()
     model, circuit = load_tile_model(
         args.model,
         device,
@@ -471,12 +526,7 @@ def main() -> int:
         result.update(trace=trace, schedules=schedules)
     if args.check_reference:
         result["reference"] = reference
-    output = json.dumps(result, indent=2)
-    if args.out:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(output + "\n", encoding="utf-8")
-    else:
-        print(output)
+    write_result(result, args.out)
     transport = observed["transport"]
     if (
         transport["fresh_caches"] != 1

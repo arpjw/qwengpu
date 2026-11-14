@@ -1959,6 +1959,16 @@ python scripts/check_resident_generation.py results/cache_register_edge_cuda \
   inherited-merged.json --inherited-baseline results/model_stores_merged_cuda/inherited.json
 ```
 
+The normal launch commands select stock generation from the v3
+checkpoint metadata. Add `--trace` to include the emitted tokens.
+
+```bash
+python -m qwengpu.run_resident eval/frozen/tile8_gate_v1/dense_seeded.json \
+  --model "$model" --device cuda --check-reference --out tile.json
+python -m qwengpu.run_compute examples/memory512_reduce_128.json \
+  --model "$model" --device cuda --out reduction.json
+```
+
 ### Run general tiled uint32 matrix multiply
 
 Use the existing compiler environment. The 9×7 by 7×5 fixture exercises
