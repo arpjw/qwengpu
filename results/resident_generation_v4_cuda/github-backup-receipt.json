@@ -1,0 +1,14 @@
+{
+  "checked_at_utc": "2026-11-14T12:54:08.156778+00:00",
+  "repository": "arpjw/qwengpu",
+  "repository_private": true,
+  "release_id": 445244518,
+  "release_tag": "v4-private-backup-2026-11-14",
+  "release_draft": true,
+  "release_url": "https://github.com/arpjw/qwengpu/releases/tag/untagged-e80052861b89eced6f60",
+  "asset_count": 91,
+  "asset_bytes": 86321158445,
+  "uploaded_asset_count": 91,
+  "backup_manifest_sha256": "5150eab9a807b44feb7e46e6bb4edd43b66cf3063f45a499b39662100ffe79e5",
+  "package_checksum_sha256": "f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213"
+}

@@ -52,7 +52,7 @@ The verified v3 package is stored in the Hugging Face model repository
 listed all 50 package files at revision
 [`fe671778a2409a218dde757871f33f5ca46d9219`](https://huggingface.co/arpjw/Qwen-GPU/tree/fe671778a2409a218dde757871f33f5ca46d9219).
 
-## Qualified v4 package awaiting private storage
+## Qualified v4 private draft backup
 
 The fixed v4 merge passed the complete CUDA qualifier at source commit
 `702a6f9`. The 35 weight shards and every other packaged file matched
@@ -73,19 +73,24 @@ from v3. Hugging Face documents 100 GB of private storage for a free
 account and 1 TB for PRO; storage limits apply across repositories.
 [Storage limits](https://huggingface.co/docs/hub/storage-limits)
 
-The packaged v4 model remains at `/workspace/model-v4-merged` on stopped
-RunPod pod `gmgmirb2mz2hyy`, with a 250 GB persistent volume. Its GPU
-compute charge has stopped, but the retained volume continues billing
-at RunPod's stopped rate of $0.20/GB/month, or about $50/month for this
-allocation. The pod must not be terminated until the v4 package has an
-independently verified private copy. The local Mac has only 28 GiB free,
-so it cannot hold the 81 GiB model as an emergency backup.
-[RunPod storage pricing](https://docs.runpod.io/pods/pricing)
+The v4 package is backed up in the private GitHub draft release
+[`v4-private-backup-2026-11-14`](https://github.com/arpjw/qwengpu/releases/tag/untagged-e80052861b89eced6f60),
+release ID `445244518`. GitHub reported 91 uploaded assets totaling
+86,321,158,445 bytes, including 89 package assets, the backup manifest,
+and an extra copy of the checksum list. Each package asset's reported
+size and SHA-256 matched the [backup manifest](results/resident_generation_v4_cuda/github-backup-manifest.json).
+The backup manifest's SHA-256 is
+`5150eab9a807b44feb7e46e6bb4edd43b66cf3063f45a499b39662100ffe79e5`.
+The [asset receipt](results/resident_generation_v4_cuda/github-backup-receipt.json)
+records the private and draft status. This is a verified backup, not yet
+a completed clean restore.
 
-The next handoff is to provide private storage capacity, upload the
-checksum-pinned package, download its exact revision into an empty
-directory, and rerun the GPU, native-text, and one-launch matrix restore
-checks. The existing v3 revision remains the verified download below.
+The original package remains on RunPod pod `gmgmirb2mz2hyy` while a
+fresh download from the draft release is being reconstructed and checked.
+The CPU-only recovery pod is billable at $1.345/hour plus storage; it
+will be terminated after the restore evidence is saved. A full v4
+Hugging Face upload still needs private storage capacity. The existing
+v3 revision remains the verified downloadable model below.
 
 ## Restore receipt
 

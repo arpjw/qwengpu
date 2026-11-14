@@ -31,10 +31,11 @@ token IDs. [Reports and reproduction commands](VALIDATION.md)
 
 Each generated token requires a model forward pass, so the current
 machine is slow. Apple MPS qualification of v4 remains pending. The
-private v4 checkpoint package passed its 48-file checksum pass, but its
-upload and clean restore are pending private storage capacity. The
-[release receipt](RELEASE.md) tracks that gate. The previously verified
-v3 checkpoint remains available at its pinned revision.
+private v4 checkpoint package passed its 48-file checksum pass and is
+backed up in a private GitHub draft release. A clean download and
+execution restore are still being checked. The [release receipt](RELEASE.md)
+tracks that gate. The previously verified v3 checkpoint remains available
+at its pinned revision.
 
 ## Run the verified v3 checkpoint
 

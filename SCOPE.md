@@ -7,9 +7,9 @@ the full 16×16 matrix in one model generation call, passes the 31-case
 common compute suite and all 27 inherited fixtures on both standalone
 CUDA and merged 9B CUDA, and preserves the native-text gate. Its 35
 weight shards and 48-file package passed SHA-256 checks. The private
-Hugging Face upload was rejected by the account's private storage limit,
-so v4 has no clean restore receipt yet. The RunPod GPU is stopped with
-the package on its persistent volume. Full standalone Apple MPS
+Hugging Face upload was rejected by the account's private storage limit.
+A checksum-verified backup is now in a private GitHub draft release;
+the clean restore is still being checked. Full standalone Apple MPS
 qualification also remains pending. See [VALIDATION.md](VALIDATION.md)
 and [RELEASE.md](RELEASE.md).
 
