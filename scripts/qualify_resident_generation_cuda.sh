@@ -1,25 +1,38 @@
 #!/usr/bin/env bash
-# Build the resident generation checkpoint and replay frozen resident kernels.
+# Build or verify the pinned checkpoint and replay frozen resident kernels.
 set -euo pipefail
 
+existing=0
+if [[ "${1:-}" == --existing ]]; then
+  existing=1
+  shift
+fi
 base="${1:?expected Qwen3.5-9B source path}"
-model="${2:?expected merged checkpoint destination}"
+model="${2:?expected merged checkpoint path}"
 reports="${3:?expected report directory}"
 source_commit="${4:-b5f4898cb2e54ac559cd0fa81d93c2901ccb9222}"
 python="${QWENGPU_PYTHON:-python}"
 export PYTORCH_ALLOC_CONF=expandable_segments:True
-source_commit="$(git rev-parse --verify "${source_commit}^{commit}")"
 case "$base" in /*) ;; *) base="$PWD/$base";; esac
 case "$model" in /*) ;; *) model="$PWD/$model";; esac
 # Resolve an explicitly selected interpreter before entering the source archive.
 case "$python" in /*) ;; */*) python="$PWD/$python";; esac
 mkdir -p "$reports"
 
-build_source="$(mktemp -d)"
-trap 'rm -rf -- "$build_source"' EXIT
-git archive "$source_commit" qwengpu | tar -xf - -C "$build_source"
-PYTHONPATH="$build_source${PYTHONPATH:+:$PYTHONPATH}" \
-  "$python" -P -m qwengpu.merge9b "$base" --resident-generate --out "$model"
+if (( existing )); then
+  "$python" scripts/check_checkpoint_package.py "$model" \
+    --pinned-manifest results/resident_generation_v3_cuda/manifest.json \
+    --expected-checksum-digest f85fcb86f80668c57bfbc241aa8d9ca08378d50623eea405add56d499dcbd415 \
+    > "$reports/checkpoint-checksum.txt"
+  cp "$model/build-manifest.json" "$reports/manifest.json"
+else
+  source_commit="$(git rev-parse --verify "${source_commit}^{commit}")"
+  build_source="$(mktemp -d)"
+  trap 'rm -rf -- "$build_source"' EXIT
+  git archive "$source_commit" qwengpu | tar -xf - -C "$build_source"
+  PYTHONPATH="$build_source${PYTHONPATH:+:$PYTHONPATH}" \
+    "$python" -P -m qwengpu.merge9b "$base" --resident-generate --out "$model"
+fi
 
 fixtures=(
   eval/frozen/resident_interleaved_v1/interleaved_publish.json
@@ -90,8 +103,10 @@ test "$status" -eq 3
   --suite eval/frozen/memory512_compute_v1/cases.json --out "$reports/memory512-compute.json"
 "$python" -m qwengpu.eval_resident_generation --device cuda \
   --out "$reports/inherited-standalone.json" "${inherited[@]}"
-"$python" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \
-  --compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c \
-  --base c202236235762e1c871ad0ccb60c8ee5ba337b9a --variant resident-generate \
-  --out "$reports/manifest.json"
+if (( ! existing )); then
+  "$python" scripts/capture_checkpoint_manifest.py "$model" --source "$source_commit" \
+    --compiler ca13310e2f9f788d1dd3feeea8213c1b0c23913c \
+    --base c202236235762e1c871ad0ccb60c8ee5ba337b9a --variant resident-generate \
+    --out "$reports/manifest.json"
+fi
 "$python" scripts/check_resident_generation_v3.py "$reports"

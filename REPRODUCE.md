@@ -1936,9 +1936,22 @@ RAM limit.
 bash scripts/qualify_resident_generation_cuda.sh "$base" "$model" "$reports"
 ```
 
-The qualification script builds from an archive of the pinned source
-and runs the evaluators from the current checkout. For the historical
-v2 checkpoint, use source revision `d61581004f98aba79fdd524e38466a1dcca75423`
+To rerun the CUDA suite on the released weights, use the pinned package in
+an empty directory. Exclude Hugging Face's repository metadata so the
+download matches the package checksums. The suite verifies the package
+before loading it. It still needs the pinned base checkpoint for the
+native-text comparison.
+
+```bash
+hf download arpjw/Qwen-GPU \
+  --revision fe671778a2409a218dde757871f33f5ca46d9219 \
+  --exclude .gitattributes --local-dir "$model"
+bash scripts/qualify_resident_generation_cuda.sh --existing "$base" "$model" "$reports"
+```
+
+In build mode the qualification script builds from an archive of the
+pinned source. Both modes run the evaluators from the current checkout.
+For the historical v2 checkpoint, use source revision `d61581004f98aba79fdd524e38466a1dcca75423`
 for both building and running the evaluator.
 
 To replay only the legacy tiles on a built v3 checkpoint, use the
