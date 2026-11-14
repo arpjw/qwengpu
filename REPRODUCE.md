@@ -1941,6 +1941,24 @@ python -m qwengpu.eval_resident_generation --model "$model" --device cuda \
 The evaluator compares the generated stream and final recurrent memory
 to the interpreter.
 
+To replay the legacy tiles, build v3 from source revision
+`b5f4898cb2e54ac559cd0fa81d93c2901ccb9222` with the same merge command,
+using a separate destination for v3. Run the inherited suite from the
+current checkout with the same pinned compiler. The 256-instruction
+budget matches the original looping stress fixture.
+
+```bash
+gates=(tile8 resident indexed masked divergent loop grid wide resident_add32 window
+       resident_shared32 resident_addmem32 resident_branch32 resident_loop32)
+fixtures=()
+for gate in "${gates[@]}"; do fixtures+=(eval/frozen/"${gate}_gate_v1/"*.json); done
+python scripts/check_stock_tile_ir.py "${fixtures[@]}"
+python -m qwengpu.eval_resident_generation --model "$model" --device cuda \
+  --out inherited-merged.json "${fixtures[@]}"
+python scripts/check_resident_generation.py results/cache_register_edge_cuda \
+  inherited-merged.json --inherited-baseline results/model_stores_merged_cuda/inherited.json
+```
+
 ### Run general tiled uint32 matrix multiply
 
 Use the existing compiler environment. The 9×7 by 7×5 fixture exercises
