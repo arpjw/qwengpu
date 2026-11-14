@@ -75,3 +75,13 @@ It would remove token encoding and data-dependent host decisions, but
 it would no longer be a stock weights-only Qwen model. Keeping that
 distinction explicit matters: an edge implemented in the inference
 runtime is different from a store committed by the checkpoint itself.
+
+
+The optional `--transport cache-register-edge` prototype uses a static
+mapping from each snapshot chunk to the four recurrent bit columns of
+each register nibble. The only runtime selector is the model's issued
+physical warp. It copies complete bit columns on the accelerator and
+leaves recurrent ballast in place. Neither the reference interpreter
+nor a CPU-computed value is used for the copy. Trace decoding remains
+independent of the update. This protocol is an experiment; stock
+inference still uses the original register tag relay.
