@@ -51,6 +51,15 @@ signed and unsigned comparisons, and indexed bitwise operations. See
 [the ALU32 commands](REPRODUCE.md#run-the-32-bit-integer-and-address-layout).
 
 
+The integrated integer checkpoint adds two simultaneously resident
+workgroups, separate shared and private banks, full-width indexed
+integer arithmetic, runtime lane extents, and general tiled matrix
+multiply. The merged Qwen3.5-9B replay covers those features and the
+earlier trace suite. The four-warp publication trace also matches on
+Apple MPS; the rest of that MPS replay is paused to keep the Mac free.
+See [the integrated checkpoint commands](REPRODUCE.md#run-the-integrated-integer-checkpoint)
+and [the saved verification output](results/final_candidate_cuda/qualification.txt).
+
 ## Original SIMT variant
 
 The repository contains an independent eight-lane reference machine.
