@@ -39,6 +39,12 @@ checksums, and confirm the documentation matches the completed
 qualification. After a flip, check both READMEs, images, source pins,
 and the pinned model download in a signed-out session.
 
+The all-ref source scan at `66cd619` covered the nine remote branches.
+Gitleaks returned 25 generic API-key matches. Review of the matched
+lines found 23 tokenized-prompt SHA-256 fields, one matrix-token
+SHA-256 constant, and one tokenizer symbol. Record the final branch
+and tag set and rerun the scan after the release candidate is pinned.
+
 ## Pinned checkpoint
 
 The verified v3 package is stored in the Hugging Face model repository
