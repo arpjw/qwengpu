@@ -2010,8 +2010,11 @@ python -m qwengpu.eval_resident_generation --device mps \
   --out inherited-mps.json "${fixtures[@]}"
 python scripts/check_resident_generation.py results/cache_register_edge_cuda \
   inherited-mps.json --inherited-baseline results/model_stores_merged_cuda/inherited.json
-bash scripts/qualify_resident_generation_mps.sh "$reports"
+bash scripts/qualify_resident_generation_mps.sh "$reports" "$cuda_reports"
 ```
+
+The MPS verifier checks the independent reference and compares generated
+tokens and final memory against the complete merged CUDA reports.
 
 To offload standalone weight compilation from the Apple host, build the
 weights on a Linux machine with the pinned compiler environment. Copy the
@@ -2022,7 +2025,7 @@ starting at zero.
 ```bash
 python scripts/export_resident_generation_standalone.py "$standalone"
 QWENGPU_STANDALONE_WEIGHTS="$standalone" \
-  bash scripts/qualify_resident_generation_mps.sh "$reports"
+  bash scripts/qualify_resident_generation_mps.sh "$reports" "$cuda_reports"
 ```
 
 ### Run general tiled uint32 matrix multiply

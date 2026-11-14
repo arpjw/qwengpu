@@ -52,6 +52,46 @@ def check_fixtures(report, expected):
         check_launch(case)
 
 
+def check_cross_backend(mps, cuda):
+    def compare(left, right):
+        for key in ("generated_tokens", "outcome", "global_words", "tile_words", "scoped_words"):
+            if key in left or key in right:
+                assert left[key] == right[key], key
+
+    suites = (
+        ("interleaved-mps.json", "interleaved-merged.json"),
+        ("sequential-mps.json", "sequential-merged.json"),
+        ("memory512-raw.json", "memory512-raw.json"),
+        ("integer-programs.json", "integer-programs.json"),
+    )
+    for local_name, merged_name in suites:
+        left = read(mps, local_name)["cases"]
+        right = {case["fixture"]: case for case in read(cuda, merged_name)["cases"]}
+        assert len(left) == len(right)
+        for case in left:
+            merged = right.pop(case["fixture"])
+            assert case["sha256"] == merged["sha256"]
+            compare(case, merged)
+        assert not right
+
+    for name in ("memory512-compute.json", "tiled.json"):
+        left = read(mps, name)["cases"]
+        right = read(cuda, name)["cases"]
+        for key, case in left.items():
+            for run, merged in zip(case["launches"], right[key]["launches"], strict=True):
+                compare(run, merged)
+    for name in ("scoped_reset.json", "interleaved_handoff.json"):
+        left, right = read(mps, name), read(cuda, name)
+        for phase in ("producer", "consumer"):
+            compare(left[phase], right[phase])
+    compare(read(mps, "scoped-shared-u32.json"), read(cuda, "scoped-shared-u32.json"))
+    left, right = read(mps, "matmul16.json"), read(cuda, "matmul16.json")
+    for panel, merged_panel in zip(left["passes"], right["passes"], strict=True):
+        for run, merged in zip(panel["launches"], merged_panel["launches"], strict=True):
+            compare(run, merged)
+    print("Apple MPS and merged CUDA match on the remaining launch tokens and memory")
+
+
 def check_memory512(root):
     baseline = read(BASELINE, "memory512.json")
     assert baseline["all_exact"]
@@ -192,7 +232,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="?", default=RESULTS / "resident_generation_v3_cuda")
     parser.add_argument("--mps", action="store_true", help="check standalone Apple MPS reports")
+    parser.add_argument("--compare-cuda", type=Path,
+                        help="compare MPS reports with a complete merged CUDA report directory")
     args = parser.parse_args()
+    if args.compare_cuda is not None and not args.mps:
+        parser.error("--compare-cuda requires --mps")
     root = args.reports
     backend = "mps" if args.mps else "merged"
     device = "mps" if args.mps else "cuda"
@@ -234,6 +278,8 @@ def main():
     check_scoped_shared_u32(root)
     check_matmul16(root)
     if args.mps:
+        if args.compare_cuda is not None:
+            check_cross_backend(root, args.compare_cuda)
         return
 
     manifest = read(root, "manifest.json")

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 reports="${1:?expected report directory}"
+cuda_reports="${2:-results/resident_generation_v3_cuda}"
 python="${QWENGPU_PYTHON:-python}"
 mkdir -p "$reports"
 "$python" -c 'import torch; assert torch.backends.mps.is_available(), "Apple MPS is unavailable"'
@@ -51,4 +52,4 @@ done
   --resident-generate --device mps --check-reference --trace --out "$reports/scoped-shared-u32.json"
 "$python" -m qwengpu.run_matmul16 eval/frozen/matmul16_gate_v1/dense_seeded.json \
   --resident-generate --device mps --out "$reports/matmul16.json"
-"$python" scripts/check_resident_generation_v3.py --mps "$reports"
+"$python" scripts/check_resident_generation_v3.py --mps "$reports" --compare-cuda "$cuda_reports"
