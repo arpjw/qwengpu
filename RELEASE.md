@@ -1,9 +1,9 @@
 # Private checkpoint handoff
 
-The final RunPod teardown requires a verified, recoverable private copy
-of the qualified merged checkpoint. Keep the build pod until the
-restore checks and receipt below are complete. A public release is a
-separate decision.
+The final RunPod teardown required a verified, recoverable private copy
+of the qualified merged checkpoint. The private GitHub backup and clean
+file restore passed before the task pod was terminated. A public release
+is a separate decision.
 
 ## License and attribution
 
@@ -39,7 +39,7 @@ checksums, and confirm the documentation matches the completed
 qualification. After a flip, check both READMEs, images, source pins,
 and the pinned model download in a signed-out session.
 
-The all-ref source scan at `4d4a5ef` covered nine remote branches and
+The all-ref source scan at `53b513b` covered nine remote branches and
 no tags. Gitleaks 8.30.1 returned 26 generic API-key matches. Review
 of the matched lines found 24 tokenized-prompt SHA-256 fields, one
 matrix-token SHA-256 constant, and one tokenizer symbol. None is a
@@ -62,7 +62,8 @@ The 48 packaged content files are listed in
 whose SHA-256 is
 `f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213`.
 The [CUDA verifier output](results/resident_generation_v4_cuda/verification.txt)
-exited zero. This is a qualified package, not a restored release.
+exited zero. This is a CUDA-qualified package; the restored copy has
+only passed file-integrity checks.
 
 The authorized private upload to `arpjw/Qwen-GPU` failed on November
 14 with Hugging Face's response: `Private storage limit reached for
@@ -94,12 +95,17 @@ SHA256SUMS digest in [restore-checksum.txt](results/resident_generation_v4_cuda/
 This is a clean byte-for-byte file restore. GPU execution on the restored
 copy is still pending.
 
-The original and restored packages remain on RunPod pod `gmgmirb2mz2hyy`
-while GPU restore is attempted. The CPU-only recovery pod is billable at
-$1.345/hour plus storage and will be terminated after the evidence is
-saved. A full v4 Hugging Face upload still needs private storage
-capacity. The existing v3 revision remains the verified downloadable
-model below.
+RunPod could not place the retained volume on a GPU after the restore:
+its migration dialog reported `There are no instances currently
+available`. Pod `gmgmirb2mz2hyy` was terminated after the restore
+evidence was pushed. Deletion returned HTTP 204, a follow-up lookup
+returned 404, and the pod list was empty. A post-teardown download of
+the private release's `SHA256SUMS` matched the pinned digest. The
+[teardown receipt](results/resident_generation_v4_cuda/teardown-receipt.json)
+records the checks and billing boundary. GPU execution on the clean
+v4 download still needs a 96 GB CUDA host. A full v4 Hugging Face upload
+also needs private storage capacity. The existing v3 revision remains
+the verified downloadable model below.
 
 Reproduce this private file restore with GitHub access and the release
 ID above. The helper reads a token from standard input and requires a

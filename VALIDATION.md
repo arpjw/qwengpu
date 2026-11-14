@@ -455,8 +455,11 @@ integer, signed-edge, and upper-ROM-loop fixtures are exact. The complete
 128-element reductions. All 27 inherited fixtures also pass on the
 exported standalone circuit. The complete CUDA verifier exited zero
 and checked the manifest's 35 shard digests. The 48-file package checksum
-pass is complete. Its private upload and clean restore are blocked by
-the Hugging Face account's private storage limit. See the
+pass is complete. The Hugging Face upload was rejected by the account's
+private storage limit. A private GitHub draft backup and clean file
+restore passed all part, full-file, and package checks. GPU execution
+on the restored copy remains unverified because RunPod had no matching
+GPU instance for the retained volume. See the
 [v4 validation graphic](docs/media/validation-v4.png).
 The model weights were built from QwenGPU `702a6f9`; the complete
 [qualified manifest](results/resident_generation_v4_cuda/manifest.json),

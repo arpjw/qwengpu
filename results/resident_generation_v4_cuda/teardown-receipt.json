@@ -1,0 +1,23 @@
+{
+  "checked_at_utc": "2026-11-14T14:18:29.255789+00:00",
+  "pod_id": "gmgmirb2mz2hyy",
+  "delete_http_status": 204,
+  "post_delete_get_http_status": 404,
+  "post_delete_pod_count": 0,
+  "gpu_migration_result": "RunPod console reported: There are no instances currently available",
+  "restored_file_count": 49,
+  "restore_process_exit": 0,
+  "package_checker_exit": 0,
+  "package_checksum_sha256": "f20d0565c37fb766ce0eb80544c6693fcb20c6075b4987dcd41d35708cd7d213",
+  "post_teardown_release_checksum_download": "matched",
+  "posted_pod_billing_at_check_usd": {
+    "gpu": 20.72026826441288,
+    "disk": 0.34438657155260444,
+    "cpu": 0,
+    "total": 21.064654835965484
+  },
+  "cpu_phase_rate_usd_per_hour": 1.345,
+  "cpu_phase_conservative_incremental_reserve_usd": 3.95,
+  "project_cap_usd": 74,
+  "conservative_remaining_project_headroom_usd": 2.43
+}

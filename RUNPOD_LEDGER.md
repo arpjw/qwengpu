@@ -441,7 +441,26 @@ $0.222049 disk. Billing lags elapsed time. From its 03:37:57 UTC start
 through the stop confirmed before 11:20:54 UTC, compute alone projects
 at most about $20.76 at $2.69/hour. Reserve $21.50 for this pod's
 compute and running-disk charges until the final invoice reconciles.
-This leaves approximately $6.38 of the $74 project cap after the
-previous conservative reserves. The stopped 250 GB volume still bills
-at $0.20/GB/month, about $50/month or $1.67/day, until the pod is
-terminated; that ongoing charge must also remain within the cap.
+At that point, this left approximately $6.38 of the $74 project cap
+after the previous conservative reserves. The stopped 250 GB volume
+continued billing until the later termination.
+
+RunPod restarted the same pod with zero GPUs on CPU hardware at
+11:28:25 UTC for the private backup and clean file restore. The live
+compute quote was $1.345/hour plus running volume storage (the console
+showed $1.39/hour total). The backup uploaded 91 assets, and the clean
+download passed all 49 file checks and the pinned package checker.
+The CPU pod was stopped by 14:16:34 UTC. RunPod had no GPU instance
+available to migrate the retained volume. Deletion returned HTTP 204
+and a follow-up lookup returned 404 by 14:17:23 UTC; the pod list was
+empty. A post-teardown GitHub download matched the package checksum.
+
+The 14:17:23 UTC billing query had posted $21.064655 for this pod:
+$20.720268 GPU, $0.344387 disk, and $0 CPU. CPU billing had not posted,
+so this is not the final invoice. The CPU phase lasted at most about
+2 hours 49 minutes, projecting at most $3.79 compute at the quoted
+rate. Reserve $3.95 incremental for CPU and storage, including the
+short stopped interval. Together with the earlier $21.50 GPU-phase
+reserve, the conservative pod reserve is $25.45. The $74 project cap
+has approximately $2.43 of headroom after all earlier reserves and
+this one. No RunPod pods remain active.
